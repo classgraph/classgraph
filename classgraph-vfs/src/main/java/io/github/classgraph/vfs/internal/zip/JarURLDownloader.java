@@ -45,12 +45,12 @@ import org.jspecify.annotations.Nullable;
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.vfs.Vfs;
 
-/** Fetch a jarfile named by a URL, so that it can be scanned. */
+/** Downloads or opens a jarfile referenced by a URL. */
 final class JarURLDownloader {
-    /** The connect timeout and the read timeout of a URL connection, in milliseconds. */
+    /** Connect and read timeout for URL connections, in milliseconds. */
     private static final int TIMEOUT_MILLIS = 5000;
 
-    /** The most redirects that are followed for one URL. (The JDK's default for {@code http.maxRedirects}.) */
+    /** Maximum number of HTTP redirects followed for a single URL. */
     private static final int MAX_REDIRECTS = 20;
 
     /** Not instantiable. */
@@ -59,8 +59,8 @@ final class JarURLDownloader {
     }
 
     /**
-     * A {@link URLConnection} that can be used in a try-with-resources block, so that the underlying HTTP
-     * connection is disconnected when it goes out of scope.
+     * An {@link AutoCloseable} wrapper around {@link URLConnection} that disconnects HTTP connections and closes
+     * underlying jarfiles when closed.
      */
     private static final class CloseableUrlConnection implements AutoCloseable {
         /** The connection. */
@@ -104,22 +104,20 @@ final class JarURLDownloader {
     }
 
     /**
-     * Read a jar from a URL into RAM, or into a temporary file if it is larger than
-     * {@link io.github.classgraph.vfs.VfsSpec#getMaxBufferedJarRAMSize()}. A URL that names a {@link Path} in an
-     * installed filesystem, such as a "file:" URL, is opened as that {@link Path} rather than read through the URL,
-     * which also opens a URI whose scheme has a filesystem provider but no URL stream handler. An http or https
-     * redirect is followed, as long as {@link #redirectTarget(URL, String, Vfs)} allows it.
+     * Read a jarfile from a URL into RAM (or a temporary file if it exceeds
+     * {@link io.github.classgraph.vfs.VfsSpec#getMaxBufferedJarRAMSize()}), or open it directly as a {@link Path}
+     * if backed by an installed filesystem.
      *
      * @param jarURL
      *            the jar URL
      * @param vfs
-     *            the {@link Vfs} that is opening this jarfile
+     *            the {@link Vfs} opening this jarfile
      * @param log
      *            the log node, or null to skip logging
-     * @return the jar, as a {@link PhysicalZipFile}.
+     * @return the opened {@link PhysicalZipFile}.
      * @throws IOException
-     *             If the jar could not be read, the jar URL is malformed, the URL's scheme has been denied, a
-     *             redirect could not be followed, or the temporary file could not be created or written.
+     *             if the URL is malformed, its scheme is denied, a redirect fails, or the jarfile could not be
+     *             read.
      */
     static PhysicalZipFile downloadJarFromURL(final String jarURL, final Vfs vfs, final @Nullable LogNode log)
             throws IOException {
@@ -222,22 +220,19 @@ final class JarURLDownloader {
     }
 
     /**
-     * Open a jar at a URI through the filesystem that is installed for the URI's scheme, if there is one, rather
-     * than downloading a copy of it.
+     * Open a jarfile at {@code uri} directly via an installed {@link java.nio.file.FileSystem}, if available.
      *
      * @param uri
-     *            the URI of the jar.
+     *            the jarfile URI.
      * @param jarURL
-     *            the jar URL, as it was given.
+     *            the original jar URL string.
      * @param vfs
-     *            the {@link Vfs} that is opening this jarfile.
+     *            the {@link Vfs} opening this jarfile.
      * @param log
      *            the log node, or null to skip logging.
-     * @return the jar, as a {@link PhysicalZipFile}, or null if no filesystem is installed for the URI's scheme, or
-     *         the installed one has no filesystem open that holds the URI.
+     * @return the {@link PhysicalZipFile}, or null if no open filesystem handles {@code uri}.
      * @throws IOException
-     *             if a filesystem is installed for the URI's scheme but it rejected the URI, a security manager
-     *             denied access to it, or the jar could not be read.
+     *             if the filesystem rejected {@code uri} or the jarfile could not be opened.
      */
     private static @Nullable PhysicalZipFile openThroughFilesystem(final URI uri, final String jarURL,
             final Vfs vfs, final @Nullable LogNode log) throws IOException {
@@ -259,11 +254,11 @@ final class JarURLDownloader {
     }
 
     /**
-     * Whether an HTTP response code is a redirect that should be followed.
+     * Return true if {@code responseCode} is an HTTP redirect status code (301, 302, 303, 307, or 308).
      *
      * @param responseCode
      *            the HTTP response code.
-     * @return true for 301, 302, 303, 307 and 308. (300 and 305 are left alone, as HttpURLConnection leaves them.)
+     * @return true if {@code responseCode} is a redirect.
      */
     private static boolean isRedirect(final int responseCode) {
         return switch (responseCode) {
@@ -275,18 +270,18 @@ final class JarURLDownloader {
     }
 
     /**
-     * Find the URL that a redirect points to, and check that it may be fetched. A redirect may only go to an http
-     * or https URL, may not go from https to http, and may not go to a scheme that has been denied.
+     * Resolve and validate an HTTP redirect target URL, rejecting non-HTTP(S) targets, HTTPS-to-HTTP downgrades,
+     * and denied schemes.
      *
      * @param url
-     *            the URL that was redirected.
+     *            the URL being redirected.
      * @param location
-     *            the value of the redirect's {@code Location} header, which may be relative to {@code url}.
+     *            the {@code Location} header value.
      * @param vfs
-     *            the {@link Vfs} that is opening the jarfile, whose denied URL schemes are checked.
-     * @return the URL to fetch next.
+     *            the {@link Vfs} whose denied URL schemes are checked.
+     * @return the resolved redirect target URL.
      * @throws IOException
-     *             if the location is not a valid URL, or the redirect may not be followed.
+     *             if {@code location} is invalid or the redirect is disallowed.
      */
     static URL redirectTarget(final URL url, final String location, final Vfs vfs) throws IOException {
         final URL redirectURL;
@@ -308,19 +303,19 @@ final class JarURLDownloader {
     }
 
     /**
-     * Read a jar from a URL connection that has been connected, and has answered with the jar.
+     * Read a jarfile from an established {@link CloseableUrlConnection}.
      *
      * @param urlConn
-     *            the URL connection.
+     *            the connected URL connection.
      * @param jarURL
-     *            the jar URL, as it was given, before any redirect.
+     *            the original jar URL string.
      * @param vfs
-     *            the {@link Vfs} that is opening this jarfile.
+     *            the {@link Vfs} opening this jarfile.
      * @param log
      *            the log node, or null to skip logging.
-     * @return the jar, as a {@link PhysicalZipFile}.
+     * @return the downloaded {@link PhysicalZipFile}.
      * @throws IOException
-     *             If the jar could not be read, or the temporary file could not be created or written.
+     *             if the jarfile could not be downloaded or written to a temporary file.
      */
     private static PhysicalZipFile download(final CloseableUrlConnection urlConn, final String jarURL,
             final Vfs vfs, final @Nullable LogNode log) throws IOException {

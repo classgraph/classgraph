@@ -42,74 +42,68 @@ import org.jspecify.annotations.Nullable;
 import io.github.classgraph.base.internal.utils.StringUtils;
 
 /**
- * {@link RandomAccessReader} for a {@link FileChannel}. Reads in <b>little endian</b> order by default, as required
- * by the zipfile format, which is what this reader was written for; pass a {@link ByteOrder} to read content
- * written in the other order. See {@link RandomAccessReader} for why the byte order is a property of the content
- * and not of the machine.
+ * {@link RandomAccessReader} backed by a slice of a {@link FileChannel}. Defaults to
+ * {@link ByteOrder#LITTLE_ENDIAN}.
  *
  * <p>
- * A {@link FileChannel} is closed by a read on a thread that has been interrupted, or that is interrupted during
- * the read, for every thread that reads it. A channel that several threads read can therefore be given to this
- * reader as a {@link FileChannelSource}, which this reader asks for the channel before every read, so that the
- * owner of the channel can reopen it. A read that fails because another thread closed the channel during the read
- * asks the source for the channel again, and carries on from where it stopped.
+ * When constructed with a {@link FileChannelSource}, the source is queried before each read and re-queried if a
+ * concurrent thread closes the channel via interruption ({@link ClosedChannelException} other than
+ * {@link ClosedByInterruptException}), allowing shared channels to be transparently reopened.
  */
 public final class RandomAccessFileChannelReader implements RandomAccessReader {
     /**
-     * Where a {@link RandomAccessFileChannelReader} gets the channel that it reads.
+     * Supplier of the {@link FileChannel} read by a {@link RandomAccessFileChannelReader}.
      */
     @FunctionalInterface
     public interface FileChannelSource {
         /**
-         * Get the channel to read. This is called before every read, so it should be fast.
+         * Returns the open {@link FileChannel} to read from.
          *
          * @return the channel to read.
          * @throws IOException
-         *             if there is no channel to read, because the file has been closed, say.
+         *             if the channel cannot be obtained or the underlying file has been closed.
          */
         FileChannel fileChannel() throws IOException;
     }
 
-    /** Where the file channel comes from. */
+    /** Source of the file channel. */
     private final FileChannelSource fileChannelSource;
 
-    /** The offset within the file at which the content starts. */
+    /** The start offset of the slice within the file. */
     private final long sliceStartPos;
 
-    /** The number of bytes of content. */
+    /** The length of the slice in bytes. */
     private final long sliceLength;
 
-    /** The buffer that wraps the array of the last array read, or null until the first array read. */
+    /** Cached {@link ByteBuffer} wrapper for the last array read, or null. */
     private @Nullable ByteBuffer reusableByteBuffer;
 
-    /** The array that a single value is read into. */
+    /** Scratch array for reading primitive values. */
     private final byte[] scratchArr = new byte[8];
 
-    /** The buffer that wraps {@link #scratchArr}. */
+    /** Buffer wrapping {@link #scratchArr}. */
     private final ByteBuffer scratchByteBuf = ByteBuffer.wrap(scratchArr);
 
-    /** The reusable buffer that strings are read into, or null until the first string read. */
+    /** Reusable byte buffer for decoding strings, or null. */
     private byte @Nullable [] stringBytes;
 
-    /** The byte order multi-byte values are read in. */
+    /** The byte order for multi-byte values. */
     private final ByteOrder byteOrder;
 
-    /**
-     * Whether {@link #byteOrder} is {@link ByteOrder#BIG_ENDIAN}, kept as a field to keep the reads branch-free.
-     */
+    /** True if {@link #byteOrder} is {@link ByteOrder#BIG_ENDIAN}. */
     private final boolean bigEndian;
 
     /**
-     * Constructor for slicing a file channel, reading in little endian order, as the zipfile format requires.
+     * Construct a little-endian reader over a slice of a {@link FileChannel}.
      *
      * @param fileChannel
-     *            the channel to read. Its position is ignored and not changed.
+     *            the channel to read (its position is neither used nor modified).
      * @param sliceStartPos
-     *            the offset within the file at which the content starts.
+     *            the start offset of the slice within the file.
      * @param sliceLength
-     *            the number of bytes of content.
+     *            the length of the slice in bytes.
      * @throws IndexOutOfBoundsException
-     *             if the start or the length is negative.
+     *             if {@code sliceStartPos} or {@code sliceLength} is negative, or their sum overflows.
      */
     public RandomAccessFileChannelReader(final FileChannel fileChannel, final long sliceStartPos,
             final long sliceLength) {
@@ -117,19 +111,18 @@ public final class RandomAccessFileChannelReader implements RandomAccessReader {
     }
 
     /**
-     * Constructor for slicing a file channel, reading in a given byte order.
+     * Construct a reader over a slice of a {@link FileChannel} with the specified byte order.
      *
      * @param fileChannel
-     *            the channel to read. Its position is ignored and not changed.
+     *            the channel to read (its position is neither used nor modified).
      * @param sliceStartPos
-     *            the offset within the file at which the content starts.
+     *            the start offset of the slice within the file.
      * @param sliceLength
-     *            the number of bytes of content.
+     *            the length of the slice in bytes.
      * @param byteOrder
-     *            the byte order to read multi-byte values in. Pass {@link ByteOrder#nativeOrder()} for content
-     *            written in the byte order of the machine this is running on.
+     *            the byte order for multi-byte values.
      * @throws IndexOutOfBoundsException
-     *             if the start or the length is negative.
+     *             if {@code sliceStartPos} or {@code sliceLength} is negative, or their sum overflows.
      */
     public RandomAccessFileChannelReader(final FileChannel fileChannel, final long sliceStartPos,
             final long sliceLength, final ByteOrder byteOrder) {
@@ -137,17 +130,16 @@ public final class RandomAccessFileChannelReader implements RandomAccessReader {
     }
 
     /**
-     * Constructor for slicing a file channel that is got from a {@link FileChannelSource} before every read,
-     * reading in little endian order, as the zipfile format requires.
+     * Construct a little-endian reader over a slice of a channel supplied by a {@link FileChannelSource}.
      *
      * @param fileChannelSource
-     *            where to get the channel to read. The channel's position is ignored and not changed.
+     *            supplier of the channel to read (the channel's position is neither used nor modified).
      * @param sliceStartPos
-     *            the offset within the file at which the content starts.
+     *            the start offset of the slice within the file.
      * @param sliceLength
-     *            the number of bytes of content.
+     *            the length of the slice in bytes.
      * @throws IndexOutOfBoundsException
-     *             if the start or the length is negative.
+     *             if {@code sliceStartPos} or {@code sliceLength} is negative, or their sum overflows.
      */
     public RandomAccessFileChannelReader(final FileChannelSource fileChannelSource, final long sliceStartPos,
             final long sliceLength) {
@@ -155,20 +147,19 @@ public final class RandomAccessFileChannelReader implements RandomAccessReader {
     }
 
     /**
-     * Constructor for slicing a file channel that is got from a {@link FileChannelSource} before every read,
-     * reading in a given byte order.
+     * Construct a reader over a slice of a channel supplied by a {@link FileChannelSource} with the specified byte
+     * order.
      *
      * @param fileChannelSource
-     *            where to get the channel to read. The channel's position is ignored and not changed.
+     *            supplier of the channel to read (the channel's position is neither used nor modified).
      * @param sliceStartPos
-     *            the offset within the file at which the content starts.
+     *            the start offset of the slice within the file.
      * @param sliceLength
-     *            the number of bytes of content.
+     *            the length of the slice in bytes.
      * @param byteOrder
-     *            the byte order to read multi-byte values in. Pass {@link ByteOrder#nativeOrder()} for content
-     *            written in the byte order of the machine this is running on.
+     *            the byte order for multi-byte values.
      * @throws IndexOutOfBoundsException
-     *             if the start or the length is negative.
+     *             if {@code sliceStartPos} or {@code sliceLength} is negative, or their sum overflows.
      */
     public RandomAccessFileChannelReader(final FileChannelSource fileChannelSource, final long sliceStartPos,
             final long sliceLength, final ByteOrder byteOrder) {
@@ -278,15 +269,14 @@ public final class RandomAccessFileChannelReader implements RandomAccessReader {
     }
 
     /**
-     * Check that a read of a value stays within the slice, so that it cannot read the bytes that surround the slice
-     * in the file. (A zipfile can ask for a read at any offset, since offsets are read from the zipfile itself.)
+     * Verify that a read of {@code numBytes} at {@code offset} lies within the slice.
      *
      * @param offset
-     *            the offset to read from, relative to the start of the slice
+     *            the offset relative to the start of the slice.
      * @param numBytes
-     *            the number of bytes to read
+     *            the number of bytes to read.
      * @throws IOException
-     *             if the read would run past either end of the slice
+     *             if the range is out of bounds.
      */
     private void checkInBounds(final long offset, final int numBytes) throws IOException {
         // Compare by subtraction rather than addition, so that a large offset plus a large numBytes cannot

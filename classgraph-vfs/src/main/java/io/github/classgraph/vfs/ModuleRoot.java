@@ -49,40 +49,30 @@ import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
 import io.github.classgraph.vfs.internal.recycler.Recycler;
 
-/** A module of the module path, or of the running JDK. */
+/** A root backed by a JPMS {@link ModuleReference} from the module path or the runtime image. */
 public final class ModuleRoot extends VfsRoot {
-    /** The module. */
+    /** The module reference. */
     private final ModuleReference moduleReference;
 
-    /** The entries of the module, or null until {@link #getEntries()} is first called. */
+    /** Cached list of entries in the module, initialized on first call to {@link #getEntries()}. */
     private volatile @Nullable List<VfsEntry> entries;
 
-    /**
-     * The canonical path of the directory an exploded module is read from, or null until
-     * {@link #canonicalModuleDir()} first finds it.
-     */
+    /** Cached canonical directory path for an exploded module, or {@code null} if not yet resolved. */
     private volatile @Nullable Path canonicalModuleDir;
 
-    /**
-     * Hands out {@link ModuleReader} instances for this module, one per thread that is reading it, or null until
-     * the first read needs one. Created and read under {@link #moduleReaderRecyclerLock}.
-     */
+    /** Pool of {@link ModuleReader} instances for this module, guarded by {@link #moduleReaderRecyclerLock}. */
     private @Nullable Recycler<ModuleReader, IOException> moduleReaderRecycler;
 
-    /**
-     * Guards the lazy creation of {@link #moduleReaderRecycler}, so that two threads asking for it at once share
-     * one recycler rather than each creating their own, and the force-close of it in
-     * {@link #releaseResources(LogNode)}, so that a recycler cannot be created after the close has passed over it.
-     */
+    /** Lock guarding lazy initialization and closing of {@link #moduleReaderRecycler}. */
     private final Object moduleReaderRecyclerLock = new Object();
 
     /**
      * Constructor.
      *
      * @param vfs
-     *            the {@link Vfs} that opened this root.
+     *            the owning {@link Vfs}.
      * @param moduleReference
-     *            the module.
+     *            the module reference.
      */
     ModuleRoot(final Vfs vfs, final ModuleReference moduleReference) {
         super(vfs);
@@ -142,15 +132,11 @@ public final class ModuleRoot extends VfsRoot {
     }
 
     /**
-     * Percent-encode a {@code "!/"} in the module's location within a {@code "jar:"} URI that the module has named
-     * one of its resources by, as {@link #jarURIOf(String)} encodes it. The module reader of a modular jarfile
-     * names a resource {@code "jar:" + location + "!/" + path}, leaving a {@code "!/"} in the location, as at the
-     * end of a directory named "dir!", unencoded, so the JDK would end the jarfile's path there.
+     * Percent-encode any {@code "!/"} sequence in the module location portion of a {@code "jar:"} resource URI.
      *
      * @param uri
-     *            the URI the module named a resource by.
-     * @return the URI, with the module's location in it encoded if it is a {@code "jar:"} URI of a path within the
-     *         module's location, or else the URI unchanged.
+     *            the resource URI returned by the {@link ModuleReader}.
+     * @return the URI with any {@code "!/"} in the module location encoded.
      */
     private URI encodeLocationInJarURI(final URI uri) {
         final var locationStr = moduleReference.location().map(URI::toString).orElse("");
@@ -240,20 +226,12 @@ public final class ModuleRoot extends VfsRoot {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the recycler that hands out {@link ModuleReader} instances for this module. The readers the JDK supplies
-     * for modular jarfiles and jmod files are thread-safe, but take a lock per read, so threads that share one
-     * reader contend with each other, and opening a reader costs far more than a read does. So each thread that
-     * reads the module borrows a pooled reader of its own. The pooled readers are closed when this root is closed,
-     * which happens no later than when the {@link Vfs} is closed.
+     * Return the {@link Recycler} of {@link ModuleReader} instances for this module, creating it on first use.
+     * Callers must acquire readers via {@link #acquireReader(Recycler)}.
      *
-     * <p>
-     * A reader must be acquired from the recycler with {@link #acquireReader(Recycler)} rather than with
-     * {@link Recycler#acquire()}, since this root can close between the return of this method and the acquire.
-     *
-     * @return the recycler.
+     * @return the {@link ModuleReader} recycler.
      * @throws IOException
-     *             if this root or the {@link Vfs} has been closed. The module itself cannot fail to open here,
-     *             since a reader is only opened when the recycler first hands one to a thread.
+     *             if this root or the {@link Vfs} has been closed.
      */
     Recycler<ModuleReader, IOException> moduleReaderRecycler() throws IOException {
         synchronized (moduleReaderRecyclerLock) {
@@ -279,16 +257,13 @@ public final class ModuleRoot extends VfsRoot {
     }
 
     /**
-     * Acquire a {@link ModuleReader} from the recycler that {@link #moduleReaderRecycler()} returned, and hand it
-     * straight back if this root has closed since then. The caller must hand the reader back to the recycler once
-     * it has finished with it.
+     * Acquire a {@link ModuleReader} from {@code recycler}, recycling it immediately if this root has closed.
      *
      * @param recycler
-     *            the recycler.
-     * @return the reader.
+     *            the recycler returned by {@link #moduleReaderRecycler()}.
+     * @return the acquired {@link ModuleReader}.
      * @throws IOException
-     *             if the module could not be opened, or if this root, or the {@link Vfs} that opened it, has been
-     *             closed.
+     *             if the module cannot be opened, or if this root or the {@link Vfs} has been closed.
      */
     ModuleReader acquireReader(final Recycler<ModuleReader, IOException> recycler) throws IOException {
         final var reader = recycler.acquire();
@@ -346,14 +321,13 @@ public final class ModuleRoot extends VfsRoot {
     }
 
     /**
-     * List the entries of the module, logging to the given log node.
+     * List all canonical resource entries in the module in sorted order.
      *
      * @param log
-     *            the log node, or null to not log.
-     * @return the entries.
+     *            the log node, or {@code null}.
+     * @return an unmodifiable list of module entries.
      * @throws IOException
-     *             if the module could not be listed, or if the root, or the {@link Vfs} that opened it, has been
-     *             closed.
+     *             if the module cannot be listed, or if this root or the {@link Vfs} has been closed.
      */
     private List<VfsEntry> listEntries(final @Nullable LogNode log) throws IOException {
         final var recycler = moduleReaderRecycler();
@@ -432,13 +406,9 @@ public final class ModuleRoot extends VfsRoot {
     }
 
     /**
-     * The canonical path of the directory an exploded module is read from, which is what
-     * {@link #isCaseFoldedMatch(Path, Path)} compares the real path of a file with, the same way {@link DirRoot}
-     * gives it its canonicalized directory. The location of a module is not canonicalized by the JDK, so a module
-     * directory reached through a symbolic link, or on Windows through an 8.3 short name, would otherwise never
-     * contain the real path of any of its files, and the case check would never fire.
+     * Return the canonical directory path if this module is an exploded directory on the filesystem.
      *
-     * @return the canonical path of the module directory, or null if the module is not exploded into a directory.
+     * @return the canonical directory path, or {@code null} if the module is not an exploded directory.
      */
     private @Nullable Path canonicalModuleDir() {
         var dir = canonicalModuleDir;

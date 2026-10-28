@@ -51,9 +51,8 @@ final class TypeUtils {
      *            If true, stop parsing when the first '$' is hit (except as allowed by
      *            {@code dollarAtSegmentStartIsPartOfName}).
      * @param dollarAtSegmentStartIsPartOfName
-     *            If true, a run of '$' characters at the start of the identifier, or right after a '/', is part of
-     *            the name even if {@code stopAtDollarSign} is true. Such a '$' has no name before it in the same
-     *            package segment, so it cannot separate a nested class name from the name of its enclosing class.
+     *            If true, leading '$' characters at the start of the identifier or immediately after a '/' are
+     *            treated as part of the identifier even when {@code stopAtDollarSign} is true.
      * @param stopAtDot
      *            If true, stop parsing when the first '.' is hit.
      * @return true if at least one identifier character was parsed.

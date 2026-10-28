@@ -35,13 +35,13 @@ import java.util.Properties;
 
 import org.jspecify.annotations.Nullable;
 
-/** Finds the version number of a Maven artifact, and the version of the JDK. */
+/** Finds the version number of a Maven artifact, the operating system type, and the major version of the JDK. */
 public final class VersionFinder {
 
     /** The operating system type. */
     public static final OperatingSystem OS;
 
-    /** Java major version -- 17 for "17.0.4", 21 for "21-ea", etc. */
+    /** Java major version (e.g. 17 for "17.0.4", 21 for "21-ea"). */
     public static final int JAVA_MAJOR_VERSION = Runtime.version().feature();
 
     /** The operating system type. */
@@ -140,26 +140,12 @@ public final class VersionFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the version number of the Maven artifact that a given class is packaged in. The version is read from the
-     * first of these that records one:
-     *
-     * <ol>
-     * <li>{@code META-INF/maven/<groupId>/<artifactId>/version.properties}, which the build of each ClassGraph
-     * module generates by resource filtering, so it is present both in the jar and in a build directory such as
-     * {@code target/classes};</li>
-     * <li>{@code META-INF/maven/<groupId>/<artifactId>/pom.properties}, which Maven writes into every jar it
-     * builds;</li>
-     * <li>the implementation or specification version of the class's {@link Package}, which the JDK reads from the
-     * jar manifest.</li>
-     * </ol>
-     *
-     * <p>
-     * The two properties files are under {@code META-INF/}, not in a package directory, because a resource in a
-     * package of a named module can only be read by that module, and this method is called from another module.
+     * Get the version number of the Maven artifact containing {@code classInArtifact} from
+     * {@code META-INF/maven/<groupId>/<artifactId>/version.properties}, {@code pom.properties}, or the package
+     * manifest.
      *
      * @param classInArtifact
-     *            a class that is packaged in the artifact, used to find the artifact's properties files or
-     *            manifest.
+     *            a class packaged in the artifact.
      * @param mavenGroupId
      *            the {@code groupId} of the artifact.
      * @param mavenArtifactId
@@ -181,12 +167,11 @@ public final class VersionFinder {
     }
 
     /**
-     * Trim a version string, mapping null and the empty string to null, so that an absent version and a blank one
-     * are treated the same way.
+     * Trim a version string, returning {@code null} if {@code null} or blank.
      *
      * @param version
-     *            the version string, or null.
-     * @return the trimmed version string, or null if there was no non-blank version.
+     *            the version string, or {@code null}.
+     * @return the trimmed version string, or {@code null} if blank.
      */
     private static @Nullable String trimVersion(final @Nullable String version) {
         if (version == null) {
@@ -197,8 +182,8 @@ public final class VersionFinder {
     }
 
     /**
-     * Get the version number from a properties file in the artifact's {@code META-INF/maven/<groupId>/<artifactId>}
-     * directory.
+     * Read the {@code version} property from a file under {@code META-INF/maven/<groupId>/<artifactId>/}, or return
+     * {@code null} if absent, blank, or unexpanded.
      *
      * @param cls
      *            a class packaged in the artifact.
@@ -208,9 +193,7 @@ public final class VersionFinder {
      *            the {@code artifactId} of the artifact.
      * @param fileName
      *            the name of the properties file.
-     * @return the value of the {@code version} property, or null if the file could not be read, or has no non-blank
-     *         version, or has a version that is an unexpanded Maven property reference such as
-     *         {@code ${project.version}} (because the file was copied by a build that does not filter resources).
+     * @return the version string, or {@code null} if unavailable.
      */
     private static @Nullable String versionFromMavenProperties(final Class<?> cls, final String mavenGroupId,
             final String mavenArtifactId, final String fileName) {
@@ -229,12 +212,12 @@ public final class VersionFinder {
     }
 
     /**
-     * Get the version number from the {@link Package} of a class in the artifact, which the JDK reads from the
-     * jar's {@code MANIFEST.MF}.
+     * Read the implementation or specification version from the {@link Package} of {@code cls}, or return
+     * {@code null} if unavailable.
      *
      * @param cls
      *            a class packaged in the artifact.
-     * @return the version number, or null if it could not be read.
+     * @return the version number, or {@code null} if unavailable.
      */
     private static @Nullable String versionFromPackage(final Class<?> cls) {
         final var pkg = cls.getPackage();

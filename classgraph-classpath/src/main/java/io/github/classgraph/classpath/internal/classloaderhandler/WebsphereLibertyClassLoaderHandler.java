@@ -45,7 +45,7 @@ import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
 
 /**
- * Finds the classloader delegation order and the classpath of the IBM WebSphere Liberty application and thread
+ * Extracts the classloader delegation order and classpath entries from IBM WebSphere Liberty application and thread
  * context classloaders.
  *
  * @author R. Kempees
@@ -74,17 +74,16 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Delegate to every classloader held in one of the delegate-classloader fields of a Liberty classloader. The
-     * field holds an {@link Iterable} of classloaders, or null if this classloader has no delegates of that kind.
+     * Delegates to each classloader in the specified iterable field of a Liberty classloader.
      *
      * @param classLoader
-     *            the classloader
+     *            the classloader.
      * @param fieldName
-     *            the name of the field holding the delegate classloaders
+     *            the name of the field holding the delegate classloaders.
      * @param classLoaderOrder
-     *            the classloader order
+     *            the classloader order.
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or {@code null} to skip logging.
      */
     private static void delegateToAll(final ClassLoader classLoader, final String fieldName,
             final ClassLoaderOrder classLoaderOrder, final @Nullable ClassGraphLog log) {
@@ -122,12 +121,12 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Get the paths of a {@code com.ibm.ws.classloading.internal.ContainerClassLoader} classpath element, from its
-     * {@code getContainerURLs} method if it has one, otherwise from the container it wraps.
+     * Extracts paths or URLs from a {@code com.ibm.ws.classloading.internal.ContainerClassLoader} classpath
+     * element.
      *
      * @param containerClassLoader
-     *            the classpath element, or null
-     * @return the paths, each a {@link URL} or a {@link String}, or an empty collection if none were found.
+     *            the classpath element, or {@code null}.
+     * @return the extracted {@link URL} or {@link String} paths, or an empty collection if none were found.
      */
     private static Collection<Object> getPaths(final @Nullable Object containerClassLoader) {
         if (containerClassLoader == null) {
@@ -178,21 +177,14 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Call a "getURLs"-style method, flattening a collection of collections into a single collection. A container
-     * that does not implement the method throws {@link UnsupportedOperationException}, which
-     * {@link ReflectionUtils#invokeMethod(boolean, Object, String)} turns into a null result, so that container
-     * contributes no URLs.
-     *
-     * <p>
-     * All of the "getURLs"-style methods end up calling {@code com.ibm.wsspi.adaptable.module.Container#getURLs()},
-     * which returns "a collection of URLs that represent all of the locations on disk that contribute to this
-     * container".
+     * Invokes a URL-returning method on {@code container} and flattens any nested collections into a single
+     * collection.
      *
      * @param container
-     *            the container object to call the method on
+     *            the container object.
      * @param methodName
-     *            the name of the "getURLs"-style method to call
-     * @return the flattened URLs, or an empty collection if the method could not be called or returned nothing.
+     *            the name of the method to invoke.
+     * @return the flattened URLs, or an empty collection if the method returned nothing.
      */
     private static Collection<Object> callGetUrls(final Object container, final String methodName) {
         if (!(ReflectionUtils.invokeMethod(false, container, methodName) instanceof final Collection<?> results)

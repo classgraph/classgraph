@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 
 import org.jspecify.annotations.Nullable;
 
-/** Assertions. */
+/** Argument validation utilities. */
 public final class Assert {
     /** Not instantiable. */
     private Assert() {
@@ -41,20 +41,14 @@ public final class Assert {
     }
 
     /**
-     * Throw {@link NullPointerException} if the argument is null.
-     *
-     * <p>
-     * ClassGraph's public API is {@code @NullMarked}, but that is a compile-time contract, which only protects
-     * callers that run a null checker of their own. Public API methods therefore check their arguments at runtime
-     * too, so that a null fails immediately, at the call that passed it, rather than deeper in ClassGraph or
-     * (worse) silently, as a "not found" result.
+     * Throw {@link NullPointerException} if {@code obj} is {@code null}.
      *
      * @param obj
      *            the argument.
      * @param paramName
      *            the name of the parameter, for the exception message.
      * @throws NullPointerException
-     *             if the argument is null.
+     *             if the argument is {@code null}.
      */
     public static void notNull(final @Nullable Object obj, final String paramName) {
         if (obj == null) {
@@ -114,19 +108,19 @@ public final class Assert {
     }
 
     /**
-     * Throw {@link IllegalArgumentException} if a config method was called without any of the config methods that
-     * read the option it sets, since the option would otherwise be silently ignored.
+     * Throw {@link IllegalArgumentException} if a configuration method was called without any of the companion
+     * configuration methods it requires.
      *
      * @param enabled
-     *            true if the config method that needs a companion was called.
+     *            true if the configuration method requiring a companion was called.
      * @param className
-     *            the simple name of the class that the config methods belong to, e.g. {@code "ClassGraph"}.
+     *            the simple name of the class to which the configuration methods belong.
      * @param methodName
-     *            the name of the config method that needs a companion.
+     *            the name of the configuration method requiring a companion.
      * @param companionEnabled
-     *            true if a companion config method was called.
+     *            true if a companion configuration method was called.
      * @param companionMethodNames
-     *            the names of the companion config methods, any one of which is enough.
+     *            the names of the companion configuration methods.
      * @throws IllegalArgumentException
      *             if {@code enabled} is true and {@code companionEnabled} is false.
      */

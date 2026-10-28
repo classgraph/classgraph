@@ -38,19 +38,18 @@ import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.base.LogNode;
 
-/** Finds the classloaders that are present in the environment of the caller. */
+/** Discovers {@link ClassLoader} instances in the caller's runtime environment. */
 public class ClassLoaderFinder {
-    /** The classloaders found, in the order they should be searched in. */
+    /** The discovered classloaders in search order. */
     private final List<ClassLoader> classLoaders;
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the classloaders found: the context classloader of the calling thread, the classloader of ClassGraph, the
-     * system classloader, and the classloaders of the classes on the call stack, each listed once, with every
-     * classloader ordered ahead of its own ancestors.
+     * Returns the discovered classloaders (thread context classloader, ClassGraph's classloader, system
+     * classloader, and call-stack classloaders), ordered so that each classloader precedes its ancestors.
      *
-     * @return The classloaders, in the order they should be searched in.
+     * @return the discovered classloaders in search order.
      */
     public List<ClassLoader> getClassLoaders() {
         return classLoaders;
@@ -59,12 +58,12 @@ public class ClassLoaderFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Find the classloaders that are present in the environment.
+     * Discovers classloaders in the caller's environment.
      *
      * @param callStackInfo
-     *            The call stack of the thread that started the search.
+     *            the call stack info of the calling thread.
      * @param log
-     *            The log.
+     *            the log node, or null to skip logging.
      */
     ClassLoaderFinder(final CallStackInfo callStackInfo, final @Nullable LogNode log) {
         final var classLoadersUnique = findDefaultClassLoaders(callStackInfo);
@@ -81,11 +80,11 @@ public class ClassLoaderFinder {
     }
 
     /**
-     * Find the classloaders that are present in the environment.
+     * Collects and orders the default classloaders from the environment and call stack.
      *
      * @param callStackInfo
-     *            The call stack of the thread that started the search.
-     * @return The classloaders, in the order they should be searched in.
+     *            the call stack info of the calling thread.
+     * @return the discovered classloaders in search order.
      */
     private static List<ClassLoader> findDefaultClassLoaders(final CallStackInfo callStackInfo) {
         // Deduplicated by reference rather than by equals(), since a classloader can claim to be equal to another
@@ -158,14 +157,13 @@ public class ClassLoaderFinder {
     }
 
     /**
-     * Determine whether one classloader is an ancestor of another.
+     * Checks whether {@code ancestor} is in the {@link ClassLoader#getParent()} chain of {@code classLoader}.
      *
      * @param ancestor
-     *            The possible ancestor.
+     *            the candidate ancestor classloader.
      * @param classLoader
-     *            The classloader whose parent chain is searched.
-     * @return true if {@code ancestor} is reached by following {@link ClassLoader#getParent()} from
-     *         {@code classLoader}, comparing by reference.
+     *            the classloader whose parent chain is searched.
+     * @return true if {@code ancestor} is an ancestor of {@code classLoader}.
      */
     private static boolean isAncestor(final ClassLoader ancestor, final ClassLoader classLoader) {
         // Guard against a classloader whose parent chain is cyclic, rather than looping forever

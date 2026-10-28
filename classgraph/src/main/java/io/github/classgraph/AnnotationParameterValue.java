@@ -65,11 +65,7 @@ public final class AnnotationParameterValue extends ScanResultObject
     /** The parameter name. */
     private final String name;
 
-    /**
-     * The parameter value. An Object[] array of boxed values or strings is replaced by a converted array when the
-     * value is first read, which two threads may do at once. Volatile, so that a thread that reads the converted
-     * array also sees its elements.
-     */
+    /** The parameter value. */
     private volatile @Nullable Object value;
 
     /**
@@ -114,15 +110,9 @@ public final class AnnotationParameterValue extends ScanResultObject
      *         referenced class)
      *         <li>{@link AnnotationInfo}, for nested annotations
      *         </ul>
-     *         An empty array is returned as an {@link Object}[] array if the annotation class was not scanned,
-     *         since its element type cannot then be known. An array is also returned as an {@link Object}[] array
-     *         if the annotation class does not declare a one-dimensional array type for this parameter, or if its
-     *         elements cannot be stored in an array of the declared element type, even by a widening conversion
-     *         such as int to long. This happens when the annotation class was changed after the annotated class was
-     *         compiled (the JDK reports such a value as an
-     *         {@link java.lang.annotation.AnnotationTypeMismatchException} when it is read). An array is copied
-     *         each time it is returned, as {@link java.lang.annotation.Annotation} does, so changing it does not
-     *         change this parameter value.
+     *         Array values are defensively copied on each call. If the annotation class was not scanned and an
+     *         array is empty, or if the parameter's declared type does not match the array elements, an
+     *         {@code Object[]} array is returned.
      */
     public @Nullable Object getValue() {
         final var val = value;
@@ -234,17 +224,7 @@ public final class AnnotationParameterValue extends ScanResultObject
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Replace an Object[] array of boxed primitive values or strings with an array of the primitive type or a
-     * String[] array. The element type is read from the parameter's method in the annotation class, if the
-     * annotation class was scanned, and is otherwise worked out from the elements. If the annotation class does not
-     * declare a one-dimensional array type for the parameter, or an element cannot be stored in an array of the
-     * declared element type (by {@link Array#set}, which applies a widening conversion such as int to long), the
-     * Object[] array is kept.
-     *
-     * <p>
-     * Two threads can convert the same value at once. The value is read only once, since the other thread may
-     * replace it between two reads. Each thread then converts the same Object[] array, which is never changed, and
-     * stores an array with the same contents, so it does not matter which thread stores its array last.
+     * Convert {@code Object[]} arrays of boxed primitives or strings to typed arrays.
      *
      * @param annotationClassInfo
      *            the annotation class, or null if the annotation class was not scanned
@@ -285,14 +265,13 @@ public final class AnnotationParameterValue extends ScanResultObject
     }
 
     /**
-     * Get the name of the element type of an array-typed annotation parameter value.
+     * Get the element type name of an array-typed annotation parameter value.
      *
      * @param arrayValue
      *            the array-typed annotation parameter value
      * @param annotationClassInfo
      *            the annotation class, or null if the annotation class was not scanned
-     * @return the name of the array element type, or null if the annotation class does not declare a
-     *         one-dimensional array type for this parameter, so that the array cannot be converted.
+     * @return the name of the array element type, or null if the array cannot be converted.
      */
     private @Nullable String getArrayValueTypeName(final Object[] arrayValue,
             final @Nullable ClassInfo annotationClassInfo) {
@@ -375,14 +354,13 @@ public final class AnnotationParameterValue extends ScanResultObject
     }
 
     /**
-     * Compare annotation parameter values, as in {@link #compareTo(AnnotationParameterValue)}.
+     * Compare annotation parameter values, tracking already-compared annotation pairs to guard against cycles.
      *
      * @param other
      *            the parameter value to compare with
      * @param comparedPairs
-     *            the pairs of annotations compared so far, as in
-     *            {@link AnnotationInfo#compareTo(AnnotationInfo, List)}
-     * @return a negative number, zero or a positive number if this parameter value sorts before, the same as or
+     *            the pairs of annotations compared so far
+     * @return a negative integer, zero, or a positive integer as this parameter value sorts before, equal to, or
      *         after the other parameter value
      */
     int compareTo(final AnnotationParameterValue other, final List<AnnotationInfo[]> comparedPairs) {
@@ -398,19 +376,14 @@ public final class AnnotationParameterValue extends ScanResultObject
     }
 
     /**
-     * Compare two annotation parameter values. Values of the same class are compared by their natural order, or by
-     * their string form if they have no natural order and are not equal. Arrays are compared element by element, so
-     * an Object[] array that has not yet been converted to a primitive array compares equal to the converted array.
-     * Values of different classes cannot be compared with each other, so they are ordered by class name, which
-     * keeps the order transitive.
+     * Compare two annotation parameter values.
      *
      * @param v0
      *            the first value, or null.
      * @param v1
      *            the second value, or null.
      * @param comparedPairs
-     *            the pairs of annotations compared so far, as in
-     *            {@link AnnotationInfo#compareTo(AnnotationInfo, List)}
+     *            the pairs of annotations compared so far
      * @return the result of the comparison.
      */
     @SuppressWarnings("unchecked")
@@ -457,9 +430,7 @@ public final class AnnotationParameterValue extends ScanResultObject
     }
 
     /**
-     * Check whether two annotation parameter values are equal, consistently with
-     * {@link #compareValues(Object, Object, List)}. Arrays are compared by their contents, and an Object[] array
-     * that has not yet been converted to a primitive array or a String[] array equals the converted array.
+     * Check whether two annotation parameter values are equal.
      *
      * @param v0
      *            the first value, or null.
@@ -481,11 +452,7 @@ public final class AnnotationParameterValue extends ScanResultObject
     }
 
     /**
-     * Hash an annotation parameter value, consistently with {@link #valuesEqual(Object, Object)}. An array is
-     * hashed by its contents, and a primitive array hashes each element the same way as the boxed value, so an
-     * Object[] array that has not yet been converted hashes the same as the converted array. A nested annotation is
-     * hashed by its name only, since hashing its parameter values, which include default values, would never end if
-     * the default values form a cycle (see {@link AnnotationInfo#toString(boolean, StringBuilder, Set)}).
+     * Compute the hash code of an annotation parameter value.
      *
      * @param val
      *            the value, or null.

@@ -37,13 +37,10 @@ import java.util.Objects;
 import io.github.classgraph.base.internal.utils.StringUtils;
 
 /**
- * {@link RandomAccessReader} backed by a byte array. Reads in <b>little endian</b> order by default, as required by
- * the zipfile format, which is what this reader was written for; pass a {@link ByteOrder} to read content written
- * in the other order. See {@link RandomAccessReader} for why the byte order is a property of the content and not of
- * the machine.
+ * {@link RandomAccessReader} backed by a slice of a byte array. Defaults to {@link ByteOrder#LITTLE_ENDIAN}.
  */
 public final class RandomAccessArrayReader implements RandomAccessReader {
-    /** The array. */
+    /** The backing byte array. */
     private final byte[] arr;
 
     /** The start index of the slice within the array. */
@@ -52,16 +49,14 @@ public final class RandomAccessArrayReader implements RandomAccessReader {
     /** The length of the slice within the array. */
     private final int sliceLength;
 
-    /** The byte order multi-byte values are read in. */
+    /** The byte order for multi-byte values. */
     private final ByteOrder byteOrder;
 
-    /**
-     * Whether {@link #byteOrder} is {@link ByteOrder#BIG_ENDIAN}, kept as a field to keep the reads branch-free.
-     */
+    /** True if {@link #byteOrder} is {@link ByteOrder#BIG_ENDIAN}. */
     private final boolean bigEndian;
 
     /**
-     * Constructor for slicing an array, reading in little endian order, as the zipfile format requires.
+     * Construct a little-endian reader over a slice of a byte array.
      *
      * @param arr
      *            the array to slice.
@@ -77,7 +72,7 @@ public final class RandomAccessArrayReader implements RandomAccessReader {
     }
 
     /**
-     * Constructor for slicing an array, reading in a given byte order.
+     * Construct a reader over a slice of a byte array with the specified byte order.
      *
      * @param arr
      *            the array to slice.
@@ -86,8 +81,7 @@ public final class RandomAccessArrayReader implements RandomAccessReader {
      * @param sliceLength
      *            the length of the slice within the array.
      * @param byteOrder
-     *            the byte order to read multi-byte values in. Pass {@link ByteOrder#nativeOrder()} for content
-     *            written in the byte order of the machine this is running on.
+     *            the byte order for multi-byte values.
      * @throws IndexOutOfBoundsException
      *             if the slice is not within the array.
      */
@@ -112,15 +106,14 @@ public final class RandomAccessArrayReader implements RandomAccessReader {
     }
 
     /**
-     * Check that a read stays within the slice, so that it cannot read the bytes that surround the slice in the
-     * array. (A zipfile can ask for a read at any offset, since offsets are read from the zipfile itself.)
+     * Verify that a read of {@code numBytes} at {@code offset} lies within the slice.
      *
      * @param offset
-     *            the offset to read from, relative to the start of the slice
+     *            the offset relative to the start of the slice.
      * @param numBytes
-     *            the number of bytes to read
+     *            the number of bytes to read.
      * @throws IOException
-     *             if the read would run past either end of the slice
+     *             if the range is out of bounds.
      */
     private void checkInBounds(final long offset, final int numBytes) throws IOException {
         // Compare by subtraction rather than addition, so that a large offset plus a large numBytes cannot
@@ -131,15 +124,14 @@ public final class RandomAccessArrayReader implements RandomAccessReader {
     }
 
     /**
-     * The number of bytes a bulk read starting at the given offset can transfer, which is the number asked for, cut
-     * down to what is left of the slice.
+     * Returns the number of bytes available for a bulk read of up to {@code numBytes} starting at
+     * {@code srcOffset}.
      *
      * @param srcOffset
-     *            the offset to read from, relative to the start of the slice, which the caller has checked is not
-     *            negative.
+     *            the non-negative offset relative to the start of the slice.
      * @param numBytes
-     *            the number of bytes asked for, which the caller has checked is not negative.
-     * @return the number of bytes that can be read, which is zero at or past the end of the slice.
+     *            the non-negative number of bytes requested.
+     * @return the number of bytes available (0 if at or past the end of the slice).
      */
     private int numBytesAvailable(final long srcOffset, final int numBytes) {
         // A bulk read stops at the end of the slice and reports how far it got, rather than throwing, since a

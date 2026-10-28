@@ -31,20 +31,16 @@ package io.github.classgraph.base;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A node of the verbose log that ClassGraph writes when {@code ClassGraph#verbose()} is enabled.
+ * A node in the hierarchical verbose log written when {@code ClassGraph#verbose()} is enabled.
  *
  * <p>
- * The log is a tree, not a flat sequence of lines: each entry can have sub-entries, which are indented beneath it
- * in the output. Adding an entry therefore returns the node that sub-entries of that entry are added to.
+ * Each {@code log} call appends a child entry and returns the child node so sub-entries can be nested beneath it.
+ * Entries may be recorded concurrently from multiple threads and are sorted and emitted when the log is flushed at
+ * the end of a scan.
  *
  * <p>
- * The log is written in an arbitrary order by many threads at once, and only sorted into a sane order when it is
- * flushed at the end of a scan, so a message is not printed at the moment it is logged.
- *
- * <p>
- * A log node is only handed to code that ClassGraph calls out to, such as a
- * {@code io.github.classgraph.classpath.ClassLoaderHandler}. The node is null when verbose logging is switched off,
- * so every use of it has to be guarded with a null check.
+ * Log references passed to callbacks such as {@code io.github.classgraph.classpath.ClassLoaderHandler} are
+ * {@code null} when verbose logging is disabled, so callers must check for {@code null} before logging.
  */
 public interface ClassGraphLog {
     /**
@@ -52,18 +48,18 @@ public interface ClassGraphLog {
      *
      * @param msg
      *            the message.
-     * @return the log node that sub-entries of this entry can be added to.
+     * @return the child log node for adding sub-entries.
      */
     ClassGraphLog log(@Nullable String msg);
 
     /**
-     * Add an entry to the log, with the stacktrace of a {@link Throwable} beneath it.
+     * Add an entry to the log with the stack trace of a {@link Throwable} beneath it.
      *
      * @param msg
      *            the message.
      * @param e
      *            the {@link Throwable} that was thrown.
-     * @return the log node that sub-entries of this entry can be added to.
+     * @return the child log node for adding sub-entries.
      */
     ClassGraphLog log(@Nullable String msg, Throwable e);
 }

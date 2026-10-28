@@ -57,9 +57,8 @@ public final class AnnotationParameterValueList extends MappableInfoList<Annotat
     }
 
     /**
-     * Construct a new unmodifiable {@link AnnotationParameterValueList}, given an initial collection of
-     * {@link AnnotationParameterValue} objects. The collection is copied, so changing it afterwards does not change
-     * this list, and the parameter values are sorted by name.
+     * Construct a new unmodifiable {@link AnnotationParameterValueList} from a collection of
+     * {@link AnnotationParameterValue} objects, sorted by parameter name.
      *
      * @param annotationParameterValueCollection
      *            the collection of {@link AnnotationParameterValue} objects.
@@ -71,11 +70,10 @@ public final class AnnotationParameterValueList extends MappableInfoList<Annotat
     }
 
     /**
-     * Constructor. As in {@link InfoList#InfoList(List)}, this list claims the given list, and the caller is
-     * responsible for having sorted it.
+     * Constructor.
      *
      * @param annotationParameterValues
-     *            the elements of the list
+     *            the pre-sorted elements of the list
      */
     AnnotationParameterValueList(final List<AnnotationParameterValue> annotationParameterValues) {
         super(annotationParameterValues);

@@ -34,8 +34,10 @@ import org.jspecify.annotations.NullMarked;
  * uber-fast, ultra-lightweight classpath and module scanner for JVM languages.
  *
  * <p>
- * This module is {@link org.jspecify.annotations.NullMarked}: unless a type is
- * annotated {@link org.jspecify.annotations.Nullable}, it is never null.
+ * This module is {@link org.jspecify.annotations.NullMarked}: parameters and
+ * return values are non-null unless annotated with
+ * {@link org.jspecify.annotations.Nullable}, and passing {@code null} for a
+ * non-null parameter throws {@link NullPointerException}.
  *
  * @author Luke Hutchison
  */

@@ -42,13 +42,12 @@ import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.StringUtils;
 
 /**
- * The module system switches the JVM was launched with: {@code --module-path}, {@code --add-modules},
- * {@code --patch-module}, {@code --add-exports}, {@code --add-opens} and {@code --add-reads}. Only what was given
- * on the command line is listed here, so the traditional classpath and the system modules are not.
+ * Module system command-line options with which the running JVM was launched ({@code --module-path},
+ * {@code --add-modules}, {@code --patch-module}, {@code --add-exports}, {@code --add-opens}, and
+ * {@code --add-reads}).
  *
  * <p>
- * The command line cannot change while the JVM runs, so there is one instance for the whole JVM, returned by
- * {@link #current()}.
+ * Obtain the singleton instance for the running JVM via {@link #current()}.
  */
 public final class ModulePathInfo {
     // The sets below are filled in by the constructor and never changed afterward, so an instance can be read from
@@ -73,29 +72,24 @@ public final class ModulePathInfo {
     private final Set<String> addReads = new LinkedHashSet<>();
 
     /**
-     * One module path command line switch, and the values read for it.
+     * Descriptor and collected values for a single module command-line option.
      *
      * @param argSwitch
-     *            the switch, including its trailing {@code '='}. The JVM normalizes the other spellings of a switch
-     *            into this one before it reports its own command line: {@code -p dir} and {@code --module-path dir}
-     *            are both reported as {@code --module-path=dir}, so only this spelling has to be recognized.
+     *            the normalized option prefix including trailing {@code '='}.
      * @param argPartSeparatorChar
-     *            the character that separates the values of one occurrence of the switch, or {@code '\0'} if the
-     *            switch takes a single value and has to be repeated to give more than one.
+     *            the value delimiter character, or {@code '\0'} if the option takes a single value.
      * @param lastOccurrenceWins
-     *            true if the JVM uses only the last occurrence of the switch when it is given more than once, as it
-     *            does for {@code --module-path}; false if it adds the occurrences together.
+     *            true if a later occurrence replaces earlier occurrences.
      * @param values
-     *            the values read for the switch, in the order they were listed on the command line.
+     *            the target set of parsed values.
      */
     private record ModulePathSwitch(String argSwitch, char argPartSeparatorChar, boolean lastOccurrenceWins,
             Set<String> values) {
         /**
-         * Add the value of one occurrence of this switch, splitting it into parts if the switch takes several
-         * values at once.
+         * Parses and adds the argument value for one occurrence of this switch.
          *
          * @param argParam
-         *            the text that followed the switch.
+         *            the argument text following the switch prefix.
          */
         private void addArgParam(final String argParam) {
             if (lastOccurrenceWins) {
@@ -122,12 +116,7 @@ public final class ModulePathInfo {
             new ModulePathSwitch("--add-reads=", '\0', false, addReads) //
     );
 
-    /**
-     * Holds the instance for this JVM. The command line is read when this class is initialized, which is the first
-     * time {@link #current()} is called, rather than when {@link ModulePathInfo} is loaded, since calling
-     * {@code ManagementFactory.getRuntimeMXBean()} initializes the JDK's management support, which is wasted work
-     * unless the module path info is asked for (#605).
-     */
+    /** Lazy holder for the JVM-wide {@link ModulePathInfo} instance. */
     private static final class Current {
         /** The module path switches this JVM was launched with. */
         static final ModulePathInfo INSTANCE = new ModulePathInfo(readInputArguments());
@@ -138,19 +127,9 @@ public final class ModulePathInfo {
         }
 
         /**
-         * Read the arguments this JVM was launched with.
+         * Reads the JVM launch arguments via {@code ManagementFactory.getRuntimeMXBean()}.
          *
-         * <p>
-         * If the java.management module is not present in the deployed runtime, or the runtime does not contain the
-         * java.lang.management package (e.g. the Android build system), the arguments cannot be read, and an empty
-         * list is returned (#404). This must not throw, since an exception here would make every call to
-         * {@link ModulePathInfo#current()} fail. Only a {@link VirtualMachineError}, such as
-         * {@link OutOfMemoryError}, gets through: {@link ReflectionUtils} rethrows it rather than reporting it as
-         * missing arguments. It escapes the static initializer of this holder class, so the call to
-         * {@link ModulePathInfo#current()} that ran the initializer throws it, and every later call throws
-         * {@link NoClassDefFoundError}.
-         *
-         * @return the arguments, or an empty list if they could not be read.
+         * @return the input arguments, or an empty list if {@code java.management} is unavailable.
          */
         private static List<String> readInputArguments() {
             final Class<?> managementFactory = ReflectionUtils
@@ -167,12 +146,10 @@ public final class ModulePathInfo {
     }
 
     /**
-     * Parse the module switches out of a list of JVM arguments. Arguments that are not module switches are ignored.
-     * This does not throw.
+     * Parses module command-line options from the given normalized JVM input arguments.
      *
      * @param inputArguments
-     *            the JVM arguments, in the normalized form that {@code RuntimeMXBean#getInputArguments()} reports
-     *            them in.
+     *            the normalized JVM input arguments.
      */
     ModulePathInfo(final List<String> inputArguments) {
         for (final String arg : inputArguments) {
@@ -185,10 +162,9 @@ public final class ModulePathInfo {
     }
 
     /**
-     * Returns the module path switches this JVM was launched with. The command line is read the first time this is
-     * called, and every call returns the same instance.
+     * Returns the {@link ModulePathInfo} for the running JVM.
      *
-     * @return the module path switches this JVM was launched with.
+     * @return the {@link ModulePathInfo} for the running JVM.
      */
     public static ModulePathInfo current() {
         return Current.INSTANCE;
@@ -197,83 +173,68 @@ public final class ModulePathInfo {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns the module path provided on the command line by the {@code --module-path} or {@code -p} switch, as an
-     * ordered set of module path elements (directories and jarfiles, not module names), in the order they were
-     * listed on the command line. If the switch was given more than once, only the last occurrence is reported,
-     * since that is the only one the JVM uses.
+     * Returns the module path entries specified via {@code --module-path} or {@code -p} (from the last occurrence
+     * if specified multiple times), in command-line order.
      *
-     * <p>
-     * Note that the modules the runtime adds by itself (such as the system modules) are not reached through this
-     * module path, so the modules they are defined in will not be found in any of these elements.
-     *
-     * @return The module path, as an unmodifiable set.
+     * @return the module path entries, as an unmodifiable set.
      */
     public @Unmodifiable Set<String> getModulePath() {
         return Collections.unmodifiableSet(modulePath);
     }
 
     /**
-     * Returns the modules added to the module path on the command line using the {@code --add-modules} switch, as
-     * an ordered set of module names, in the order they were listed on the command line. Note that valid module
-     * names include {@code ALL-DEFAULT}, {@code ALL-SYSTEM}, and {@code ALL-MODULE-PATH} (see
-     * <a href="https://openjdk.java.net/jeps/261">JEP 261</a> for info).
+     * Returns the module names specified via {@code --add-modules} (which may include {@code ALL-DEFAULT},
+     * {@code ALL-SYSTEM}, and {@code ALL-MODULE-PATH}), in command-line order.
      *
-     * @return The added modules, as an unmodifiable set.
+     * @return the added module names, as an unmodifiable set.
      */
     public @Unmodifiable Set<String> getAddModules() {
         return Collections.unmodifiableSet(addModules);
     }
 
     /**
-     * Returns the module patch directives listed on the command line using the {@code --patch-module} switch, as an
-     * ordered set of strings in the format {@code <module>=<file>}, in the order they were listed on the command
-     * line.
+     * Returns the {@code --patch-module} directives in {@code <module>=<file>} format, in command-line order.
      *
-     * @return The module patch directives, as an unmodifiable set.
+     * @return the module patch directives, as an unmodifiable set.
      */
     public @Unmodifiable Set<String> getPatchModules() {
         return Collections.unmodifiableSet(patchModules);
     }
 
     /**
-     * Returns the module {@code exports} directives added on the command line using the {@code --add-exports}
-     * switch, as an ordered set of strings in the format
-     * {@code <source-module>/<package>=<target-module>(,<target-module>)*}, in the order they were listed on the
-     * command line.
+     * Returns the {@code --add-exports} directives in
+     * {@code <source-module>/<package>=<target-module>(,<target-module>)*} format, in command-line order.
      *
-     * @return The {@code exports} directives, as an unmodifiable set.
+     * @return the {@code --add-exports} directives, as an unmodifiable set.
      */
     public @Unmodifiable Set<String> getAddExports() {
         return Collections.unmodifiableSet(addExports);
     }
 
     /**
-     * Returns the module {@code opens} directives added on the command line using the {@code --add-opens} switch,
-     * as an ordered set of strings in the format
-     * {@code <source-module>/<package>=<target-module>(,<target-module>)*}, in the order they were listed on the
-     * command line.
+     * Returns the {@code --add-opens} directives in
+     * {@code <source-module>/<package>=<target-module>(,<target-module>)*} format, in command-line order.
      *
-     * @return The {@code opens} directives, as an unmodifiable set.
+     * @return the {@code --add-opens} directives, as an unmodifiable set.
      */
     public @Unmodifiable Set<String> getAddOpens() {
         return Collections.unmodifiableSet(addOpens);
     }
 
     /**
-     * Returns the module {@code reads} directives added on the command line using the {@code --add-reads} switch,
-     * as an ordered set of strings in the format {@code <source-module>=<target-module>}, in the order they were
-     * listed on the command line.
+     * Returns the {@code --add-reads} directives in {@code <source-module>=<target-module>} format, in command-line
+     * order.
      *
-     * @return The {@code reads} directives, as an unmodifiable set.
+     * @return the {@code --add-reads} directives, as an unmodifiable set.
      */
     public @Unmodifiable Set<String> getAddReads() {
         return Collections.unmodifiableSet(addReads);
     }
 
     /**
-     * Return the module path info in command line format.
+     * Formats the module options as a space-separated command-line string.
      *
-     * @return the module path command line string.
+     * @return the module options in command-line format.
      */
     @Override
     public String toString() {

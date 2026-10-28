@@ -43,11 +43,7 @@ import io.github.classgraph.Classfile.TypePathNode;
  * {@code ArrayTypeSignature} production of the signature grammar in section 4.7.9.1 of the JVM Specification.
  */
 public final class ArrayTypeSignature extends ReferenceTypeSignature {
-    /**
-     * The maximum number of dimensions of an array type (JVMS 4.3.2 and 4.4.1). The nested dimensions of an array
-     * type signature are built, hashed and compared by recursion, one call per dimension, so this limit also bounds
-     * the depth of that recursion.
-     */
+    /** The maximum number of dimensions of an array type (JVMS 4.3.2). */
     static final int MAX_DIMENSIONS = 255;
 
     /** The raw type signature string for the array type. */
@@ -173,15 +169,15 @@ public final class ArrayTypeSignature extends ReferenceTypeSignature {
     }
 
     /**
-     * Copy the type annotations of each dimension of an array type to the dimension in the same position of another
-     * array type, outermost first, which has at least as many dimensions.
+     * Copy the type annotations of each dimension of {@code source} to the corresponding dimension of
+     * {@code destination}.
      *
      * @param source
      *            the array type to copy the type annotations from.
      * @param destination
-     *            the array type to copy the type annotations to, which type variable substitution has just built.
-     * @return the nested type of the destination dimension that the innermost dimension of the source was copied
-     *         to.
+     *            the array type to copy the type annotations to.
+     * @return the nested type of the destination dimension that the innermost dimension of {@code source} was
+     *         copied to.
      */
     private static TypeSignature copyDimensionTypeAnnotations(final ArrayTypeSignature source,
             final ArrayTypeSignature destination) {
@@ -240,9 +236,8 @@ public final class ArrayTypeSignature extends ReferenceTypeSignature {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the class name of the array, e.g. "java.lang.String[]". This is the name of the erased array class: type
-     * annotations and type arguments are not part of it, and an array of a type variable is named after the erasure
-     * of the type variable, e.g. "java.lang.Number[]" for {@code T[]} where {@code T extends Number}.
+     * Get the erased class name of the array (e.g. {@code "java.lang.String[]"}, or {@code "java.lang.Number[]"}
+     * for {@code T[]} where {@code T extends Number}).
      *
      * @return the class name of the array.
      */
@@ -344,9 +339,7 @@ public final class ArrayTypeSignature extends ReferenceTypeSignature {
     }
 
     /**
-     * Return the {@link ArrayClassInfo} instance for the array class. Every array type with the same class name
-     * gets the same {@link ArrayClassInfo} instance, which describes the erased array class, so its type signature
-     * has no type arguments or type annotations. Those are only found on this array type signature.
+     * Return the {@link ArrayClassInfo} instance for the erased array class.
      *
      * @return the {@link ArrayClassInfo} instance.
      */

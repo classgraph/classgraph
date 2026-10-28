@@ -40,28 +40,13 @@ import java.util.TreeMap;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A parser for the main section of a jarfile manifest, {@code META-INF/MANIFEST.MF}.
- *
- * <p>
- * This works directly on the manifest bytes, rather than going through {@link java.util.jar.Manifest}, because the
- * latter reads through an {@link java.io.InputStream} and builds a {@link java.util.jar.Attributes} map keyed by
- * {@link java.util.jar.Attributes.Name} objects, which is a lot of work to read a handful of values from a file
- * that is read for every jarfile on the classpath.
+ * A parser for the main section of a jarfile manifest ({@code META-INF/MANIFEST.MF}).
  */
 public final class ManifestParser {
-    /**
-     * The largest main section {@link #parse(InputStream)} will read, in bytes.
-     *
-     * <p>
-     * The main section describes the jarfile as a whole, so it is short: across the 6857 jarfiles of a large local
-     * Maven repository plus a JDK installation, the median is 371 bytes and the largest is 91kB. This limit is
-     * therefore more than an order of magnitude above anything a build tool produces, while still bounding the
-     * amount of memory a jarfile can cause to be allocated simply by being opened -- a manifest is deflated, so
-     * without a limit a small jarfile can inflate to an arbitrarily large one.
-     */
+    /** The maximum manifest main section size that {@link #parse(InputStream)} will read, in bytes. */
     private static final int MAX_MAIN_SECTION_SIZE = 2 * 1024 * 1024;
 
-    /** The initial size of the buffer the main section is read into. */
+    /** The initial buffer size for reading the main section. */
     private static final int INITIAL_BUFFER_SIZE = 1024;
 
     /** Not instantiable. */
@@ -70,35 +55,29 @@ public final class ManifestParser {
     }
 
     /**
-     * Parses the main section of a manifest, reading only as far into the manifest as the main section extends.
-     *
-     * <p>
-     * The per-entry sections that follow the main section are not read at all. They are not parsed in any case (see
-     * {@link #parse(byte[])}), and in a signed jarfile they hold a digest of every entry, which makes them orders
-     * of magnitude larger than the main section.
+     * Parses the main section of a manifest, reading only up to the first blank line and ignoring any following
+     * per-entry sections.
      *
      * @param manifestInputStream
-     *            the manifest file. Not closed by this method.
-     * @return an immutable map from attribute name to attribute value. Manifest attribute names are case
-     *         insensitive, so the returned map is too.
+     *            the manifest input stream (not closed by this method).
+     * @return an immutable, case-insensitive map from attribute name to attribute value.
      * @throws IOException
-     *             if the manifest could not be read, or if its main section is larger than
-     *             {@value #MAX_MAIN_SECTION_SIZE} bytes.
+     *             if the manifest could not be read, or if its main section exceeds {@value #MAX_MAIN_SECTION_SIZE}
+     *             bytes.
      */
     public static Map<String, String> parse(final InputStream manifestInputStream) throws IOException {
         return parse(readMainSection(manifestInputStream));
     }
 
     /**
-     * Reads the bytes of the main section of a manifest, i.e. everything up to the first blank line, stopping as
-     * soon as that line is reached.
+     * Reads the bytes of the main section of a manifest up to the first blank line.
      *
      * @param manifestInputStream
-     *            the manifest file. Not closed by this method.
-     * @return the bytes of the main section, without the blank line that ends it.
+     *            the manifest input stream (not closed by this method).
+     * @return the bytes of the main section, excluding the terminating blank line.
      * @throws IOException
-     *             if the manifest could not be read, or if its main section is larger than
-     *             {@value #MAX_MAIN_SECTION_SIZE} bytes.
+     *             if the manifest could not be read, or if its main section exceeds {@value #MAX_MAIN_SECTION_SIZE}
+     *             bytes.
      */
     private static byte[] readMainSection(final InputStream manifestInputStream) throws IOException {
         var buf = new byte[INITIAL_BUFFER_SIZE];
@@ -146,17 +125,11 @@ public final class ManifestParser {
     }
 
     /**
-     * Parses the main section of a manifest.
-     *
-     * <p>
-     * Only the main section is parsed, i.e. everything up to the first blank line. The per-entry sections that may
-     * follow it describe individual entries of the jarfile, rather than the jarfile as a whole, and their keys are
-     * therefore not manifest-wide attributes.
+     * Parses the main section of a manifest (everything up to the first blank line).
      *
      * @param manifest
      *            the bytes of the manifest file.
-     * @return an immutable map from attribute name to attribute value. Manifest attribute names are case
-     *         insensitive, so the returned map is too.
+     * @return an immutable, case-insensitive map from attribute name to attribute value.
      */
     public static Map<String, String> parse(final byte[] manifest) {
         final Map<String, String> attributes = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
@@ -194,21 +167,18 @@ public final class ManifestParser {
     }
 
     /**
-     * Reads one attribute value, and stores it in the map of attributes.
-     *
-     * <p>
-     * A value may be continued across any number of following lines, each of which starts with a single space that
-     * is not part of the value.
+     * Reads a manifest attribute value (including any continuation lines starting with a single space) and stores
+     * it in {@code attributes}.
      *
      * @param manifest
      *            the bytes of the manifest file.
      * @param valueStartIdx
-     *            the index of the first character after the ':' that separates the value from its name.
+     *            the index of the first byte after the {@code ':'} separator.
      * @param attributes
-     *            the map to store the attribute in, or null to skip the value without storing it.
+     *            the map in which to store the attribute, or null to skip storing it.
      * @param name
-     *            the name of the attribute.
-     * @return the index of the start of the line after the value.
+     *            the attribute name.
+     * @return the start index of the line following the attribute value.
      */
     private static int readValue(final byte[] manifest, final int valueStartIdx,
             final @Nullable Map<String, String> attributes, final String name) {
@@ -251,15 +221,15 @@ public final class ManifestParser {
     }
 
     /**
-     * Determines whether an attribute name is valid: 1 to 70 characters, each an ASCII letter or digit, '-' or '_',
-     * which is the rule {@link java.util.jar.Attributes.Name} applies.
+     * Checks whether a manifest attribute name is valid (1 to 70 ASCII letters, digits, {@code '-'}, or
+     * {@code '_'}).
      *
      * @param manifest
      *            the bytes of the manifest file.
      * @param startIdx
-     *            the index of the first byte of the name.
+     *            the start index of the name.
      * @param endIdx
-     *            the index after the last byte of the name.
+     *            the end index (exclusive) of the name.
      * @return true if the name is valid.
      */
     private static boolean isValidName(final byte[] manifest, final int startIdx, final int endIdx) {
@@ -276,10 +246,10 @@ public final class ManifestParser {
     }
 
     /**
-     * Determines whether a byte starts a line terminator. A manifest may use any of CR, LF or CRLF.
+     * Checks whether a byte is a line terminator ({@code '\r'} or {@code '\n'}).
      *
      * @param b
-     *            the byte.
+     *            the byte to check.
      * @return true if the byte is CR or LF.
      */
     private static boolean isLineTerminator(final byte b) {
@@ -287,29 +257,29 @@ public final class ManifestParser {
     }
 
     /**
-     * Skips the line terminator at an index, if there is one.
+     * Skips the line terminator (CR, LF, or CRLF) at {@code idx}, if present.
      *
      * @param manifest
      *            the bytes of the manifest file.
      * @param idx
-     *            the index of the line terminator, or the length of the manifest if the last line was not
-     *            terminated.
-     * @return the index of the start of the next line.
+     *            the index of the line terminator, or {@code manifest.length} if at the end of the array.
+     * @return the start index of the next line.
      */
     private static int skipLineTerminator(final byte[] manifest, final int idx) {
         return skipLineTerminator(manifest, idx, manifest.length);
     }
 
     /**
-     * Skips the line terminator at an index, if there is one, within the first {@code len} bytes of an array.
+     * Skips the line terminator (CR, LF, or CRLF) at {@code idx} within the first {@code len} bytes of
+     * {@code manifest}.
      *
      * @param manifest
-     *            the bytes of the manifest file, which may be longer than the manifest itself.
+     *            the buffer containing the manifest bytes.
      * @param idx
-     *            the index of the line terminator, or {@code len} if the last line was not terminated.
+     *            the index of the line terminator, or {@code len} if at the end of the valid range.
      * @param len
-     *            the number of bytes of the array that hold the manifest.
-     * @return the index of the start of the next line.
+     *            the number of valid bytes in {@code manifest}.
+     * @return the start index of the next line.
      */
     private static int skipLineTerminator(final byte[] manifest, final int idx, final int len) {
         if (idx >= len) {

@@ -36,7 +36,7 @@ import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
 
-/** Extract classpath entries from the Weblogic ClassLoaders. */
+/** Extracts classpath entries from Oracle WebLogic classloaders. */
 class WeblogicClassLoaderHandler implements ClassLoaderHandler {
     /** Constructor. */
     WeblogicClassLoaderHandler() {

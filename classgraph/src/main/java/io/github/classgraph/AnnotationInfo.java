@@ -52,16 +52,12 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
     private @Nullable AnnotationParameterValueList annotationParamValues;
 
     /**
-     * Set to true once any Object[] arrays of boxed values or strings in annotationParamValues have been lazily
-     * converted to arrays of their element type. Volatile, so that a thread that sees this flag set also sees the
-     * converted values.
+     * Set to true once any {@code Object[]} arrays of boxed values or strings in {@link #annotationParamValues}
+     * have been lazily converted to typed arrays.
      */
     private volatile boolean annotationParamValuesHasBeenConvertedToPrimitive;
 
-    /**
-     * The annotation param values with defaults, or null if not yet built. Two threads may build the list at once,
-     * and each stores an equal list. Volatile, so that a thread that reads the list also sees its contents.
-     */
+    /** The annotation parameter values including defaults, or null if not yet built. */
     private volatile @Nullable AnnotationParameterValueList annotationParamValuesWithDefaults;
 
     // -------------------------------------------------------------------------------------------------------------
@@ -106,12 +102,10 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
     }
 
     /**
-     * Get the default parameter values.
+     * Get the default parameter values of this annotation.
      *
-     * @return the list of default parameter values for this annotation, or the empty list if none. Default
-     *         parameter values are declared by the annotation class, so if the annotation class was not scanned, or
-     *         was changed into a class that is not an annotation after the use site was compiled, the empty list is
-     *         returned.
+     * @return The default parameter values declared by the annotation class, or the empty list if none (or if the
+     *         annotation class was not scanned).
      */
     public AnnotationParameterValueList getDefaultParameterValues() {
         final var classInfo = getClassInfo();
@@ -125,10 +119,8 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
      * @param includeDefaultValues
      *            if true, include default values for any annotation parameter value that is missing.
      * @param classInfo
-     *            the annotation class, or null if it was not encountered during scanning. Not used if the
-     *            {@link ScanResult} has not been set.
-     * @return The parameter values of this annotation, including any default parameter values inherited from the
-     *         annotation class definition (if requested), or the empty list if none.
+     *            the annotation class, or null if it was not encountered during scanning.
+     * @return The parameter values of this annotation, or the empty list if none.
      */
     private AnnotationParameterValueList getParameterValues(final boolean includeDefaultValues,
             final @Nullable ClassInfo classInfo) {
@@ -271,10 +263,8 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
     }
 
     /**
-     * Get the {@link ClassInfo} object for the annotation class, as {@link #getClassInfo()} does, but without
-     * throwing if the {@link ScanResult} has been closed, so that {@link #equals(Object)}, {@link #hashCode()} and
-     * {@link #compareTo(AnnotationInfo)} keep working after it is closed. The map of class names is not cleared
-     * when the {@link ScanResult} is closed.
+     * Get the {@link ClassInfo} object for the annotation class without throwing if the {@link ScanResult} has been
+     * closed.
      *
      * @return the annotation class, or null if the {@link ScanResult} has not been set or the annotation class was
      *         not encountered during scanning.
@@ -285,8 +275,7 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
     }
 
     /**
-     * Convert wrapper arrays to primitive arrays. Called for a nested annotation, which may be compared after the
-     * {@link ScanResult} has been closed.
+     * Convert wrapper arrays in parameter values to primitive arrays.
      */
     void convertWrapperArraysToPrimitiveArrays() {
         final var paramValues = annotationParamValues;
@@ -299,13 +288,11 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Compare annotations by name, then by parameter values, counting default values, so that the order is
-     * consistent with {@link #equals(Object)}. Unlike most methods, this keeps working after the {@link ScanResult}
-     * is closed, so that an {@link AnnotationInfo} in a sorted collection stays usable.
+     * Compare annotations by name and parameter values (including default values).
      *
      * @param o
      *            the annotation to compare with
-     * @return a negative number, zero or a positive number if this annotation sorts before, the same as or after
+     * @return a negative integer, zero, or a positive integer as this annotation sorts before, equal to, or after
      *         the other annotation
      */
     @Override
@@ -314,18 +301,14 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
     }
 
     /**
-     * Compare annotations, as in {@link #compareTo(AnnotationInfo)}.
+     * Compare annotations by name and parameter values, tracking already-compared pairs to guard against cycles in
+     * default parameter values.
      *
      * @param o
      *            the annotation to compare with
      * @param comparedPairs
-     *            the pairs of annotations compared so far, which are either still being compared or were found
-     *            equal, since any difference ends the whole comparison. Default values can form a cycle (see
-     *            {@link #toString(boolean, StringBuilder, Set)}), and two annotations that expand to the same
-     *            infinite annotation then lead back to a pair that is still being compared. Such a pair is counted
-     *            as equal, so that the comparison ends: a difference between the two annotations is found by
-     *            comparing their other parameter values.
-     * @return a negative number, zero or a positive number if this annotation sorts before, the same as or after
+     *            the pairs of annotations compared so far
+     * @return a negative integer, zero, or a positive integer as this annotation sorts before, equal to, or after
      *         the other annotation
      */
     int compareTo(final AnnotationInfo o, final List<AnnotationInfo[]> comparedPairs) {
@@ -359,12 +342,8 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
     }
 
     /**
-     * Two annotations are equal when they have the same name and the same parameter values, counting default
-     * values, as in {@link java.lang.annotation.Annotation#equals(Object)}: {@code @A} equals {@code @A(x = 5)} if
-     * 5 is the default value of {@code x}. The default values are declared by the annotation class, so they are
-     * counted only if the annotation class was scanned. Unlike most methods, this keeps working after the
-     * {@link ScanResult} is closed, so that an {@link AnnotationInfo} in a hash set or sorted collection stays
-     * usable.
+     * Test whether two annotations have the same name and parameter values (including default values, if the
+     * annotation class was scanned).
      *
      * @param obj
      *            the object to compare with
@@ -382,9 +361,7 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
     }
 
     /**
-     * Get the hash code, which counts default values, as {@link #equals(Object)} does. Unlike most methods, this
-     * keeps working after the {@link ScanResult} is closed, so that an {@link AnnotationInfo} in a hash set stays
-     * usable.
+     * Compute the hash code of this annotation, including default parameter values.
      *
      * @return the hash code
      */
@@ -415,12 +392,7 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
      * @param buf
      *            the buffer to append to
      * @param enclosing
-     *            the annotations whose string representation is being written, which hold this annotation as a
-     *            parameter value, directly or through other annotations. Default values can form a cycle, such as
-     *            an element of {@code @A} whose default value is {@code @B}, and an element of {@code @B} whose
-     *            default value is {@code @A}, which javac refuses to compile, but which the JVM loads. An
-     *            annotation that is reached again is written without its parameter values, as {@code @A(...)}, so
-     *            that writing it ends.
+     *            the enclosing annotations currently being formatted, used to detect cycles
      */
     void toString(final boolean useSimpleNames, final StringBuilder buf, final Set<AnnotationInfo> enclosing) {
         buf.append('@').append(useSimpleNames ? ClassInfo.getSimpleName(name) : name);

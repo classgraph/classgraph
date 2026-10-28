@@ -38,12 +38,11 @@ import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
 
 /**
- * A ClassLoaderHandler that matches the JDK's own Java 9+ classloaders. Almost everything these classloaders load
- * comes from modules, which are scanned through the JPMS API rather than as classpath elements, but they can also
- * load classes from a {@code jdk.internal.loader.URLClassPath}, which no public API exposes, so that is read here.
+ * Extracts classpath entries from the JDK's built-in JPMS classloaders ({@code BuiltinClassLoader} and
+ * {@code AppClassLoader}).
  */
 class JPMSClassLoaderHandler implements ClassLoaderHandler {
-    /** The name of the application classloader's class. */
+    /** The class name of the application classloader. */
     private static final String APP_CLASS_LOADER = "jdk.internal.loader.ClassLoaders$AppClassLoader";
 
     /** Constructor. */
@@ -57,13 +56,9 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Get the bootstrap classloader.
+     * Returns the JDK's internal bootstrap classloader ({@code ClassLoaders.bootLoader()}).
      *
-     * <p>
-     * The bootstrap classloader is the parent of the platform classloader, but {@link ClassLoader#getParent()}
-     * returns null for the platform classloader, so walking the parent chain never reaches it.
-     *
-     * @return the bootstrap classloader, or null if it could not be obtained.
+     * @return the bootstrap classloader, or {@code null} if it could not be obtained.
      */
     private static @Nullable ClassLoader getBootClassLoader() {
         return (ClassLoader) ReflectionUtils.invokeStaticMethod(false,

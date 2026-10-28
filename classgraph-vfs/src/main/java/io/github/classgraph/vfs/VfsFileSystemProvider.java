@@ -84,19 +84,18 @@ import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.Assert;
 
 /**
- * The {@link FileSystemProvider} of the read-only {@link VfsFileSystem} views of a {@link VfsRoot}, registered
- * under the {@code "cgvfs:"} URL scheme.
+ * {@link FileSystemProvider} for read-only {@link VfsFileSystem} views of a {@link VfsRoot}, registered under the
+ * {@code "cgvfs:"} URI scheme.
  *
  * <p>
- * The scheme is installed by {@link java.util.ServiceLoader}, so putting classgraph-vfs on the classpath or the
- * module path is enough to make {@code cgvfs:} URIs work -- but only if it is loaded by the system class loader,
- * since that is the loader {@link FileSystemProvider#installedProviders()} searches. A copy loaded by a child class
- * loader -- a servlet container's per-application loader, a fat-jar loader, an OSGi bundle -- is not installed, and
- * {@link #isInstalled()} reports that.
+ * When {@code classgraph-vfs} is loaded by the system class loader, this provider is discovered automatically via
+ * {@link java.util.ServiceLoader}; {@link #isInstalled()} reports whether the {@code "cgvfs:"} scheme is installed
+ * in {@link FileSystemProvider#installedProviders()}.
  *
  * <p>
- * A URI is {@code "cgvfs:"} followed by anything {@link Vfs#open(String)} accepts, so {@code "file:"} is optional
- * and {@code "!/"} separates a jarfile from a nested jarfile or a package root within it:
+ * A {@code "cgvfs:"} URI consists of {@code "cgvfs:"} followed by any path or URL string accepted by
+ * {@link Vfs#open(String)} (or {@code "jrt:/<module>"} for a module), using {@code "!/"} to separate nested
+ * jarfiles, package roots, or entry paths:
  *
  * <pre>
  * cgvfs:/path/app.jar
@@ -107,58 +106,33 @@ import io.github.classgraph.base.internal.utils.Assert;
  * </pre>
  *
  * <p>
- * Which part of a URI names the filesystem and which part names a path within it is decided the same way
- * {@link Vfs#open(String)} decides it, by reading what is actually in storage rather than by looking at the
- * spelling, and by which method the URI is passed to -- exactly as with {@code jar:} URIs and zipfs.
- * {@link #newFileSystem(URI, Map)} and {@link #getFileSystem(URI)} read the whole URI as the name of a root, so
- * {@code "cgvfs:/path/outer.jar!/lib/inner.jar"} is the nested jarfile's filesystem, and
- * {@code "cgvfs:/path/spring-boot-app.jar!/BOOT-INF/classes"} is the package root's filesystem.
- * {@link #getPath(URI)} reads the last {@code "!/"} section as a path within the filesystem named by everything
- * before it, so {@code "cgvfs:/path/app.jar!/META-INF/MANIFEST.MF"} is a file of {@code app.jar}, and
- * {@code "cgvfs:/path/outer.jar!/lib/inner.jar!/com/xyz/W.class"} is a file of the nested jarfile.
- *
- * <p>
- * Every method that reads a path's filesystem throws {@link java.nio.file.ClosedFileSystemException} once that
- * filesystem, or the {@link Vfs} behind it, has been closed. The purely syntactic {@link Path} methods go on
- * working, since they need nothing from the filesystem's content.
+ * {@link #newFileSystem(URI, Map)} and {@link #getFileSystem(URI)} interpret the entire URI as the root path, while
+ * {@link #getPath(URI)} resolves the longest prefix matching an open registered filesystem and treats the remainder
+ * after {@code "!/"} as the path within that filesystem.
  */
 public final class VfsFileSystemProvider extends FileSystemProvider {
     /**
-     * The provider that {@link VfsFileSystem#provider()} returns when the {@code "cgvfs:"} scheme is not installed.
-     * When it is installed, the installed instance is returned instead; see {@link #instance()}.
+     * Fallback provider instance used when the {@code "cgvfs:"} scheme is not installed via
+     * {@link java.util.ServiceLoader}.
      */
     private static final VfsFileSystemProvider INSTANCE = new VfsFileSystemProvider();
 
-    /**
-     * The filesystems created from a URI by {@link #newFileSystem(URI, Map)}, keyed by every path they can be named
-     * by. No other filesystem is held here: not one created from a {@link Path} by
-     * {@link #newFileSystem(Path, Map)}, and not one created by {@link VfsRoot#asFileSystem()}. Each is removed
-     * when it is closed, or when its root or the {@link Vfs} behind it is closed. This is static rather than
-     * per-instance because more than one instance can exist: the one {@link java.util.ServiceLoader} constructs,
-     * {@link #INSTANCE}, and any a caller constructs directly.
-     */
+    /** Open filesystems created via {@link #newFileSystem(URI, Map)}, keyed by normalized path. */
     private static final Map<String, VfsFileSystem> FILESYSTEMS_BY_PATH = new ConcurrentHashMap<>();
 
-    /**
-     * Holds the installed instance of this class, looked up on first use. This is a separate class so that the
-     * lookup is not run by the initialization of {@link VfsFileSystemProvider}, or by its constructor: both can run
-     * while {@link FileSystemProvider#installedProviders()} is still loading the providers, and that method fails
-     * if it is called again before the loading finishes.
-     */
+    /** Lazy holder for the provider instance installed in {@link FileSystemProvider#installedProviders()}. */
     private static final class Installed {
-        /** The installed instance, or null if the {@code "cgvfs:"} scheme is not installed. */
+        /** The installed provider instance, or {@code null} if not installed. */
         static final @Nullable VfsFileSystemProvider PROVIDER = find();
 
-        /**
-         * Constructor.
-         */
+        /** Constructor. */
         private Installed() {
         }
 
         /**
-         * Find the installed instance.
+         * Find the installed {@link VfsFileSystemProvider} instance.
          *
-         * @return the installed instance, or null if there is none.
+         * @return the installed instance, or {@code null} if none.
          */
         private static @Nullable VfsFileSystemProvider find() {
             for (final var provider : FileSystemProvider.installedProviders()) {
@@ -171,25 +145,16 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     }
 
     /**
-     * Constructor.
-     *
-     * <p>
-     * This is public only because {@link java.util.ServiceLoader} has to be able to call it. Use
-     * {@link java.nio.file.FileSystems} to reach the provider, or {@link Vfs} and {@link VfsRoot#asFileSystem()} to
-     * bypass it. Constructing one directly gives a provider that shares the filesystem registry with the installed
-     * one, so it behaves the same, but a filesystem it creates reports the installed provider (or a private
-     * instance, if the scheme is not installed) from {@link FileSystem#provider()}, not the provider that was
-     * constructed.
+     * Public constructor required for {@link java.util.ServiceLoader}. Callers should obtain filesystems via
+     * {@link java.nio.file.FileSystems} or {@link VfsRoot#asFileSystem()}.
      */
     public VfsFileSystemProvider() {
     }
 
     /**
-     * Returns the provider that every {@link VfsFileSystem} reports as its own: the installed instance if the
-     * {@code "cgvfs:"} scheme is installed, so that code which compares a path's provider with the installed one by
-     * identity accepts it, or else {@link #INSTANCE}.
+     * Return the canonical provider instance (the installed provider if present, otherwise {@link #INSTANCE}).
      *
-     * @return the provider.
+     * @return the provider instance.
      */
     static VfsFileSystemProvider instance() {
         final var installed = Installed.PROVIDER;
@@ -197,31 +162,25 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     }
 
     /**
-     * Returns whether the {@code "cgvfs:"} scheme is installed in this JVM, i.e. whether this provider is one of
-     * {@link FileSystemProvider#installedProviders()}, so that {@code cgvfs:} URIs can be resolved through
-     * {@link java.nio.file.FileSystems} and {@link Path#of(URI)}.
+     * Return whether this provider is registered in {@link FileSystemProvider#installedProviders()} so that
+     * {@code "cgvfs:"} URIs can be resolved through {@link java.nio.file.FileSystems} and {@link Path#of(URI)}.
      *
-     * <p>
-     * It is installed by {@link java.util.ServiceLoader} when classgraph-vfs is loaded by the system class loader,
-     * and not installed when it is loaded by a child class loader. The answer cannot change during the life of the
-     * JVM, since {@link FileSystemProvider#installedProviders()} loads the providers once, on its first call.
-     *
-     * @return true if the {@code "cgvfs:"} scheme is installed.
+     * @return {@code true} if the {@code "cgvfs:"} scheme is installed.
      */
     public static boolean isInstalled() {
         return Installed.PROVIDER != null;
     }
 
     /**
-     * Cast a path to a {@link VfsPath}.
+     * Validate and cast {@code path} to {@link VfsPath}.
      *
      * @param path
-     *            the path.
-     * @return the path, as a {@link VfsPath}.
+     *            the path to check.
+     * @return {@code path} as a {@link VfsPath}.
      * @throws NullPointerException
-     *             if the path is null.
+     *             if {@code path} is {@code null}.
      * @throws ProviderMismatchException
-     *             if the path did not come from a {@link VfsFileSystem}.
+     *             if {@code path} is not a {@link VfsPath}.
      */
     private static VfsPath check(final Path path) {
         Assert.notNull(path, "path");
@@ -232,17 +191,17 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     }
 
     /**
-     * Look up the entry a path names.
+     * Look up the file {@link VfsEntry} for {@code path}.
      *
      * @param path
      *            the path.
      * @return the entry.
-     * @throws java.nio.file.FileSystemException
-     *             if the path names a directory, which has no content to read.
+     * @throws FileSystemException
+     *             if {@code path} names a directory.
      * @throws NoSuchFileException
-     *             if the path does not name a file of the filesystem.
+     *             if {@code path} does not exist.
      * @throws IOException
-     *             if the entries of the root could not be listed.
+     *             if an I/O error occurs.
      */
     private static VfsEntry entryOf(final VfsPath path) throws IOException {
         final var fileSystem = path.vfsFileSystem();
@@ -260,12 +219,12 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     }
 
     /**
-     * Check that a set of open options asks only to read.
+     * Verify that {@code options} contains only read options.
      *
      * @param options
-     *            the open options.
+     *            the open options to validate.
      * @throws ReadOnlyFileSystemException
-     *             if an option asks to write.
+     *             if any write option is present.
      */
     private static void checkReadOnly(final Collection<? extends OpenOption> options) {
         for (final var option : options) {
@@ -299,27 +258,26 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     }
 
     /**
-     * Returns the part of a {@code "cgvfs:"} URI that names what to open, which is a path in the form
-     * {@link Vfs#open(String)} takes.
+     * Extract and decode the root path from a {@code "cgvfs:"} {@link URI}.
      *
      * @param uri
-     *            the URI.
-     * @return the path the URI names.
+     *            the {@code "cgvfs:"} URI.
+     * @return the decoded root path string.
      * @throws IllegalArgumentException
-     *             if the URI is not a {@code "cgvfs:"} URI, or names nothing.
+     *             if {@code uri} is not a valid {@code "cgvfs:"} URI.
      */
     private static String pathOf(final URI uri) {
         return rootPathOf(rawPathOf(uri));
     }
 
     /**
-     * Returns the scheme-specific part of a {@code "cgvfs:"} URI, with its percent encoding as it is written.
+     * Return the raw (un-decoded) scheme-specific part of a {@code "cgvfs:"} {@link URI}.
      *
      * @param uri
-     *            the URI.
-     * @return the scheme-specific part of the URI, not decoded.
+     *            the {@code "cgvfs:"} URI.
+     * @return the raw scheme-specific part.
      * @throws IllegalArgumentException
-     *             if the URI is not a {@code "cgvfs:"} URI, or names nothing.
+     *             if {@code uri} is not a valid {@code "cgvfs:"} URI or has a fragment.
      */
     private static String rawPathOf(final URI uri) {
         Assert.notNull(uri, "uri");
@@ -339,12 +297,11 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     }
 
     /**
-     * Decode the part of a {@code "cgvfs:"} URI that names a root into the path {@link Vfs#open(String)} takes,
-     * decoding its percent encoding exactly once.
+     * Decode the root path portion of a {@code "cgvfs:"} URI into the form expected by {@link Vfs#open(String)}.
      *
      * @param rawPath
-     *            the part of the URI that names the root, with its percent encoding as it is written.
-     * @return the path of the root.
+     *            the raw root path from the URI.
+     * @return the decoded root path.
      */
     private static String rootPathOf(final String rawPath) {
         if (!URLPaths.startsWithURLScheme(rawPath)) {
@@ -372,21 +329,15 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
                         + FastPathResolver.decodePercentEncoding(rawPath.substring(separatorIdx));
     }
 
-    /** A percent-encoded backslash, in either case. */
+    /** Pattern matching a percent-encoded backslash ({@code %5C} or {@code %5c}). */
     private static final Pattern ESCAPED_BACKSLASH = Pattern.compile("%5[cC]");
 
     /**
-     * Decode the part of a {@code "cgvfs:"} URI that names a path within a filesystem, decoding its percent
-     * encoding exactly once.
-     *
-     * <p>
-     * Unlike the path of a root, this is never resolved by {@link Vfs#resolvePath(String)}: it is split on
-     * {@code '/'} alone, so a backslash is an ordinary character of a name, and {@code "%5C"} is decoded to one.
-     * {@code "%2F"} is still kept as it is written, since a slash would be a separator.
+     * Decode the entry path portion of a {@code "cgvfs:"} URI.
      *
      * @param rawEntryName
-     *            the path within the filesystem, with its percent encoding as it is written.
-     * @return the decoded path.
+     *            the raw entry path from the URI.
+     * @return the decoded entry path.
      */
     private static String entryNameOf(final String rawEntryName) {
         final var parts = ESCAPED_BACKSLASH.split(rawEntryName, -1);
@@ -416,18 +367,15 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     }
 
     /**
-     * Create a {@link Vfs} configured by an env map, and open one root of it.
+     * Create a {@link Vfs} configured from {@code env} and open a root using {@code opener}.
      *
      * @param env
-     *            the env map, which may hold a {@link VfsSpec} under {@code "vfsSpec"}. The {@link VfsSpec} is
-     *            copied when the {@link Vfs} is created, so changing it afterward does not change the filesystem.
-     *            Any other key is ignored, since a caller that also drives zipfs passes the keys zipfs takes.
+     *            the environment map (may contain {@code "vfsSpec"}).
      * @param opener
-     *            opens the root.
-     * @return the opened root, whose {@link Vfs} was created by this method and is owned by the root's filesystem
-     *         view.
+     *            the callback to open the root.
+     * @return the opened {@link VfsRoot}.
      * @throws IOException
-     *             if the root could not be opened.
+     *             if the root cannot be opened.
      */
     private static VfsRoot openRoot(final Map<String, ?> env, final RootOpener opener) throws IOException {
         final var vfsSpec = envValue(env, VFS_SPEC_ENV_KEY, VfsSpec.class);
@@ -447,19 +395,17 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     }
 
     /**
-     * Turn an opened root into a registered filesystem, closing the {@link Vfs} behind it if it could not be
-     * registered. The filesystem is taken back out of the registry when it is closed, or when its root or that
-     * {@link Vfs} is closed.
+     * Wrap {@code root} in an owning {@link VfsFileSystem} and register it under {@code requestedPath}.
      *
      * @param root
      *            the opened root.
      * @param requestedPath
-     *            the path the caller named the root by.
-     * @return the filesystem view of the root.
+     *            the path by which the root was requested.
+     * @return the registered {@link FileSystem}.
      * @throws FileSystemAlreadyExistsException
-     *             if a filesystem is already open at that path.
+     *             if a filesystem is already registered for {@code requestedPath}.
      * @throws IOException
-     *             if cleanup of a failed registration cannot close an opened handle.
+     *             if closing the filesystem after a registration conflict fails.
      */
     private static FileSystem registeredFileSystemOf(final VfsRoot root, final String requestedPath)
             throws IOException {
@@ -486,11 +432,11 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     }
 
     /**
-     * Returns the module name a {@code "jrt:/<module>"} path names.
+     * Extract the module name from a {@code "jrt:/<module>"} path, or return {@code null} if not a module path.
      *
      * @param path
-     *            the path.
-     * @return the module name, or null if the path does not name a module.
+     *            the path string.
+     * @return the module name, or {@code null}.
      */
     private static @Nullable String moduleNameOf(final String path) {
         // "jrt:/java.logging", and also "jrt:/java.logging/" -- but not "jrt:/java.logging/java/util/logging",
@@ -505,35 +451,27 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     }
 
     /**
-     * Returns how a root is written in a {@code "cgvfs:"} URI, so that {@link #newFileSystem(URI, Map)} opens that
-     * root again. This is the path the root reports itself at, except for a module, which is written
-     * {@code "jrt:/<module>"}: that is the only spelling {@link #moduleNameOf(String)} reads as a module, and the
-     * bare module name that a module reports itself at names a directory relative to the working directory.
-     *
-     * <p>
-     * {@code "jrt:/<module>"} is resolved in the layer that the {@code "layer"} option names, by default the boot
-     * layer. So once the filesystem of a module of another layer is closed, its URI opens the module of that name
-     * in the layer given to the new call, or fails if that layer has none, but it never opens a directory.
+     * Return the path representation of {@code root} for use in a {@code "cgvfs:"} URI ({@code "jrt:/<module>"} for
+     * a {@link ModuleRoot}, or {@link VfsRoot#reportedPath()} otherwise).
      *
      * @param root
      *            the root.
-     * @return the path of the root in a {@code "cgvfs:"} URI.
+     * @return the {@code "cgvfs:"} root path string.
      */
     static String cgvfsPathOf(final VfsRoot root) {
         return root instanceof ModuleRoot ? "jrt:/" + root.getPath() : root.reportedPath();
     }
 
     /**
-     * Returns the {@code "cgvfs:"} URI of a path within the filesystem of a root, quoted so that
-     * {@link #getPath(URI)} decodes each part of it back to what it was.
+     * Construct a {@code "cgvfs:"} {@link URI} for {@code entryName} within {@code root}.
      *
      * @param root
      *            the root.
      * @param entryName
-     *            the path within the root, without a leading {@code '/'}, or the empty string for the root itself.
-     * @return the URI.
+     *            the root-relative entry path without a leading {@code '/'}, or {@code ""} for the root itself.
+     * @return the {@code "cgvfs:"} {@link URI}.
      * @throws URISyntaxException
-     *             if the path cannot be written as a URI.
+     *             if the URI cannot be constructed.
      */
     static URI cgvfsUriOf(final VfsRoot root, final String entryName) throws URISyntaxException {
         final var rootPath = cgvfsPathOf(root);
@@ -584,17 +522,14 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     }
 
     /**
-     * Register a filesystem under every path it can be named by, so that {@link #getFileSystem(URI)} finds it
-     * whichever of those names the caller writes.
+     * Register {@code fileSystem} in {@link #FILESYSTEMS_BY_PATH} under all lookup keys for {@code requestedPath}.
      *
      * @param fileSystem
      *            the filesystem to register.
      * @param requestedPath
-     *            the path the caller named it by, which need not be the path its root is written as in a
-     *            {@code "cgvfs:"} URI -- an alias through a symlink, or a {@code "file:"} URL of the same jarfile,
-     *            resolve to the same root.
+     *            the path by which the filesystem was requested.
      * @throws FileSystemAlreadyExistsException
-     *             if a filesystem is already open under one of those names.
+     *             if a filesystem is already registered under any of the keys.
      */
     private static void register(final VfsFileSystem fileSystem, final String requestedPath) {
         for (final var key : keysOf(fileSystem, requestedPath)) {
@@ -610,12 +545,12 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     }
 
     /**
-     * Take a filesystem back out of the registry, so that its name can be opened again.
+     * Remove {@code fileSystem} from {@link #FILESYSTEMS_BY_PATH}.
      *
      * @param fileSystem
-     *            the filesystem to deregister.
+     *            the filesystem to unregister.
      * @param requestedPath
-     *            the path the caller named it by.
+     *            the path by which the filesystem was requested.
      */
     static void unregister(final VfsFileSystem fileSystem, final String requestedPath) {
         for (final var key : keysOf(fileSystem, requestedPath)) {
@@ -624,14 +559,13 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     }
 
     /**
-     * Returns the registry keys of a filesystem: the path it was named by, and the path its root is written as in a
-     * {@code "cgvfs:"} URI, which differ when it was named through a symlink, by URL, or by a Windows short name.
+     * Return the registry lookup keys for {@code fileSystem} opened via {@code requestedPath}.
      *
      * @param fileSystem
      *            the filesystem.
      * @param requestedPath
-     *            the path the caller named it by.
-     * @return the keys, without duplicates.
+     *            the requested path.
+     * @return the distinct lookup keys.
      */
     private static Collection<String> keysOf(final VfsFileSystem fileSystem, final String requestedPath) {
         final var keys = new LinkedHashSet<String>(4);
@@ -647,32 +581,22 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      * {@inheritDoc}
      *
      * <p>
-     * The URI is {@code "cgvfs:"} followed by anything {@link Vfs#open(String)} accepts, and names a root: a
-     * directory, a jarfile, a jarfile nested inside another jarfile, or a package root.
-     * {@code "cgvfs:jrt:/<module>"} names a module of a {@link ModuleLayer} instead.
+     * Opens a read-only filesystem for a {@code "cgvfs:"} URI naming a directory, jarfile, nested jarfile, package
+     * root, or module ({@code "cgvfs:jrt:/<module>"}). Closing the returned filesystem unregisters it and closes
+     * its underlying {@link Vfs}.
      *
      * <p>
-     * The returned filesystem owns the {@link Vfs} this creates to open the root, so closing the filesystem
-     * releases the file handles, memory mappings and temporary files that reading through it took, and the name
-     * becomes free to open again.
-     *
-     * <p>
-     * Two options are read out of the env map: {@code "vfsSpec"}, a {@link VfsSpec} to read storage with, and
-     * {@code "layer"}, the {@link ModuleLayer} to resolve a {@code "jrt:/<module>"} URI in, which defaults to
-     * {@link ModuleLayer#boot()}. The {@link VfsSpec} is copied when the filesystem is created, so changing it
-     * afterward does not change the filesystem. Any other key is ignored rather than rejected, so that a caller
-     * which drives both this provider and zipfs from one env map does not have to strip the keys zipfs takes.
-     *
-     * <p>
-     * A module's filesystem is registered under {@code "jrt:/<module>"}, whatever layer the module was resolved in,
-     * so only one module of a given name can be open through this method at a time: opening the module of the same
-     * name in another layer throws {@link FileSystemAlreadyExistsException} until the first is closed, and
-     * {@link #getFileSystem(URI)} returns whichever one is open. To read two modules of the same name at once, open
-     * each with {@link Vfs#openModule(String, ModuleLayer)} and read it through {@link VfsRoot#asFileSystem()}.
+     * Recognized {@code env} options:
+     * <ul>
+     * <li>{@code "vfsSpec"}: a {@link VfsSpec} (defensively copied) used to configure the underlying
+     * {@link Vfs}.</li>
+     * <li>{@code "layer"}: the {@link ModuleLayer} used to resolve a {@code "jrt:/<module>"} URI (defaults to
+     * {@link ModuleLayer#boot()}).</li>
+     * </ul>
+     * Unrecognized keys in {@code env} are ignored.
      *
      * @throws FileSystemAlreadyExistsException
-     *             if a filesystem created by this method is already open at that path, or, for a module, if one is
-     *             open for a module of the same name in any layer.
+     *             if a filesystem created via this method is already open for the same root.
      */
     @Override
     public FileSystem newFileSystem(final URI uri, final Map<String, ?> env) throws IOException {
@@ -702,39 +626,15 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      * {@inheritDoc}
      *
      * <p>
-     * The path must name a directory, of any filesystem, not only of the default one. Every other path -- a
-     * jarfile, any other file, or a path where nothing exists yet -- is declined with
-     * {@link UnsupportedOperationException}. That is what the contract of this method asks of a provider that does
-     * not handle a path, and it matters beyond this provider: {@link java.nio.file.FileSystems#newFileSystem(Path)}
-     * tries each installed provider in turn, moving on to the next only when one throws
-     * {@link UnsupportedOperationException}, and the order in which it tries them is not defined -- with
-     * classgraph-vfs on the module path, this provider comes before the JDK's zipfs. Taking a jarfile here would
-     * hand the caller this provider's read-only filesystem where they expected a zipfs one, and failing a path that
-     * does not exist would stop zipfs from creating a zipfile there with {@code Map.of("create", "true")}. To open
-     * an archive through this provider, call {@link Vfs#open(Path)} and then {@link VfsRoot#asFileSystem()}, or
-     * name it with a {@code cgvfs:} URI.
-     *
-     * <p>
-     * This does leave one difference from a JVM without this provider installed:
-     * {@link java.nio.file.FileSystems#newFileSystem(Path)} over a directory returns a filesystem here, where it
-     * would otherwise throw {@link java.nio.file.ProviderNotFoundException}, since no built-in provider reads a
-     * directory as a filesystem.
-     *
-     * <p>
-     * The returned filesystem owns the {@link Vfs} this creates to open the path, so closing the filesystem
-     * releases what reading through it took. The env map is read the same way {@link #newFileSystem(URI, Map)}
-     * reads it.
-     *
-     * <p>
-     * Each call returns a new filesystem, independent of any other open at the same directory, and
-     * {@link #getFileSystem(URI)} and {@link #getPath(URI)} do not find it. This is what the javadoc of
-     * {@link FileSystemProvider#newFileSystem(Path, Map)} and {@link FileSystemProvider#getFileSystem(URI)}
-     * specifies, and what zipfs does for a zipfile.
+     * Opens a new, unregistered read-only filesystem for a directory {@link Path}. Non-directory paths throw
+     * {@link UnsupportedOperationException} so that {@link java.nio.file.FileSystems#newFileSystem(Path)} delegates
+     * archive files to the JDK's {@code zipfs} provider; to open an archive with this provider, use a
+     * {@code cgvfs:} URI or {@link Vfs#open(Path)} followed by {@link VfsRoot#asFileSystem()}.
      *
      * @throws UnsupportedOperationException
-     *             if the path does not name a directory.
+     *             if {@code path} is not a directory.
      * @throws IOException
-     *             if the directory could not be read.
+     *             if the directory cannot be opened.
      */
     @Override
     public FileSystem newFileSystem(final Path path, final Map<String, ?> env) throws IOException {
@@ -752,14 +652,12 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      * {@inheritDoc}
      *
      * <p>
-     * Only a filesystem created by {@link #newFileSystem(URI, Map)} can be looked up by URI. A filesystem created
-     * by {@link VfsRoot#asFileSystem()} is not registered under its path, since the {@link Vfs} that opened the
-     * root belongs to the caller, and two of them can have the same path open at once. Nor is a filesystem created
-     * by {@link #newFileSystem(Path, Map)}, which {@link FileSystemProvider#getFileSystem(URI)} must not return,
-     * and of which any number can be open at one directory.
+     * Returns an open filesystem previously created via {@link #newFileSystem(URI, Map)}. Filesystems created via
+     * {@link #newFileSystem(Path, Map)} or {@link VfsRoot#asFileSystem()} are not registered and cannot be looked
+     * up here.
      *
      * @throws FileSystemNotFoundException
-     *             if no filesystem created from a URI is open at that path.
+     *             if no registered filesystem is open at {@code uri}.
      */
     @Override
     public FileSystem getFileSystem(final URI uri) {
@@ -776,14 +674,11 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      * {@inheritDoc}
      *
      * <p>
-     * The longest prefix of the URI that names an open filesystem is the filesystem, and the rest is the path
-     * within it, so {@code "cgvfs:/path/app.jar!/META-INF/MANIFEST.MF"} is a file of the filesystem of
-     * {@code app.jar}, and {@code "cgvfs:/path/outer.jar!/lib/inner.jar!/com/xyz/W.class"} is a file of the
-     * filesystem of the nested jarfile. A URI that names an open filesystem exactly, with nothing after it, is that
-     * filesystem's root directory.
+     * Matches the longest prefix of {@code uri} corresponding to an open filesystem registered via
+     * {@link #newFileSystem(URI, Map)}, and resolves the remaining path after {@code "!/"} within that filesystem.
      *
      * @throws FileSystemNotFoundException
-     *             if no prefix of the URI names a filesystem created from a URI.
+     *             if no prefix of {@code uri} matches an open registered filesystem.
      */
     @Override
     public Path getPath(final URI uri) {
@@ -835,11 +730,8 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      * {@inheritDoc}
      *
      * <p>
-     * The returned channel is read-only, so every method that would write throws
-     * {@link NonWritableChannelException}. {@link FileChannel#map(FileChannel.MapMode, long, long)} and the file
-     * locking methods throw {@link UnsupportedOperationException}: an entry of an archive has no region of a file
-     * of its own that could be mapped or locked, since it is usually stored compressed. Read the entry through
-     * {@link #newInputStream} or {@link #newByteChannel} where a channel is not needed.
+     * Returns a read-only {@link FileChannel}; write operations throw {@link NonWritableChannelException}, and
+     * memory mapping and file locking throw {@link UnsupportedOperationException}.
      */
     @Override
     public FileChannel newFileChannel(final Path path, final Set<? extends OpenOption> options,
@@ -878,12 +770,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
         return fileSystem.register(new VfsDirectoryStream(children, filter, fileSystem));
     }
 
-    /**
-     * A {@link DirectoryStream} over a list of child paths that was built up front, so nothing is held open. It
-     * hands out its iterator once, as {@link DirectoryStream#iterator()} requires, and that iterator reports the
-     * end of the directory once the stream is closed, after any accepted child already buffered by hasNext().
-     * Filtering is lazy, and checked filter failures are reported at the iterator boundary.
-     */
+    /** A {@link DirectoryStream} over a pre-collected list of child paths with lazy filtering. */
     private static final class VfsDirectoryStream implements DirectoryStream<Path> {
         /** The children of the directory. */
         private final List<Path> children;
@@ -1001,9 +888,8 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      * {@inheritDoc}
      *
      * <p>
-     * Native directory files use their underlying provider's identity, including symbolic links, hard links and
-     * different views. Archive and module files use the identity of their opened root and normalized entry name;
-     * independently opened roots are separate namespaces, even if they report the same URI.
+     * Directory-backed paths delegate to {@link Files#isSameFile(Path, Path)} on their underlying paths; archive
+     * and module paths compare their owning {@link VfsRoot} identity and normalized entry path.
      */
     @Override
     public boolean isSameFile(final Path path, final Path path2) throws IOException {
@@ -1206,22 +1092,19 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * The attributes of one file or directory of a virtual filesystem.
-     *
-     */
+    /** Basic file attributes for an archive or module entry (or synthesized directory). */
     private static final class VfsFileAttributes implements BasicFileAttributes {
-        /** The entry, or null for a synthesized directory. */
+        /** The entry, or {@code null} for a synthesized directory. */
         private final @Nullable VfsEntry entry;
 
-        /** An unknown length is streamed only once per attribute snapshot, without retaining its content. */
+        /** Cached size in bytes for entries with unknown length, or {@code -1} if not yet computed. */
         private long computedSize = -1L;
 
         /**
          * Constructor.
          *
          * @param entry
-         *            the entry, or null for a directory.
+         *            the entry, or {@code null} for a directory.
          */
         VfsFileAttributes(final @Nullable VfsEntry entry) {
             this.entry = entry;
@@ -1266,18 +1149,12 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
         }
 
         /**
-         * Returns the size of the file.
+         * Return the size of the file in bytes, or {@code 0} for a directory. For module entries whose length is
+         * not known up front, the entry stream is read once to count its bytes.
          *
-         * <p>
-         * A module entry does not know its length, so its stream is counted with bounded memory on first use, which
-         * needs its root to be open. The successful result is cached for this attribute snapshot.
-         *
-         * @return the size of the file in bytes, or 0 for a directory.
+         * @return the file size in bytes.
          * @throws UncheckedIOException
-         *             if the size of a module entry could not be read, because the entry could not be read or its
-         *             root was closed. This is an exception, not an {@link java.io.IOError}, so that a handler for
-         *             exceptions catches it: {@link java.nio.file.Files#size(Path)} calls this method directly, and
-         *             passes on whatever it throws.
+         *             if streaming a module entry to determine its size fails.
          */
         @Override
         public synchronized long size() {

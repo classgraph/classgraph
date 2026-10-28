@@ -44,217 +44,118 @@ import io.github.classgraph.vfs.internal.InputStreamUtils;
 import io.github.classgraph.vfs.internal.slice.Slice;
 
 /**
- * A reader that works as either a {@link RandomAccessReader} or a {@link SequentialReader}. The content is read as
- * a stream, and is buffered up to the point it has been read so far, so that the random access methods can go back
- * over any part of it that has already been read. (Parsing a classfile needs exactly this: the constant pool is
- * read sequentially, then indexed into. So does reading the header of a deflated zip entry through a channel: only
- * the header has to be inflated.)
+ * A reader that implements both {@link RandomAccessReader} and {@link SequentialReader} over an {@link InputStream}
+ * or {@link VfsEntry}, buffering stream bytes on demand to support random access. Defaults to
+ * {@link ByteOrder#BIG_ENDIAN}.
  *
  * <p>
- * Reads in <b>big endian</b> order by default, as required by the Java classfile format, which is what this reader
- * was written for; pass a {@link ByteOrder} to read content written in the other order. See
- * {@link RandomAccessReader} for why the byte order is a property of the content and not of the machine.
- *
- * <p>
- * The length of the content is only known once the end of the stream has been reached, so {@link #length()} reads
- * the whole of the content -- a caller that does not need the length should not ask for it. A length passed to the
- * constructor, such as the uncompressed size a zip entry declares for itself, is used to size the buffer and
- * nothing else: the zipfile format does not guarantee that field is right, and the JDK's own {@code ZipFile} and
- * {@code jdk.nio.zipfs} do not trust it either, so the end of the content is where the stream ends, whether that is
- * before or after the declared length.
- *
- * <p>
- * Because the content is buffered in a {@code byte[]}, this reader cannot go further into content than the largest
- * array the JVM can allocate, which is just under 2GB, or than a lower limit passed to the constructor. Content
- * that runs on past that point is not truncated silently: any read that would have to go past the limit throws an
- * {@link IOException} saying so. To read content larger than 2GB, stream it with {@link VfsEntry#open()} instead,
- * which has no such limit.
+ * Calling {@link #length()} reads and buffers the entire stream to determine its true length. Because content is
+ * buffered in a {@code byte[]}, the maximum bufferable size is {@code Integer.MAX_VALUE - 8} bytes (or a smaller
+ * {@code maxLength} passed to the constructor); reads or skips beyond that limit throw {@link IOException}. For
+ * content larger than 2 GiB, stream it directly via {@link VfsEntry#open()}.
  */
 public final class RandomAccessOrSequentialReader implements RandomAccessReader, SequentialReader, AutoCloseable {
-    /**
-     * The stream the content is read through: either the stream that the {@link VfsEntry} opened, which inflates
-     * the entry if it is deflated, or a stream that the caller opened and passed in. Null once this reader has been
-     * closed.
-     */
+    /** The underlying input stream, or null once closed. */
     private @Nullable InputStream inputStream;
 
-    /**
-     * True if this reader opened {@link #inputStream} itself, and so has to close it. A stream that the caller
-     * passed in belongs to the caller, which closes it in its own try-with-resources.
-     */
+    /** True if this reader opened {@link #inputStream} and should close it on {@link #close()}. */
     private final boolean ownsInputStream;
 
-    /** The content read so far, in the first {@link #arrUsed} bytes. */
+    /** Buffer holding the first {@link #arrUsed} bytes read from the stream. */
     private byte[] arr;
 
-    /** The number of bytes used in arr. */
+    /** The number of valid bytes currently in {@link #arr}. */
     private int arrUsed;
 
-    /** The current read index within the stream. */
+    /** The current sequential read position. */
     private int currIdx;
 
-    /**
-     * The length the content declares for itself, if it declares one, or -1 if it does not. This is a hint used to
-     * size the buffer, and is not where the content is taken to end -- see the class documentation.
-     */
+    /** Validated declared content length hint used to size the buffer, or -1 if unknown. */
     private int lengthHint = -1;
 
-    /** True once the end of the stream has been reached, at which point {@link #arrUsed} is the true length. */
+    /** True once the end of the stream has been reached. */
     private boolean eof;
 
-    /** The number of bytes the buffer is next grown by. Doubles up to {@link #MAX_CHUNK_SIZE}. */
+    /** Next chunk size for buffer growth (doubles up to {@link #MAX_CHUNK_SIZE}). */
     private int chunkSize = MIN_CHUNK_SIZE;
 
-    /**
-     * The largest buffer this reader will grow: the largest array the JVM can allocate, unless the caller passed a
-     * lower limit to the constructor. A test can also lower it, to reach the behavior at the limit without
-     * allocating two gigabytes.
-     */
+    /** Maximum buffer size in bytes. */
     private int maxBufferSize = Slice.MAX_BUFFER_SIZE;
 
-    /** The byte order multi-byte values are read in. */
+    /** The byte order for multi-byte values. */
     private final ByteOrder byteOrder;
 
-    /**
-     * Whether {@link #byteOrder} is {@link ByteOrder#BIG_ENDIAN}, kept as a field to keep the reads branch-free.
-     */
+    /** True if {@link #byteOrder} is {@link ByteOrder#BIG_ENDIAN}. */
     private final boolean bigEndian;
 
-    /**
-     * The size the buffer is grown to the first time anything is read, unless the first read is of more than this.
-     * For most content only a prefix is read -- for a classfile, the first 16-64kb, since the bytecodes are not
-     * read -- so the declared length of the content is deliberately not used here: a caller that reads a 64-byte
-     * header of a 1MB entry should not be given a 1MB buffer.
-     */
+    /** Initial buffer allocation size on first read. */
     private static final int INITIAL_BUF_SIZE = 16384;
 
-    /**
-     * The buffer before anything has been read. Nothing is allocated until the first read, so that a caller that
-     * asks for the whole of the content in one read gets a buffer of exactly that size, rather than a buffer of
-     * {@link #INITIAL_BUF_SIZE} that is thrown away and copied into a larger one straight afterwards.
-     */
+    /** Shared empty buffer before the first read. */
     private static final byte[] EMPTY_BUF = {};
 
-    /**
-     * Read at least this many bytes the first time there is a buffer underrun. This is smaller than 8k by 8 bytes
-     * to prevent the doubling of the array size when the last chunk doesn't quite fit within the 16kb of
-     * INITIAL_BUF_SIZE, since the number of bytes that can be requested is up to 8 (for longs). Otherwise we could
-     * request to read to (8kb * 2 + 8), which would double the size of the buffer to 32kb, but if we only need to
-     * read between 8kb and 16kb, then we unnecessarily copied the buffer content one extra time.
-     */
+    /** Minimum chunk size to read on the first buffer underrun. */
     private static final int MIN_CHUNK_SIZE = 8192 - 8;
 
-    /**
-     * The largest number of bytes the buffer is grown by at once. The chunk doubles from {@link #MIN_CHUNK_SIZE} up
-     * to this, so that a caller reading a long way into the content pays a decreasing number of allocations for it,
-     * while a caller reading only a header still allocates only one small buffer.
-     *
-     * <p>
-     * Reading every entry of a 2.8GB archive of deflated text, with the declared length ignored so that this is the
-     * only thing that decides how the buffer grows, measured the same at every ceiling from 8k to 1MB, single
-     * threaded and on 32 threads. This is therefore set at the point where raising it stopped changing anything,
-     * rather than at a measured optimum. It is only the growth floor: once the buffer is larger than this it
-     * doubles instead, and each read fills as much of the buffer as has room, whatever the chunk asked for.
-     */
+    /** Maximum chunk size step before buffer doubling takes over. */
     private static final int MAX_CHUNK_SIZE = 65536;
 
-    /**
-     * The largest buffer that is allocated in one go from the length the content declares for itself, rather than
-     * by doubling. A zip entry can declare any uncompressed size it likes, so believing a declared length far
-     * enough to allocate it would let a small archive ask for gigabytes.
-     */
+    /** Maximum buffer size allocated in a single step from a declared content length. */
     private static final int MAX_DECLARED_LENGTH_TO_ALLOCATE = 16 * 1024 * 1024;
 
-    /**
-     * Once the buffer has been grown to at least this size, the next growth allocates the whole of the length the
-     * content declares for itself, rather than continuing to double towards it. A caller that has read this far is
-     * reading the content and not sampling a header, and doubling the rest of the way to the declared length copies
-     * roughly the whole of the content again on the way there. This is the size of the first buffer, so the jump
-     * happens on the second growth: the first growth is what tells a header read apart from a content read, and
-     * nothing smaller can do that job.
-     */
+    /** Buffer size threshold at which the next growth jumps directly to {@link #lengthHint}. */
     private static final int JUMP_TO_DECLARED_LENGTH_THRESHOLD = INITIAL_BUF_SIZE;
 
-    /**
-     * The largest ratio of declared uncompressed size to compressed size that is believed. The best ratio the
-     * DEFLATE format can reach is 1032:1, so a declared length far above that for the number of compressed bytes
-     * behind it cannot be right. The margin over 1032 is wide because the cost of believing a wrong length is one
-     * bounded over-allocation, while the cost of disbelieving a right one is a buffer grown by doubling.
-     */
+    /** Maximum plausible ratio of declared uncompressed size to compressed size. */
     private static final int MAX_BELIEVED_COMPRESSION_RATIO = 2048;
 
-    /**
-     * The number of bytes by which a declared uncompressed size may fall below the compressed size before it is
-     * disbelieved. Deflating incompressible data expands it, but only by about 5 bytes per 64kb block, so a
-     * declared length that is a whole kilobyte below the compressed size, plus a further allowance that grows with
-     * the entry, is describing different content than the entry holds.
-     */
+    /** Maximum slack in bytes by which a declared uncompressed size may fall below the compressed size. */
     private static final int UNDERSIZE_SLACK = 1024;
 
-    /** The message of the {@link IOException} thrown when a read runs past the end of the content. */
+    /** Exception message when a read extends past the end of the content. */
     private static final String END_OF_CONTENT = "Tried to read past the end of the content";
 
     /**
-     * Constructor for reading an entry of a virtual filesystem. Whatever the entry has to open in order to be read
-     * is opened by this reader, and closed by {@link #close()}, so the entry itself does not need to be opened by
-     * the caller.
-     *
-     * <p>
-     * An entry larger than 2GB cannot be read through this reader, which buffers what it has read in a
-     * {@code byte[]}: see the class documentation. Read such an entry as a stream, with {@link VfsEntry#open()}.
+     * Construct a big-endian reader over a {@link VfsEntry}. Closing this reader closes the stream opened on the
+     * entry.
      *
      * @param entry
      *            the {@link VfsEntry} to read.
      * @throws IOException
-     *             If the entry could not be opened.
+     *             if the entry could not be opened.
      */
     public RandomAccessOrSequentialReader(final VfsEntry entry) throws IOException {
         this(entry, ByteOrder.BIG_ENDIAN);
     }
 
     /**
-     * Constructor for reading an entry of a virtual filesystem in a given byte order. Whatever the entry has to
-     * open in order to be read is opened by this reader, and closed by {@link #close()}, so the entry itself does
-     * not need to be opened by the caller.
-     *
-     * <p>
-     * An entry larger than 2GB cannot be read through this reader, which buffers what it has read in a
-     * {@code byte[]}: see the class documentation. Read such an entry as a stream, with {@link VfsEntry#open()}.
+     * Construct a reader over a {@link VfsEntry} with the specified byte order. Closing this reader closes the
+     * stream opened on the entry.
      *
      * @param entry
      *            the {@link VfsEntry} to read.
      * @param byteOrder
-     *            the byte order to read multi-byte values in. Pass {@link ByteOrder#nativeOrder()} for content
-     *            written in the byte order of the machine this is running on.
+     *            the byte order for multi-byte values.
      * @throws IOException
-     *             If the entry could not be opened.
+     *             if the entry could not be opened.
      */
     public RandomAccessOrSequentialReader(final VfsEntry entry, final ByteOrder byteOrder) throws IOException {
         this(entry, byteOrder, Slice.MAX_BUFFER_SIZE);
     }
 
     /**
-     * Constructor for reading an entry of a virtual filesystem in a given byte order, buffering no more than a
-     * given number of bytes of it. Whatever the entry has to open in order to be read is opened by this reader, and
-     * closed by {@link #close()}, so the entry itself does not need to be opened by the caller.
-     *
-     * <p>
-     * Use this to read content whose format bounds its size, so that a corrupt or crafted entry cannot make the
-     * reader buffer more than that. The content is buffered up to the furthest point that has been read or skipped
-     * to, so a length read out of the content and passed to {@link #skip(int)} could otherwise make the reader
-     * inflate and buffer up to 2GB of a deflated entry that takes up only a few megabytes of its archive.
+     * Construct a reader over a {@link VfsEntry} with the specified byte order and maximum buffered length. Closing
+     * this reader closes the stream opened on the entry.
      *
      * @param entry
      *            the {@link VfsEntry} to read.
      * @param byteOrder
-     *            the byte order to read multi-byte values in. Pass {@link ByteOrder#nativeOrder()} for content
-     *            written in the byte order of the machine this is running on.
+     *            the byte order for multi-byte values.
      * @param maxLength
-     *            the largest number of bytes of the content to buffer. A read or skip that would have to go past it
-     *            throws an {@link IOException}. A value larger than the largest array the JVM can allocate is
-     *            lowered to that.
+     *            the maximum number of bytes to buffer before throwing {@link IOException} (clamped to
+     *            {@code Integer.MAX_VALUE - 8}).
      * @throws IOException
-     *             If the entry could not be opened.
+     *             if the entry could not be opened.
      * @throws IllegalArgumentException
      *             if {@code maxLength} is not positive.
      */
@@ -278,21 +179,13 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
     }
 
     /**
-     * Check a declared uncompressed length against the number of compressed bytes that are supposed to produce it,
-     * and reject it if the two cannot describe the same content. A wrong declared length is never allowed to
-     * truncate or pad what is read -- the end of the content is always where the stream ends -- so this only
-     * decides whether the length is worth believing far enough to size the buffer from it. Believing a wrong one
-     * costs an allocation that is thrown away.
-     *
-     * <p>
-     * For an entry that is not stored compressed the two sizes are the same, so none of the checks can fire, and
-     * the declared length is used as it stands.
+     * Validate a declared uncompressed length against the compressed size to determine a buffer sizing hint.
      *
      * @param declaredLength
-     *            the uncompressed length the content declares for itself, or -1 if it declares none.
+     *            the declared uncompressed length, or -1 if unknown.
      * @param compressedSize
-     *            the number of stored bytes the content is read from, or -1 if that is not known.
-     * @return the length to size the buffer from, or -1 if the declared length is not worth believing.
+     *            the compressed size in bytes, or -1 if unknown.
+     * @return the validated length hint, or -1 if the declared length is unknown or implausible.
      */
     // Package-private rather than private so that the rules can be checked one at a time by a test
     static int validatedLengthHint(final long declaredLength, final long compressedSize) {
@@ -322,12 +215,8 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
     }
 
     /**
-     * Constructor for reading content that is already open as a stream. The stream belongs to the caller, which
-     * opens it in a try-with-resources and closes it once the reader has been closed.
-     *
-     * <p>
-     * Content larger than 2GB cannot be read through this reader, which buffers what it has read in a
-     * {@code byte[]}: see the class documentation. Read such content from the stream directly.
+     * Construct a big-endian reader over a caller-owned {@link InputStream} (closing this reader does not close
+     * {@code inputStream}).
      *
      * @param inputStream
      *            the {@link InputStream} to read from.
@@ -337,18 +226,13 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
     }
 
     /**
-     * Constructor for reading content that is already open as a stream, in a given byte order. The stream belongs
-     * to the caller, which opens it in a try-with-resources and closes it once the reader has been closed.
-     *
-     * <p>
-     * Content larger than 2GB cannot be read through this reader, which buffers what it has read in a
-     * {@code byte[]}: see the class documentation. Read such content from the stream directly.
+     * Construct a reader over a caller-owned {@link InputStream} with the specified byte order (closing this reader
+     * does not close {@code inputStream}).
      *
      * @param inputStream
      *            the {@link InputStream} to read from.
      * @param byteOrder
-     *            the byte order to read multi-byte values in. Pass {@link ByteOrder#nativeOrder()} for content
-     *            written in the byte order of the machine this is running on.
+     *            the byte order for multi-byte values.
      */
     public RandomAccessOrSequentialReader(final InputStream inputStream, final ByteOrder byteOrder) {
         ownsInputStream = false;
@@ -370,9 +254,7 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
     }
 
     /**
-     * The position the sequential read methods read from next, which starts at zero and is advanced by each of
-     * them, and by {@link #skip(int)}, and which {@link #position(int)} sets. The random access read methods take
-     * the position to read from as an argument, and do not move it.
+     * Returns the current sequential read position (unaffected by random-access reads).
      *
      * @return the current read position.
      */
@@ -382,8 +264,7 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
     }
 
     /**
-     * The size of the buffer the content has been read into so far. This is how much has been allocated, not how
-     * much has been read, so it says how the buffer was grown rather than how long the content is.
+     * Returns the current capacity of the internal buffer array.
      *
      * @return the length of the buffer array.
      */
@@ -393,11 +274,10 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
     }
 
     /**
-     * Lower the largest buffer this reader will grow, so that a test can reach the behavior at the limit without
-     * allocating two gigabytes. Must be called before anything is read.
+     * Override the maximum buffer size for testing. Must be called before reading any bytes.
      *
      * @param maxBufferSize
-     *            the limit to apply in place of the one the constructor set.
+     *            the maximum buffer size in bytes.
      */
     // Package-private rather than private so that only a test in this package can call it
     void setMaxBufferSize(final int maxBufferSize) {
@@ -405,10 +285,10 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
     }
 
     /**
-     * Grow the buffer array, if needed, so that it can hold at least the given number of bytes.
+     * Ensure the buffer array has capacity for at least {@code minArrLength} bytes.
      *
      * @param minArrLength
-     *            the number of bytes the array has to be able to hold.
+     *            the minimum required buffer capacity.
      */
     private void ensureCapacity(final int minArrLength) {
         if (arr.length >= minArrLength) {
@@ -440,20 +320,10 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
     }
 
     /**
-     * Grow the buffer array so that at least one more byte can be read into it, by at least a whole chunk, so that
-     * a caller reading one value at a time does not pay one allocation per value.
-     *
-     * <p>
-     * The buffer is grown towards the target, but to no more than twice its size, unless the target lies within the
-     * length the content declares for itself, which is believed as far as one bounded allocation. The target says
-     * nothing about how long the content is: it is often read out of the content itself, such as the length of a
-     * classfile attribute that is skipped, so growing straight to it would let one corrupt length make a 20kb
-     * classfile allocate as much as the limit on the buffer allows. {@link #readTo(long)} grows the buffer again
-     * for as long as the content keeps arriving, so the buffer stays within about twice the content that has been
-     * read.
+     * Grow the buffer array toward {@code targetArrUsed}.
      *
      * @param targetArrUsed
-     *            the number of bytes the current read is trying to reach.
+     *            the target number of buffered bytes.
      */
     private void grow(final long targetArrUsed) {
         // Computed in long arithmetic, because arrUsed can be within a chunk of the 2GB limit, and an int sum would
@@ -468,16 +338,12 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
     }
 
     /**
-     * Called when there is a buffer underrun to ensure there are sufficient bytes available in the array to read
-     * the given number of bytes at the given start index.
+     * Read from the stream until {@link #arrUsed} reaches at least {@code targetArrUsed} or EOF is reached.
      *
      * @param targetArrUsed
-     *            the target value for {@link #arrUsed} (i.e. the number of bytes that must be filled in the array).
-     *            Taken as a long so that a caller can hand over a sum of two ints without having to check first
-     *            whether it fits in an int -- one that does not is out of range, and is rejected below.
+     *            the target value for {@link #arrUsed}.
      * @throws IOException
-     *             if the content could not be read, or {@code targetArrUsed} is larger than the largest buffer
-     *             allowed.
+     *             if an I/O error occurs or {@code targetArrUsed} exceeds {@link #maxBufferSize}.
      */
     private void readTo(final long targetArrUsed) throws IOException {
         if (targetArrUsed > maxBufferSize || targetArrUsed < 0) {
@@ -533,18 +399,10 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
     }
 
     /**
-     * Check that the content really ended where the buffer stops, rather than running on past the most that can be
-     * buffered ({@link #maxBufferSize}). Called wherever a read would otherwise report the end of the content at
-     * that limit: the caller cannot tell that apart from the real end of the content, so reporting it would hand
-     * back a silently truncated copy of a longer entry.
-     *
-     * <p>
-     * Content that ends exactly at the limit is not truncated, and a stream only reports its end once a read asks
-     * it for a byte it does not have, so the stream is asked for one more byte before this concludes anything. The
-     * byte is discarded, since there is nowhere left to put it, but that only happens on the path that throws.
+     * Verify that the stream ended within {@link #maxBufferSize} rather than being truncated at the buffer limit.
      *
      * @throws IOException
-     *             if the content is longer than can be buffered.
+     *             if the content exceeds {@link #maxBufferSize}.
      */
     private void checkContentEndedWithinBuffer() throws IOException {
         if (eof || arrUsed < maxBufferSize) {
@@ -561,11 +419,10 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
     }
 
     /**
-     * Read the whole of the content into the buffer, so that {@link #arrUsed} is its true length. Does nothing if
-     * the end of the stream has already been reached.
+     * Read the entire stream into the buffer until EOF.
      *
      * @throws IOException
-     *             if the content could not be read.
+     *             if the content could not be read or exceeds {@link #maxBufferSize}.
      */
     private void readToEof() throws IOException {
         if (!eof && lengthHint > 0) {
@@ -592,16 +449,15 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
     }
 
     /**
-     * Ensure that the given number of bytes have been read into the buffer, starting at the given offset, so that
-     * the read that follows can be served straight out of the buffer.
+     * Ensure that {@code numBytes} starting at {@code srcOffset} are buffered in {@link #arr}.
      *
      * @param srcOffset
-     *            the offset the read starts at.
+     *            the start offset.
      * @param numBytes
-     *            the number of bytes to be read.
-     * @return {@code srcOffset} as an index into the buffer.
+     *            the number of bytes to read.
+     * @return {@code srcOffset} as an int index into {@link #arr}.
      * @throws IOException
-     *             on EOF, or if the range is out of bounds, or if the bytes could not be read.
+     *             if the range is out of bounds, reaches EOF prematurely, or cannot be read.
      */
     private int bufferFor(final long srcOffset, final int numBytes) throws IOException {
         // The offset is range-checked before it is narrowed to an int, since narrowing it silently would turn a
@@ -630,18 +486,16 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
     }
 
     /**
-     * Ensure that as many as possible of the given number of bytes have been read into the buffer, starting at the
-     * given offset, and report how many of them are there. Unlike {@link #bufferFor(long, int)} this does not throw
-     * at the end of the content, since a bulk read stops at the end of the content and reports how far it got.
+     * Buffer up to {@code numBytes} starting at {@code srcOffset} for a bulk read and return the number of bytes
+     * available.
      *
      * @param srcOffset
-     *            the offset the read starts at, which the caller has checked is not negative.
+     *            the non-negative start offset.
      * @param numBytes
-     *            the maximum number of bytes to be read, which the caller has checked is not negative.
-     * @return the number of bytes that can be read at {@code srcOffset}, which is zero at or past the end of the
-     *         content.
+     *            the non-negative maximum number of bytes to read.
+     * @return the number of bytes available at {@code srcOffset} (0 if at or past the end of the content).
      * @throws IOException
-     *             if the bytes could not be read.
+     *             if the bytes could not be read or the content exceeds {@link #maxBufferSize}.
      */
     private int bufferForBulkRead(final long srcOffset, final int numBytes) throws IOException {
         if (srcOffset > maxBufferSize) {
@@ -845,16 +699,16 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
     }
 
     /**
-     * Move the position that the sequential read methods read from next. Unlike {@link #skip(int)}, this can also
-     * move the position back, to content that has already been read, which is still buffered.
+     * Set the sequential read position (moving backward into already-buffered content or forward by
+     * reading/skipping up to {@code newPosition}).
      *
      * @param newPosition
-     *            the new position, relative to the start of the content.
+     *            the new position relative to the start of the content.
      * @throws IllegalArgumentException
      *             if {@code newPosition} is negative.
      * @throws IOException
-     *             if {@code newPosition} is past the end of the content, or the content up to it could not be read.
-     *             The position is then not moved.
+     *             if {@code newPosition} is past the end of the content or the bytes up to it could not be read
+     *             (leaving the position unchanged).
      */
     public void position(final int newPosition) throws IOException {
         if (newPosition < 0) {
@@ -898,19 +752,18 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
     }
 
     /**
-     * Compare the bytes at the given offset with the given ASCII string, without building a {@link String} out of
-     * them to compare it with. Each byte is compared as an unsigned value, so a byte outside the ASCII range
-     * differs from every character of an ASCII string.
+     * Returns whether the {@code numBytes} starting at {@code srcOffset} equal the ASCII characters of
+     * {@code asciiStr} without allocating a {@link String}.
      *
      * @param srcOffset
-     *            the offset the bytes start at.
+     *            the start offset in the content.
      * @param numBytes
      *            the number of bytes to compare.
      * @param asciiStr
-     *            the ASCII string to compare the bytes with.
-     * @return true if the bytes at the offset are the given string.
+     *            the ASCII string to compare against.
+     * @return true if the bytes at {@code srcOffset} match {@code asciiStr}.
      * @throws IOException
-     *             on EOF, or if the range is out of bounds, or if the bytes could not be read.
+     *             if the range is out of bounds, reaches EOF prematurely, or cannot be read.
      */
     public boolean contentEqualsAscii(final long srcOffset, final int numBytes, final String asciiStr)
             throws IOException {

@@ -36,103 +36,62 @@ import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 
 /**
- * What a classpath search needs to know about the thread that started it, read once, up front, and then passed to
- * everything that needs it.
- *
- * <p>
- * Three parts of a scan ask about the call stack: the classloader search, which searches the classloader of the
- * code that called ClassGraph, so that a caller loaded by a classloader that is in none of the usual places is
- * still searched; the module search, which searches the module layers that the caller can see; and the check for a
- * class loading lock, which decides whether the scan can safely load classes on a worker thread (#933). Reading the
- * stack is not free -- {@link StackWalker} materializes a frame per stack entry -- and a
- * {@link StackWalker.StackFrame} is valid only while the walk is running, so the stack is walked once, up front,
- * and what all three need is taken from that one walk.
- *
- * <p>
- * Only what they need is kept, rather than a frame or a class per stack entry: the classloaders and the module
- * layers of the classes in the stack, each deduplicated and in innermost-frame-first order, and whether any frame
- * is holding a class loading lock. The thread's context classloader is read here too, since it is a property of the
- * calling thread in the same way.
- *
- * <p>
- * The read has to happen on the thread that called ClassGraph, since that is the thread whose caller, whose context
- * classloader and whose locks are being asked about, and it has to happen before any of the work is handed to
- * another thread.
+ * Captures call stack information from the calling thread: context classloader, classloaders and module layers of
+ * classes on the call stack, and any frame holding a class loading lock.
  */
 public final class CallStackInfo {
-    /** The name the compiler gives a static initializer block. */
+    /** Method name for a class static initializer block. */
     private static final String STATIC_INITIALIZER = "<clinit>";
 
-    /** The methods of {@link ClassLoader} that hold the loading lock of the class that is being loaded. */
+    /** {@link ClassLoader} method names that hold a class loading lock. */
     private static final Set<String> CLASS_LOADING_METHODS = Set.of("loadClass", "findClass", "defineClass");
 
-    /** The context classloader of the thread that this info was read on, or null if it has none. */
+    /** The context classloader of the calling thread, or null if none. */
     private final @Nullable ClassLoader contextClassLoader;
 
-    /**
-     * The classloaders of the classes in the call stack, innermost frame first. Deduplicated by reference rather
-     * than by {@code equals()}, since a classloader can claim to be equal to another classloader that loads a
-     * different set of classes -- see {@link LinkedIdentitySet}. The module layers do not need the same treatment,
-     * since {@link ModuleLayer} is final and does not override {@code equals()}.
-     */
+    /** The classloaders of the classes in the call stack, innermost frame first, deduplicated by reference. */
     private final LinkedIdentitySet<ClassLoader> classLoaders;
 
     /** The module layers of the classes in the call stack, innermost frame first. */
     private final LinkedHashSet<ModuleLayer> moduleLayers;
 
-    /** The innermost frame that is holding a class loading lock, or null if there is no such frame. */
+    /** The innermost frame holding a class loading lock, or null if none. */
     private final @Nullable String frameHoldingClassLoadingLock;
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the context classloader of the thread that started the search.
+     * Returns the context classloader of the thread that started the search.
      *
-     * @return the context classloader, or null if the thread has none. This is the first classloader that a search
-     *         tries, since a context classloader can be set as an override on a per-thread basis.
+     * @return the context classloader, or null if none.
      */
     public @Nullable ClassLoader getContextClassLoader() {
         return contextClassLoader;
     }
 
     /**
-     * Get the classloaders of the classes in the call stack.
+     * Returns the classloaders of the classes in the call stack, innermost frame first.
      *
-     * @return the classloaders, in innermost-frame-first order, as an unmodifiable set. A class loaded by the
-     *         bootstrap classloader contributes no classloader, since {@link Class#getClassLoader()} returns null
-     *         for one.
+     * @return the classloaders, as an unmodifiable set.
      */
     public Set<ClassLoader> getClassLoaders() {
         return Collections.unmodifiableSet(classLoaders);
     }
 
     /**
-     * Get the module layers of the classes in the call stack.
+     * Returns the module layers of the classes in the call stack, innermost frame first.
      *
-     * @return the module layers, in innermost-frame-first order, as an unmodifiable set. A class in an unnamed
-     *         module contributes no layer, since {@link Module#getLayer()} returns null for one: it was loaded from
-     *         the classpath of its classloader, which {@link #getClassLoaders()} covers. A class in a named module
-     *         that is in no layer, such as the dynamic module ({@code jdk.proxy1}, ...) that holds a
-     *         {@link java.lang.reflect.Proxy} class, contributes no layer either.
+     * @return the module layers, as an unmodifiable set.
      */
     public Set<ModuleLayer> getModuleLayers() {
         return Collections.unmodifiableSet(moduleLayers);
     }
 
     /**
-     * Get the innermost stack frame that is holding a lock that the classloader would also need in order to load a
-     * class on another thread.
+     * Returns the innermost stack frame holding a class initialization lock ({@code <clinit>}) or a
+     * {@link ClassLoader} loading lock, or null if none.
      *
-     * <p>
-     * There are two such frames. A static initializer holds the initialization lock of the class it is
-     * initializing, which the JVM does not release until the initializer returns. A {@link ClassLoader} method that
-     * is loading a class holds that classloader's loading lock for the name of the class it is loading, and most
-     * classloaders take a lock of their own as well.
-     *
-     * @return the stack frame that is holding the lock, in the form
-     *         {@code com.xyz.Example.<clinit>(Example.java:20)}, or null if the thread that read this call stack
-     *         was not holding a class loading lock. Only the innermost such frame is kept, and only so that the
-     *         verbose log can say which frame stopped the scan from using worker threads.
+     * @return the stack frame string, or null if no frame holds a class loading lock.
      */
     public @Nullable String getFrameHoldingClassLoadingLock() {
         return frameHoldingClassLoadingLock;
@@ -144,13 +103,13 @@ public final class CallStackInfo {
      * Constructor.
      *
      * @param contextClassLoader
-     *            the context classloader of the thread that this info was read on, or null if it has none
+     *            the context classloader of the calling thread, or null if none.
      * @param classLoaders
-     *            the classloaders of the classes in the call stack, innermost frame first
+     *            the classloaders of the classes in the call stack, innermost frame first.
      * @param moduleLayers
-     *            the module layers of the classes in the call stack, innermost frame first
+     *            the module layers of the classes in the call stack, innermost frame first.
      * @param frameHoldingClassLoadingLock
-     *            the innermost frame that is holding a class loading lock, or null if there is no such frame
+     *            the innermost frame holding a class loading lock, or null if none.
      */
     private CallStackInfo(final @Nullable ClassLoader contextClassLoader,
             final LinkedIdentitySet<ClassLoader> classLoaders, final LinkedHashSet<ModuleLayer> moduleLayers,
@@ -162,9 +121,9 @@ public final class CallStackInfo {
     }
 
     /**
-     * Read what is needed from the call stack of the current thread.
+     * Reads call stack information from the current thread.
      *
-     * @return the call stack info.
+     * @return the {@link CallStackInfo} for the current thread.
      */
     public static CallStackInfo read() {
         final var contextClassLoader = Thread.currentThread().getContextClassLoader();
@@ -197,13 +156,13 @@ public final class CallStackInfo {
     }
 
     /**
-     * Read everything that is needed from the frames of one {@link StackWalker} walk.
+     * Populates a {@link CallStackInfo} from a stream of {@link StackWalker.StackFrame} instances.
      *
      * @param contextClassLoader
-     *            the context classloader of the thread that is being walked, or null if it has none
+     *            the context classloader of the thread being walked, or null if none.
      * @param stackFrames
-     *            the stack frames, innermost frame first
-     * @return the call stack info.
+     *            the stack frames, innermost frame first.
+     * @return the {@link CallStackInfo}.
      */
     private static CallStackInfo read(final @Nullable ClassLoader contextClassLoader,
             final Stream<StackWalker.StackFrame> stackFrames) {
@@ -231,12 +190,12 @@ public final class CallStackInfo {
     }
 
     /**
-     * Determine whether a stack frame is holding a lock that the classloader would also need in order to load a
-     * class on another thread.
+     * Checks whether {@code stackFrame} is a class static initializer or a {@link ClassLoader} class-loading
+     * method.
      *
      * @param stackFrame
      *            the stack frame.
-     * @return true if the stack frame is holding a class loading lock.
+     * @return true if the stack frame holds a class loading lock.
      */
     private static boolean holdsClassLoadingLock(final StackWalker.StackFrame stackFrame) {
         final var methodName = stackFrame.getMethodName();

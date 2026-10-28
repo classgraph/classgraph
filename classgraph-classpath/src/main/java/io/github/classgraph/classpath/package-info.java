@@ -28,11 +28,11 @@
  */
 
 /**
- * Works out where a running JVM loads its classes and resources from: the classpath, the module path, and the
- * locations that a container's custom classloaders load from.
+ * Resolves the locations from which a running JVM loads classes and resources, including the classpath, the module
+ * path, and custom classloaders.
  *
  * <p>
- * Start at {@link io.github.classgraph.classpath.ClasspathFinder}, which returns a
+ * Configure and run {@link io.github.classgraph.classpath.ClasspathFinder} to obtain a
  * {@link io.github.classgraph.classpath.Classpath}:
  *
  * <pre>
@@ -45,31 +45,19 @@
  * </pre>
  *
  * <p>
- * Nothing is searched until it is enabled, so at least one of the {@code enable} methods has to be called for
- * anything to be found -- see {@link io.github.classgraph.classpath.ClasspathFinder} for what each of them enables.
+ * At least one {@code enable*} method must be called on {@link io.github.classgraph.classpath.ClasspathFinder} to
+ * specify what to search.
  *
  * <p>
- * This package reports where classes and resources <i>would be</i> loaded from. It does not read what is there: a
- * jarfile is opened only far enough to find the classpath elements it declares in its manifest and its lib dirs, an
- * element that the filesystem says is not there is left out, and a nested jar is reported in the
- * {@code outer.jar!/inner.jar} form rather than being extracted. To read what is at an element, open it with
- * {@link io.github.classgraph.classpath.ClasspathEntry#open}, which lists its contents; or use
- * <a href="https://github.com/classgraph/classgraph">ClassGraph</a> itself, which is built on this library, to
- * parse the classfiles it finds there.
+ * This package resolves classpath entries and modules without scanning their contents. Jarfiles are opened only to
+ * read classpath entries declared in their manifests and automatic lib directories, nonexistent local paths are
+ * omitted, and nested jars are reported in {@code outer.jar!/inner.jar} form. Call
+ * {@link io.github.classgraph.classpath.ClasspathEntry#open} to read the contents of a classpath entry.
  *
  * <p>
- * This package is {@link org.jspecify.annotations.NullMarked}: unless a type is annotated
- * {@link org.jspecify.annotations.Nullable}, it is never null. That applies in both directions -- a value returned
- * from this package is null only where the return type says so, and an argument passed to this package may be null
- * only where the parameter type says so.
- *
- * <p>
- * The {@code @NullMarked} contract is checked at compile time, and only for callers that run a null checker of
- * their own. Public methods in this package therefore also check their arguments at runtime, and throw
- * {@link java.lang.NullPointerException} if a null is passed for a parameter that is not annotated
- * {@link org.jspecify.annotations.Nullable}, so that the failure happens at the call that passed the null rather
- * than deeper in the library, or silently, as a "not found" result. Individual methods do not repeat this in their
- * own documentation.
+ * This package is {@link org.jspecify.annotations.NullMarked}: parameters and return values are non-null unless
+ * annotated with {@link org.jspecify.annotations.Nullable}, and passing {@code null} for a non-null parameter
+ * throws {@link java.lang.NullPointerException}.
  *
  * @author Luke Hutchison
  */

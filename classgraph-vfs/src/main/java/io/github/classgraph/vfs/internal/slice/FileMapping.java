@@ -39,53 +39,27 @@ import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 
 /**
- * A memory mapping of a whole file, owned by the toplevel {@link Slice} that mapped it. Every slice of that file
- * reads through {@link #byteBuffer}, and only the owning slice may release it.
- *
- * <p>
- * On JDK 22 and later the file is mapped through a {@code java.lang.foreign.Arena}, so that the owning slice can
- * unmap the file as it closes, by closing the arena. If another thread is in the middle of an access to the mapping
- * when the arena is closed, such as one bulk copy out of it, the close waits for that access to finish, the access
- * then throws {@link IllegalStateException} instead of returning, and only then is the file unmapped -- so a close
- * can take as long as that access takes. Arenas were only finalized in JDK 22, so on JDK 17 to 21 the file is
- * mapped through {@link FileChannel#map} instead, and unmapping it frees the address range whether or not anything
- * is still reading it. So on those JDK versions the file is unmapped once the owning slice has closed <i>and</i>
- * every view of the mapping that the caller could still read has been released -- see {@link #unmap()},
- * {@link #acquireView()} and {@link #releaseView()}.
+ * A read-only memory mapping of a whole file, owned and released by the toplevel {@link PathSlice} that mapped it.
  */
 // #939
 final class FileMapping {
-    /** The mapped {@link ByteBuffer}, covering the whole file. */
+    /** The mapped {@link ByteBuffer} covering the whole file. */
     final ByteBuffer byteBuffer;
 
-    /**
-     * The number of views of the mapping that the caller could still read, and that therefore have to be released
-     * before the file can be unmapped. Only views that outlive the call that produced them are counted: a buffer
-     * handed to the caller of {@code VfsEntry#read()} is one, whereas a read that copies bytes out of the mapping
-     * and returns is over before it returns.
-     */
+    /** The number of active views of this mapping that must be released before the file can be unmapped. */
     private final AtomicInteger openViews = new AtomicInteger();
 
-    /** True once the owning slice has closed, after which no new view of this mapping is handed out. */
+    /** True once the owning slice has closed. */
     private volatile boolean released;
 
-    /** True once the file has been unmapped. Read and written only while holding the lock on this object. */
+    /** True once the file has been unmapped (guarded by {@code this}). */
     private boolean unmapped;
 
-    /**
-     * The action to run once the file has been unmapped, or null if there is none. Set by the owning slice as it
-     * closes, if it found the file still mapped and has something left to do that the mapping is in the way of --
-     * deleting the temporary file it owns, which Windows refuses to do while the file is mapped. Read and written
-     * only while holding the lock on this object.
-     */
+    /** Action to run once the file has been unmapped, or null if none (guarded by {@code this}). */
     // #939
     private @Nullable Runnable onUnmapped;
 
-    /**
-     * The {@code java.lang.foreign.Arena} that was used to map the file, or null if the file was mapped without an
-     * arena (on a JDK older than 22), or once {@link #unmap()} has closed it. Typed as {@link Object}, since
-     * ClassGraph needs to compile and run on JDK 17+.
-     */
+    /** The {@code java.lang.foreign.Arena} used to map the file (JDK 22+), or null if none or closed. */
     private @Nullable Object arena;
 
     /**
@@ -94,7 +68,7 @@ final class FileMapping {
      * @param byteBuffer
      *            the mapped byte buffer
      * @param arena
-     *            the arena that was used to map the file, or null if the file was mapped without one
+     *            the arena used to map the file, or null if mapped without an arena
      */
     private FileMapping(final ByteBuffer byteBuffer, final @Nullable Object arena) {
         this.byteBuffer = byteBuffer;
@@ -112,10 +86,8 @@ final class FileMapping {
      *            the file being mapped, for logging
      * @param log
      *            the log node, or null to skip logging
-     * @return the mapping, or null if the file could not be mapped -- because it is too long to map to a single
-     *         {@link ByteBuffer}, because the {@link FileChannel} does not support mapping, because the mapping
-     *         could not be released again (see {@link OffHeapMemory#canInvokeCleaner()}), or because the mapping
-     *         failed -- in which case the caller has to read the file through the {@link FileChannel} API instead.
+     * @return the mapping, or null if the file exceeds {@link Slice#MAX_BUFFER_SIZE}, the {@link FileChannel} does
+     *         not support memory mapping, or mapping failed.
      */
     static @Nullable FileMapping map(final FileChannel fileChannel, final long fileLength, final Object file,
             final @Nullable LogNode log) {
@@ -197,7 +169,7 @@ final class FileMapping {
      * @return the mapped byte buffer, or null if an arena was given but its methods could not be invoked
      *         reflectively
      * @throws IOException
-     *             if the file could not be mapped (mapping may succeed if it is retried after garbage collection)
+     *             if the file could not be mapped
      */
     private static @Nullable ByteBuffer mapWholeFile(final @Nullable Object arena, final FileChannel fileChannel,
             final long fileLength) throws IOException {
@@ -206,11 +178,10 @@ final class FileMapping {
     }
 
     /**
-     * Take a view of this mapping, so that the file is not unmapped while the caller can still read the buffer it
-     * was handed. Every view has to be released again by {@link #releaseView()}.
+     * Acquire a view of this mapping so that the file is not unmapped while the view is open. Must be paired with
+     * {@link #releaseView()}.
      *
-     * @return true if a view was taken, or false if the mapping has already been released, in which case there is
-     *         nothing left to read and nothing to release.
+     * @return true if the view was acquired, or false if the mapping has already been released.
      */
     // #939
     boolean acquireView() {
@@ -226,7 +197,7 @@ final class FileMapping {
         return true;
     }
 
-    /** Release a view taken by {@link #acquireView()}, unmapping the file if it was the last one. */
+    /** Release a view acquired by {@link #acquireView()}, unmapping the file if it was the last open view. */
     // #939
     void releaseView() {
         if (openViews.decrementAndGet() == 0 && released && unmapIfNoViewIsOpen()) {
@@ -238,10 +209,7 @@ final class FileMapping {
     }
 
     /**
-     * Run the given action once the file has been unmapped, or now if it has been unmapped already. Only the owning
-     * slice calls this, as it closes, and only if {@link #unmap()} left the file mapped because a view of the
-     * mapping that the caller can still read is open: releasing the last view is what unmaps the file then, so that
-     * is where the action runs.
+     * Run the given action once the file has been unmapped, or immediately if already unmapped.
      *
      * @param action
      *            the action to run once the file has been unmapped.
@@ -261,7 +229,7 @@ final class FileMapping {
         }
     }
 
-    /** Run the action that {@link #runWhenUnmapped(Runnable)} registered, if there is one, and drop it. */
+    /** Run the action registered by {@link #runWhenUnmapped(Runnable)}, if any, and clear it. */
     // #939
     private void runOnUnmapped() {
         final Runnable action;
@@ -275,29 +243,9 @@ final class FileMapping {
     }
 
     /**
-     * Release the memory mapping of the file. Called only by the toplevel {@link Slice} that owns the mapping, as
-     * it closes.
+     * Release the memory mapping of the file. Called once by the owning toplevel {@link PathSlice} on close.
      *
-     * <p>
-     * On JDK 22 and later this unmaps the file by closing the arena that mapped it, and does so even if another
-     * thread is still reading it: if that thread is in the middle of an access to the mapping, this waits for the
-     * access to finish, and the access then throws {@link IllegalStateException} instead of returning, which the
-     * readers translate into {@link IOException}.
-     *
-     * <p>
-     * Below JDK 22 there is no arena, and the only method that can unmap a file, {@code Unsafe::invokeCleaner},
-     * frees the address range whether or not anything is still reading it -- a thread that reads one byte
-     * afterwards takes a SIGSEGV that kills the JVM. So the file is unmapped here only if no view of the mapping is
-     * open; if one is, the last {@link #releaseView()} unmaps it instead. A read that is already in flight on
-     * another thread when the owning slice is closed is not covered by either: every reader checks that the file is
-     * still mapped before it reads, but a close that lands between that check and the read itself can still pull
-     * the memory out from under it. Closing a {@link io.github.classgraph.vfs.Vfs} while another thread is reading
-     * through it is a use-after-close either way, and is documented as one.
-     *
-     * @return true if the file has been unmapped by the time this returns, or false if it is left mapped -- until
-     *         the last open view of the mapping is released, or until the garbage collector finds the buffer
-     *         unreachable if it could not be unmapped explicitly, or, if the arena would not close, for the rest of
-     *         the life of the JVM.
+     * @return true if the file was successfully unmapped.
      */
     // #939
     boolean unmap() {
@@ -319,9 +267,9 @@ final class FileMapping {
     }
 
     /**
-     * Unmap the file, if the owning slice has closed and no view of the mapping is open.
+     * Unmap the file if the owning slice has closed and no view of the mapping is open.
      *
-     * @return true if the file has been unmapped by the time this returns.
+     * @return true if the file has been unmapped.
      */
     private synchronized boolean unmapIfNoViewIsOpen() {
         if (openViews.get() != 0) {

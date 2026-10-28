@@ -43,16 +43,10 @@ import org.jspecify.annotations.Nullable;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 
 /**
- * The operations that ask the filesystem about a {@link File} or a {@link Path}: whether it exists, what kind of
- * file it is, whether it can be read, what its attributes are, and what its canonical path is. Reading a path as
- * text, without asking the filesystem what it names, is the business of {@link PathSyntax}.
+ * Filesystem operations on {@link File} and {@link Path} instances.
  */
 public final class FileUtils {
-    /**
-     * The current directory path (only reads the current directory once, the first time this field is accessed, so
-     * will not reflect subsequent changes to the current directory). Volatile, so that the lazy initialization in
-     * {@link #currDirPath()} is not a data race.
-     */
+    /** Cached normalized path of the current working directory. */
     private static volatile @Nullable String currDirPath;
 
     // -------------------------------------------------------------------------------------------------------------
@@ -65,22 +59,14 @@ public final class FileUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * The path of a file, in the form ClassGraph names files by: for a file of the filesystem the process was
-     * started in, the path with {@code '/'} as the separator; for a file of any other filesystem, the URI of the
-     * file resolved to a path, since the string form of such a path names nothing outside its own filesystem -- a
-     * directory of a mounted zipfile is called {@code "/dir"} there, whatever jarfile it is in, whereas resolving
-     * its URI yields the {@code "the-jarfile.jar!/dir"} form that a package root within a jarfile is named by. The
-     * top directory of a mounted zipfile is named {@code "the-jarfile.jar!/"}, keeping the separator that resolving
-     * drops, so that it is not named as the jarfile itself, and the paths of its files are not named as if the
-     * jarfile were a directory.
+     * Return the normalized string form of a {@link Path}, resolving paths on non-default filesystems via their
+     * URI.
      *
      * @param path
      *            A {@link Path}.
-     * @return the path, as a string.
+     * @return the normalized path string.
      * @throws java.io.IOError
-     *             if the URI of a file of another filesystem could not be formed.
-     * @throws SecurityException
-     *             if the URI of a file of another filesystem could not be read.
+     *             if the URI of a path on a non-default filesystem could not be formed.
      */
     public static String pathStr(final Path path) {
         if (path.getFileSystem() == FileSystems.getDefault()) {
@@ -92,10 +78,9 @@ public final class FileUtils {
     }
 
     /**
-     * Get the current directory (only looks at the current directory the first time it is called, then caches this
-     * value for future reads).
+     * Return the cached normalized path of the current working directory.
      *
-     * @return The current directory, as a string
+     * @return The current working directory path.
      */
     public static String currDirPath() {
         // Read the volatile field once, so that the value returned cannot differ from the value tested
@@ -135,8 +120,7 @@ public final class FileUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Check if a {@link File} exists. If a security manager refuses to let the file be tested, the file is taken
-     * not to exist, since it could not be read either.
+     * Check if a {@link File} exists.
      *
      * @param file
      *            A {@link File}.
@@ -229,8 +213,7 @@ public final class FileUtils {
     }
 
     /**
-     * Check if a {@link File} is a regular file. If a security manager refuses to let the file be tested, the file
-     * is taken not to be one, since it could not be read either.
+     * Check if a {@link File} is a regular file.
      *
      * @param file
      *            A {@link File}.
@@ -372,9 +355,7 @@ public final class FileUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Canonicalize a {@link File}, resolving symlinks (and, on Windows, junctions and 8.3 short names), so that a
-     * file reached through two different paths is given the same canonical path everywhere in ClassGraph. See
-     * {@link #canonicalize(Path)}.
+     * Canonicalize a {@link File}, resolving symlinks, junctions, and Windows 8.3 short names.
      *
      * @param file
      *            A {@link File}.
@@ -393,34 +374,8 @@ public final class FileUtils {
     }
 
     /**
-     * Canonicalize a {@link Path}, resolving symlinks (and, on Windows, junctions and 8.3 short names), so that a
-     * file reached through two different paths is given the same canonical path everywhere in ClassGraph.
-     *
-     * <p>
-     * {@link Path#toRealPath(java.nio.file.LinkOption...)} is used rather than {@link File#getCanonicalFile()},
-     * since on Windows the latter does not resolve a symlink or a junction, whereas on Linux and macOS it does, so
-     * the same layout would otherwise be canonicalized one way on Windows and another way everywhere else. (Both
-     * methods do expand a Windows 8.3 short name, such as {@code C:\Users\RUNNER~1} for
-     * {@code C:\Users\runneradmin}.)
-     *
-     * <p>
-     * {@link Path#toRealPath(java.nio.file.LinkOption...)} requires the file to exist, so for a path that does not
-     * exist, the closest ancestor directory that does exist is canonicalized, and the rest of the path is appended
-     * to it. Only the part of the path that exists can be resolved, so the result is the best that can be done: the
-     * same path as if the missing part of it were created.
-     *
-     * <p>
-     * A {@code ".."} segment is resolved by the platform as far as the platform can reach, and only lexically
-     * beyond that. On Linux and macOS the two do not agree, since the filesystem resolves such a segment: after a
-     * symlinked directory, {@code ".."} names the parent of the directory the symlink points at, not the parent of
-     * the symlink. (On Windows the path APIs collapse it lexically, so there is nothing to disagree about there.)
-     * Nothing below the closest existing ancestor exists, so nothing there can be a symlink, which is what makes it
-     * safe to resolve the rest lexically.
-     *
-     * <p>
-     * A path that cannot be canonicalized at all is not reported as an error: if not even the filesystem root can
-     * be canonicalized, the whole path is resolved lexically. The one exception that can still be thrown is the
-     * {@link SecurityException} of a SecurityManager that will not let a relative path be made absolute.
+     * Canonicalize a {@link Path}, resolving symlinks, junctions, and Windows 8.3 short names. If the path does not
+     * exist, canonicalizes its closest existing ancestor and resolves the remaining segments lexically.
      *
      * @param path
      *            A {@link Path}.
@@ -449,10 +404,8 @@ public final class FileUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Read the {@link BasicFileAttributes} of a {@link Path}. If the attributes cannot be read, returns a
-     * best-effort implementation backed by the {@link File} API, which returns the defaults that
-     * {@link BasicFileAttributes} specifies for the values it cannot read: the epoch for the creation time, the
-     * last-modified time for the last-access time, and null for the file key.
+     * Read the {@link BasicFileAttributes} of a {@link Path}, falling back to a best-effort {@link File}-backed
+     * implementation if attributes cannot be read via NIO.
      *
      * @param path
      *            A {@link Path}.

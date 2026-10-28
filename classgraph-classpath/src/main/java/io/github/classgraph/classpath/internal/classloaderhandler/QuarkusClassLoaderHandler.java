@@ -49,31 +49,31 @@ import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
 
 /**
- * Extract classpath entries from the Quarkus ClassLoader.
+ * Extracts classpath entries from the Quarkus {@code RuntimeClassLoader}, {@code QuarkusClassLoader}, and
+ * {@code RunnerClassLoader}.
  */
 class QuarkusClassLoaderHandler implements ClassLoaderHandler {
-    /** The classloader used up to Quarkus 1.2. */
+    /** The Quarkus {@code RuntimeClassLoader} class name. */
     private static final String RUNTIME_CLASSLOADER = "io.quarkus.runner.RuntimeClassLoader";
 
-    /** The classloader used since Quarkus 1.3. */
+    /** The Quarkus {@code QuarkusClassLoader} class name. */
     private static final String QUARKUS_CLASSLOADER = "io.quarkus.bootstrap.classloading.QuarkusClassLoader";
 
-    /** The classloader used since Quarkus 1.13. */
+    /** The Quarkus {@code RunnerClassLoader} class name. */
     private static final String RUNNER_CLASSLOADER = "io.quarkus.bootstrap.runner.RunnerClassLoader";
 
     /**
-     * The classpath element classes used prior to Quarkus 3.11, mapped to the name of the field of each that holds
-     * the element's location.
+     * Classpath element class names mapped to the field name holding each element's location.
      */
     private static final Map<String, String> PRE_311_RESOURCE_BASED_ELEMENTS = Map.of(
             "io.quarkus.bootstrap.classloading.JarClassPathElement", "file",
             "io.quarkus.bootstrap.classloading.DirectoryClassPathElement", "root");
 
-    /** The names of {@link #PRE_311_RESOURCE_BASED_ELEMENTS}, as an array, to match an element class against. */
+    /** The keys of {@link #PRE_311_RESOURCE_BASED_ELEMENTS} as an array. */
     private static final String[] PRE_311_RESOURCE_BASED_ELEMENT_NAMES = PRE_311_RESOURCE_BASED_ELEMENTS.keySet()
             .toArray(new String[0]);
 
-    /** The classpath element class that a {@code RunnerClassLoader} serves the contents of a jarfile from. */
+    /** The classpath element class that a {@code RunnerClassLoader} uses to serve a JAR file. */
     private static final String JAR_RESOURCE = "io.quarkus.bootstrap.runner.JarResource";
 
     /** Constructor. */
@@ -86,18 +86,11 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Find which of the Quarkus classloaders a classloader class is, extends or implements.
-     *
-     * <p>
-     * The three classloaders are unrelated to each other, so at most one of them can match. This is used both to
-     * decide whether this handler can handle a classloader and to decide how to read its classpath entries, so that
-     * a subclass of a Quarkus classloader -- which {@link #canHandle(Class, ClassGraphLog)} accepts -- has its
-     * classpath entries read by the same code as the classloader it extends.
+     * Returns which Quarkus classloader class {@code classLoaderClass} is, extends, or implements.
      *
      * @param classLoaderClass
      *            the classloader class.
-     * @return the name of the Quarkus classloader that the class is, extends or implements, or null if it is none
-     *         of them.
+     * @return the matching Quarkus classloader class name, or {@code null} if none matches.
      */
     private @Nullable String findQuarkusClassLoaderName(final Class<?> classLoaderClass) {
         return findMatchingClassName(classLoaderClass, RUNTIME_CLASSLOADER, QUARKUS_CLASSLOADER,
@@ -139,14 +132,14 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Find the classpath order for {@code io.quarkus.bootstrap.classloading.QuarkusClassLoader} (Quarkus 1.3+).
+     * Extracts classpath entries from an {@code io.quarkus.bootstrap.classloading.QuarkusClassLoader}.
      *
      * @param classLoader
-     *            the classloader
+     *            the classloader.
      * @param classpathOrder
-     *            the classpath order to add to
+     *            the classpath order to populate.
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or {@code null} to skip logging.
      */
     private void findClasspathOrderForQuarkusClassloader(final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final @Nullable ClassGraphLog log) {
@@ -169,13 +162,12 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Get the classpath elements of a {@code QuarkusClassLoader}, from either the single {@code elements} field, or
-     * (since Quarkus 3.16) the {@code normalPriorityElements} and {@code lesserPriorityElements} fields.
+     * Returns the classpath elements of a {@code QuarkusClassLoader} from its {@code elements} field, or from its
+     * {@code normalPriorityElements} and {@code lesserPriorityElements} fields.
      *
      * @param classLoader
-     *            the classloader
-     * @return a snapshot of the classpath elements (empty if none of the fields were found, or if they do not hold
-     *         collections).
+     *            the classloader.
+     * @return a snapshot of the classpath elements.
      */
     private static Collection<?> findQuarkusClassLoaderElements(final ClassLoader classLoader) {
         // Copy the collections, rather than handing back a live field of a classloader that the running
@@ -197,14 +189,14 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Find the classpath order for {@code io.quarkus.runner.RuntimeClassLoader} (Quarkus 1.2 and earlier).
+     * Extracts classpath entries from an {@code io.quarkus.runner.RuntimeClassLoader}.
      *
      * @param classLoader
-     *            the classloader
+     *            the classloader.
      * @param classpathOrder
-     *            the classpath order to add to
+     *            the classpath order to populate.
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or {@code null} to skip logging.
      */
     private static void findClasspathOrderForRuntimeClassloader(final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final @Nullable ClassGraphLog log) {
@@ -227,14 +219,14 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Find the classpath order for {@code io.quarkus.bootstrap.runner.RunnerClassLoader} (Quarkus 1.13+).
+     * Extracts classpath entries from an {@code io.quarkus.bootstrap.runner.RunnerClassLoader}.
      *
      * @param classLoader
-     *            the classloader
+     *            the classloader.
      * @param classpathOrder
-     *            the classpath order to add to
+     *            the classpath order to populate.
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or {@code null} to skip logging.
      */
     private void findClasspathOrderForRunnerClassloader(final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final @Nullable ClassGraphLog log) {

@@ -32,7 +32,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.ConcurrentModificationException;
 import java.util.List;
 
 import org.jspecify.annotations.Nullable;
@@ -47,9 +46,7 @@ public final class CollectionUtils {
     }
 
     /**
-     * Sort a list if it has more than one element. A list with fewer elements is left untouched, so that an
-     * immutable empty or single-element list that is shared between threads can be passed in without one thread's
-     * sort causing a {@link ConcurrentModificationException} in another thread that is iterating through it.
+     * Sort a list in place if it has more than one element.
      *
      * @param <T>
      *            the element type
@@ -64,9 +61,7 @@ public final class CollectionUtils {
     }
 
     /**
-     * Sort a list if it has more than one element. A list with fewer elements is left untouched, so that an
-     * immutable empty or single-element list that is shared between threads can be passed in without one thread's
-     * sort causing a {@link ConcurrentModificationException} in another thread that is iterating through it.
+     * Sort a list in place using the given comparator if it has more than one element.
      *
      * @param <T>
      *            the element type (which may be a nullable type)

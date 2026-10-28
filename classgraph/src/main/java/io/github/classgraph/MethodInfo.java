@@ -59,16 +59,10 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
      */
     private @Nullable MethodTypeSignature typeSignature;
 
-    /**
-     * Unaligned parameter names. These are only produced in JDK8+, and only if the commandline switch `-parameters`
-     * is provided at compiletime.
-     */
+    /** Unaligned parameter names, or null if not available. */
     private @Nullable String @Nullable [] parameterNames;
 
-    /**
-     * Unaligned parameter modifiers. These are only produced in JDK8+, and only if the commandline switch
-     * `-parameters` is provided at compiletime.
-     */
+    /** Unaligned parameter modifiers, or null if not available. */
     private int @Nullable [] parameterModifiers;
 
     /** Unaligned parameter annotations. */
@@ -233,15 +227,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
 
     /**
      * Determine the number of implicit (compiler-synthesized) parameters at the start of this method's parameter
-     * list that are not counted by the {@code formal_parameter_index} of type annotations. This is used only when
-     * there is no generic type signature to compare the descriptor against. Handles the two cases javac produces:
-     * the leading enclosing-instance parameter of an inner class constructor, and the leading
-     * {@code (String name, int ordinal)} parameters of an enum constructor. (The variables that a local or
-     * anonymous class captures are passed as trailing parameters, so they do not affect the count. If the count is
-     * wrong, as it is for a local class declared in a static context whose first declared parameter has the type of
-     * the class it is nested in, a parameter type annotation whose index falls past the last parameter is dropped,
-     * one whose type path does not fit the parameter's type is skipped by {@link #applyTypeAnnotations}, and any
-     * other is attached to the wrong parameter.)
+     * list that are not counted by the {@code formal_parameter_index} of type annotations.
      *
      * @param descriptor
      *            the method type descriptor
@@ -280,9 +266,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
     /**
      * Add the method's type annotations to the given parsed method type, temporarily stripping the given number of
      * implicit prefix parameters so that {@code formal_parameter_index} values line up with the source-declared
-     * parameters. Any individual type annotation that cannot be matched to a parameter type (e.g. due to
-     * compiler-specific parameter indexing, as with Kotlin, local or anonymous classes, or a compiler bug) is
-     * skipped rather than being allowed to abort parsing of the whole method type.
+     * parameters.
      *
      * @param methodType
      *            the parsed method type signature or descriptor to add the type annotations to.
@@ -349,9 +333,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
 
     /**
      * Get the parsed type signature for the method, or null if the method has no {@code Signature} attribute or if
-     * its type signature cannot be parsed. The JVM does not check the {@code Signature} attribute when it loads a
-     * class, so a method whose type signature does not parse can still be called, and its type descriptor stands in
-     * for the type signature.
+     * its type signature cannot be parsed.
      *
      * @return The parsed type signature for the method, or null.
      */
@@ -619,15 +601,12 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
     }
 
     /**
-     * Right-align one source of parameter metadata against the parameter count, i.e. assume that any implicit
-     * parameters the compiler added were added at the beginning of the parameter list, not the end. The padding
-     * added at the beginning consists of null entries.
+     * Right-align an array of parameter metadata against the parameter count, padding on the left with null.
      *
      * @param <T>
      *            the element type of the {@code values} array
      * @param values
-     *            the values, one per parameter, or null if this source of parameter metadata is not available.
-     *            There are never more values than parameters.
+     *            the values, one per parameter, or null if not available.
      * @param numParams
      *            the number of parameters.
      * @return the right-aligned values, or null if {@code values} is null or empty.
@@ -649,12 +628,10 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
     }
 
     /**
-     * Right-align the parameter modifiers against the parameter count. The padding added at the beginning consists
-     * of zero modifier bits.
+     * Right-align parameter modifiers against the parameter count, padding on the left with zero.
      *
      * @param values
-     *            the modifiers, one per parameter, or null if the {@code MethodParameters} attribute is not
-     *            present. There are never more values than parameters.
+     *            the modifiers, one per parameter, or null if not available.
      * @param numParams
      *            the number of parameters.
      * @return the right-aligned modifiers, or null if {@code values} is null or empty.
@@ -673,12 +650,10 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
     }
 
     /**
-     * Right-align a list of parameter types against the parameter count. The padding added at the beginning
-     * consists of null entries.
+     * Right-align a list of parameter types against the parameter count, padding on the left with null.
      *
      * @param values
-     *            the types, one per parameter, or null if this source of parameter metadata is not available. There
-     *            are never more values than parameters.
+     *            the types, one per parameter, or null if not available.
      * @param numParams
      *            the number of parameters.
      * @return the right-aligned types, or null if {@code values} is null or empty.

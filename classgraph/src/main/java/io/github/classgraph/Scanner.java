@@ -105,12 +105,7 @@ class Scanner {
     /** The toplevel log. */
     private final @Nullable LogNode topLevelLog;
 
-    /**
-     * The toplevel classpath entries found by the {@link ClassLoaderProbe}, in classpath order, ready to be opened.
-     * These are extracted from the {@link ClassLoaderProbe} in the constructor so that the {@link ClassLoaderProbe}
-     * and everything it holds (in particular its strong references to classloaders) can be discarded as soon as the
-     * classpath has been found.
-     */
+    /** The toplevel classpath entries found by {@link ClassLoaderProbe}, in classpath order. */
     private final List<ClasspathEntryWorkUnit> rawClasspathEntryWorkUnits;
 
     /** The module order. */
@@ -125,20 +120,20 @@ class Scanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * The classpath scanner. Scanning is started by calling {@link #call()} on this object.
+     * Construct the classpath scanner. Scanning is started by calling {@link #call()}.
      *
      * @param performScan
-     *            If true, performing a scan. If false, only fetching the classpath.
+     *            if true, perform a scan; if false, only fetch the classpath
      * @param callStackInfo
-     *            the call stack of the thread that asked for the scan, read by that thread before the scan started
+     *            the call stack of the initiating thread
      * @param scanSpec
      *            the scan spec
      * @param scanSourceSpec
-     *            the places that classpath elements and modules are looked for
+     *            the scan source spec
      * @param executorService
      *            the executor service
      * @param numParallelTasks
-     *            the num parallel tasks
+     *            the number of parallel tasks
      * @param topLevelLog
      *            the log
      */
@@ -405,30 +400,23 @@ class Scanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Used to enqueue classpath entries for opening as a {@link ClasspathElementDir} or
-     * {@link ClasspathElementZip}.
+     * A work unit for opening a classpath entry as a {@link ClasspathElementDir} or {@link ClasspathElementZip}.
      *
      * @param classpathEntryObj
-     *            the raw classpath entry object (a {@link String} path, {@link Path}, {@link URL} or {@link URI}),
-     *            as it was found, before it is normalized
+     *            the raw classpath entry object (a {@link String} path, {@link Path}, {@link URL} or {@link URI})
      * @param classLoaderStr
      *            the string form of the classloader the classpath entry object was obtained from, or null if
-     *            unknown. Only the string is kept, not the classloader itself, so that scanning does not keep a
-     *            classloader alive.
+     *            unknown
      * @param parentClasspathElement
      *            the parent classpath element, or null if this is a toplevel entry
      * @param classpathElementIdxWithinParent
      *            the order within the parent classpath element, or within the classpath for a toplevel entry
      * @param packageRootPrefix
-     *            the package root prefix (e.g. {@code "BOOT-INF/classes/"}), or {@code ""} if the entry is not a
-     *            package root
+     *            the package root prefix (e.g. {@code "BOOT-INF/classes/"}), or {@code ""} if none
      * @param packageRootPrefixes
-     *            the automatic package root prefixes to look for within this classpath element, as declared by the
-     *            {@code ClassLoaderHandler} that found it
+     *            the automatic package root prefixes to look for within this classpath element
      * @param libDirPrefixes
-     *            the lib dirs (e.g. {@code "BOOT-INF/lib/"}) whose jarfiles are to be added to the classpath if
-     *            they are present within this classpath element, as declared by the {@code ClassLoaderHandler} that
-     *            found it
+     *            the lib directory prefixes (e.g. {@code "BOOT-INF/lib/"}) to scan for nested jarfiles
      */
     record ClasspathEntryWorkUnit(Object classpathEntryObj, @Nullable String classLoaderStr,
             @Nullable ClasspathElement parentClasspathElement, int classpathElementIdxWithinParent,
@@ -525,12 +513,8 @@ class Scanner {
     }
 
     /**
-     * Convert a classpath entry string that has a URL scheme, or that is a multi-section path containing one or
-     * more {@code '!'} nested jar separators, to a {@link Path} if it names a file or directory that the
-     * {@link Path} API can reach, and to a {@link URL} or {@link URI} otherwise. A URL or URI whose scheme is http,
-     * https or a scheme denied by {@link io.github.classgraph.vfs.VfsSpec#denyURLScheme(String)} is never looked up
-     * as a {@link Path}, even if a filesystem provider is installed for its scheme, so that it is opened as a
-     * jarfile at that URL or URI, and opening it refuses a denied scheme.
+     * Normalize a classpath entry string that has a URL scheme or contains a {@code '!'} nested jar separator to a
+     * {@link Path} if possible, or otherwise to a {@link URL} or {@link URI}.
      *
      * @param classpathEntryStr
      *            the classpath entry string, after resolution by {@link FastPathResolver}.
@@ -609,9 +593,7 @@ class Scanner {
     }
 
     /**
-     * Whether a classpath entry URL or URI with the given scheme may be looked up as a {@link Path}. An http or
-     * https URL names a jarfile to download, and a denied scheme has to stay a URL so that opening it refuses it,
-     * since a {@link Path} is read through its filesystem provider without the scheme being checked.
+     * Return true if a classpath entry URL or URI with the given scheme may be resolved as a {@link Path}.
      *
      * @param scheme
      *            the URL or URI scheme.
@@ -674,9 +656,8 @@ class Scanner {
     }
 
     /**
-     * Create a WorkUnitProcessor for opening traditional classpath entries (which are mapped to
-     * {@link ClasspathElementDir} or {@link ClasspathElementZip} -- {@link ClasspathElementModule} is handled
-     * separately).
+     * Create a {@link WorkUnitProcessor} for opening traditional classpath entries ({@link ClasspathElementDir} or
+     * {@link ClasspathElementZip}).
      *
      * @param toplevelClasspathEltsOut
      *            on exit, the toplevel classpath elements
@@ -1342,7 +1323,7 @@ class Scanner {
 
     /**
      * Determine the unique ordered classpath elements, and run a scan looking for file or classfile matches if
-     * necessary. {@link ClassGraph} calls this on the thread that asked for the scan or for the classpath.
+     * necessary.
      *
      * @return the scan result.
      * @throws InterruptedException

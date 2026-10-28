@@ -35,12 +35,8 @@ import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.classpath.ClasspathOrder;
 
 /**
- * Handle the WebSphere traditional ClassLoaders.
- *
- * <p>
- * {@code com.ibm.ws.bootstrap.ExtClassLoader} extends {@link java.net.URLClassLoader} -- its {@code findClass()}
- * calls {@code super.findClass()} -- so its URLs are read as well as the classpath string that all of these
- * classloaders expose.
+ * Extracts classpath entries from IBM WebSphere Traditional classloaders ({@code CompoundClassLoader},
+ * {@code ProtectionClassLoader}, and {@code ExtClassLoader}).
  *
  * @author Luke Hutchison
  */

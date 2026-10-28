@@ -33,31 +33,19 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
- * A ThreadPoolExecutor that can be used in a try-with-resources block.
- *
- * <p>
- * A task that fails is not reported here: the only tasks submitted to this executor are the workers of a
- * {@link WorkQueue}, and {@link WorkQueue#close()} waits for each worker that started and records its failure or
- * timeout in the interruption checker of the scan. That is also how a failure is reported when the caller supplies
- * its own {@link java.util.concurrent.ExecutorService}.
+ * A {@link ThreadPoolExecutor} that shuts down when closed in a try-with-resources block.
  */
 class AutoCloseableExecutorService extends ThreadPoolExecutor implements AutoCloseable {
     /**
-     * How long {@link #close()} waits, after {@link #shutdown()}, for the tasks that are still running to finish,
-     * before {@link #shutdownNow()} interrupts them.
-     *
-     * <p>
-     * This is a grace period for the worker threads to unwind, not a worker timeout: by the time the executor is
-     * closed, {@link WorkQueue#close()} has already waited for its workers until they finished, or until they made
-     * no progress for the scan's worker timeout.
+     * Grace period in milliseconds for running tasks to terminate after {@link #shutdown()} before interrupting.
      */
     private static final long TERMINATION_TIMEOUT_MILLIS = 2500;
 
     /**
-     * A ThreadPoolExecutor that can be used in a try-with-resources block.
+     * Constructor.
      *
      * @param numThreads
-     *            The number of threads to allocate.
+     *            The number of worker threads to allocate.
      */
     public AutoCloseableExecutorService(final int numThreads) {
         super(numThreads, numThreads, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(),

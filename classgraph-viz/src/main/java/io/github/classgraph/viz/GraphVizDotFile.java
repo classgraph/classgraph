@@ -63,18 +63,17 @@ import io.github.classgraph.TypeSignature;
 
 /**
  * Renders the class graph found by ClassGraph as a <a href="https://graphviz.org/">GraphViz</a> {@code .dot} file,
- * which GraphViz can then lay out and turn into an image:
+ * which GraphViz can lay out and render as an image:
  *
  * <pre>
  * dot -Tsvg classgraph.dot &gt; classgraph.svg
  * </pre>
  *
  * <p>
- * There are two kinds of graph. {@link #generate(ScanResult, ClassInfoList, GraphVizDotFileOptions)} draws the
- * classes themselves, showing their fields, methods and annotations inside each class' box, and connecting each
- * class to its superclass and superinterfaces.
- * {@link #generateFromInterClassDependencies(ScanResult, ClassInfoList, GraphVizDotFileOptions)} draws only the
- * names of the classes, connected by "depends upon" edges.
+ * {@link #generate(ScanResult, ClassInfoList, GraphVizDotFileOptions)} renders class nodes with their fields,
+ * methods, and annotations, connected by inheritance, member-type, and annotation edges.
+ * {@link #generateFromInterClassDependencies(ScanResult, ClassInfoList, GraphVizDotFileOptions)} renders class
+ * names connected by inter-class dependency edges.
  */
 public final class GraphVizDotFile {
     /** The color for standard classes. */
@@ -89,13 +88,7 @@ public final class GraphVizDotFile {
     /** The wrap width for method annotations and method parameters. */
     private static final int WRAP_WIDTH = 40;
 
-    /**
-     * The number of characters after which an annotation is cut short in a label. GraphViz rejects the whole file
-     * if a label has a run of text of 16382 characters or more between two tags, and compilers write annotations
-     * far longer than that, such as the {@code ScalaSignature} of a Scala class or the {@code Metadata} of a Kotlin
-     * class. Even if every character is escaped as a six-character entity, a cut annotation stays near 1200
-     * characters, and an annotation longer than this cannot be read in a graph anyway.
-     */
+    /** The maximum number of characters shown for an annotation in a label before truncation. */
     private static final int MAX_ANNOTATION_LENGTH = 200;
 
     /** Not instantiable. */
@@ -104,17 +97,12 @@ public final class GraphVizDotFile {
     }
 
     /**
-     * Encode HTML-unsafe characters as HTML entities. Characters below U+0020 and Unicode whitespace, including
-     * newlines, become a plain space, since a label is laid out by GraphViz as a single line of text unless it is
-     * broken up by table cells. The exception is U+00A0 (no-break space), which is written as {@code &nbsp;}. The
-     * other characters that XML 1.0 does not allow in text, which are lone surrogates, U+FFFE and U+FFFF, are
-     * written as the text {@code \}{@code uXXXX}, since GraphViz parses a label as XML, and since a lone surrogate
-     * cannot be written as UTF-8. A classfile name is modified UTF-8, which can hold any of these characters.
+     * Encode HTML-unsafe characters as HTML entities for use in a GraphViz HTML-like label.
      *
      * @param unsafeStr
-     *            The string to escape to make HTML-safe.
+     *            the string to escape.
      * @param buf
-     *            the buffer to append to
+     *            the buffer to append to.
      */
     static void htmlEncode(final CharSequence unsafeStr, final StringBuilder buf) {
         for (int i = 0, n = unsafeStr.length(); i < n; i++) {
@@ -162,13 +150,10 @@ public final class GraphVizDotFile {
     }
 
     /**
-     * Append a space to the buffer, so that the item appended next is separated from the item before it. Nothing is
-     * appended if there is no item before it in the same table cell or the same parameter list, i.e. if the buffer
-     * ends with the tag that opened the cell or with the opening parenthesis of a parameter list, or if the buffer
-     * already ends with a space.
+     * Append a separating space to the buffer if it does not already end with a space, {@code '>'}, or {@code '('}.
      *
      * @param buf
-     *            the buffer to append to
+     *            the buffer to append to.
      */
     private static void appendSpaceIfNeeded(final StringBuilder buf) {
         if (!buf.isEmpty()) {
@@ -180,14 +165,14 @@ public final class GraphVizDotFile {
     }
 
     /**
-     * Get the string form of an annotation, using simple or fully qualified names according to the graph options.
+     * Format an annotation as a string using simple or fully qualified names according to {@code options},
+     * truncated to {@link #MAX_ANNOTATION_LENGTH} characters.
      *
      * @param annotationInfo
-     *            the annotation
+     *            the annotation.
      * @param options
-     *            the graph options
-     * @return the annotation, as it would be written in source code, cut short after {@link #MAX_ANNOTATION_LENGTH}
-     *         characters
+     *            the graph options.
+     * @return the formatted annotation string.
      */
     private static String annotationToString(final AnnotationInfo annotationInfo,
             final GraphVizDotFileOptions options) {
@@ -196,12 +181,12 @@ public final class GraphVizDotFile {
     }
 
     /**
-     * Cut an annotation short after {@link #MAX_ANNOTATION_LENGTH} characters, ending it with "...", unless that
-     * would split a surrogate pair, in which case it is cut one character earlier.
+     * Truncate an annotation string to {@link #MAX_ANNOTATION_LENGTH} characters with {@code "..."} appended,
+     * avoiding splitting a surrogate pair.
      *
      * @param str
-     *            the string form of the annotation
-     * @return the string, cut short if it is longer than {@link #MAX_ANNOTATION_LENGTH} characters
+     *            the string form of the annotation.
+     * @return the truncated string.
      */
     static String truncateAnnotation(final String str) {
         if (str.length() <= MAX_ANNOTATION_LENGTH) {
@@ -501,15 +486,11 @@ public final class GraphVizDotFile {
     }
 
     /**
-     * Get the parameters to list for a method: all but those that the compiler generated rather than the source
-     * code declared, such as the name and ordinal parameters of an enum constructor. A parameter is known to be
-     * generated only if the classfile records the flags of its parameters. javac 21 and later record them for any
-     * method with a generated parameter; earlier versions of javac record them only when run with
-     * {@code -parameters}.
+     * Get the non-synthetic parameters of a method.
      *
      * @param methodInfo
-     *            the method
-     * @return the parameters to list
+     *            the method.
+     * @return the parameters to display.
      */
     private static List<MethodParameterInfo> parametersToShow(final MethodInfo methodInfo) {
         final List<MethodParameterInfo> paramInfo = new ArrayList<>(methodInfo.getParameterInfo());
@@ -905,14 +886,13 @@ public final class GraphVizDotFile {
     }
 
     /**
-     * Add the names of the classes in a type signature to a set: the class of a class reference type, the classes
-     * in its type arguments (including the type arguments of an enclosing class, as in {@code Outer<A>.Inner<B>}),
-     * and the classes in the element type of an array type. A base type or a type variable names no class.
+     * Add the class names referenced by a type signature (including type arguments and array element types) to
+     * {@code classNames}.
      *
      * @param typeSignature
-     *            the type signature, or null if there is none
+     *            the type signature, or {@code null} if none.
      * @param classNames
-     *            the set to add the class names to
+     *            the set to add the class names to.
      */
     private static void addClassNames(final @Nullable TypeSignature typeSignature, final Set<String> classNames) {
         if (typeSignature instanceof final ClassRefTypeSignature classRef) {
@@ -931,19 +911,18 @@ public final class GraphVizDotFile {
     }
 
     /**
-     * Append one edge from each of the types of a class' members to the class. The class itself, and any type that
-     * has no node in the graph, are skipped.
+     * Append edges from each visible member type in {@code typeNames} to {@code classNode}, excluding self-edges.
      *
      * @param classNode
-     *            the class to append edges for
+     *            the class to append edges for.
      * @param typeNames
-     *            the names of the classes in the types of the class' members
+     *            the names of the classes referenced by the class' members.
      * @param allVisibleNodes
-     *            the names of the classes that have a node in the graph
+     *            the names of the classes that have a node in the graph.
      * @param attributes
-     *            the Graphviz attributes of the edges
+     *            the Graphviz attributes of the edges.
      * @param buf
-     *            the buffer to append to
+     *            the buffer to append to.
      */
     private static void appendTypeEdges(final ClassInfo classNode, final Set<String> typeNames,
             final Set<String> allVisibleNodes, final String attributes, final StringBuilder buf) {
@@ -955,26 +934,18 @@ public final class GraphVizDotFile {
     }
 
     /**
-     * Append the edges from the types of a class' fields and methods to the class: one edge for each class named in
-     * the type of a field, and one for each class named in the return type, parameter types or type parameter
-     * bounds of a method or constructor, however many members name it. The annotations on the members and the
-     * exceptions that methods throw are not types of the members, so they get no edge here.
-     *
-     * <p>
-     * Type variables are not resolved, but both the type signature and the type descriptor of a member are read, so
-     * a member whose type is a type variable is joined to the erasure of the type variable. A type descriptor that
-     * does not parse is skipped.
+     * Append dependency edges from the field and method types of {@code classNode} to {@code classNode}.
      *
      * @param scanResult
-     *            the scan result the class came from
+     *            the scan result the class came from.
      * @param classNode
-     *            the class to append edges for
+     *            the class to append edges for.
      * @param allVisibleNodes
-     *            the names of the classes that have a node in the graph
+     *            the names of the classes that have a node in the graph.
      * @param options
-     *            the graph options
+     *            the graph options.
      * @param buf
-     *            the buffer to append to
+     *            the buffer to append to.
      */
     private static void appendMemberTypeEdges(final ScanResult scanResult, final ClassInfo classNode,
             final Set<String> allVisibleNodes, final GraphVizDotFileOptions options, final StringBuilder buf) {
@@ -1023,23 +994,18 @@ public final class GraphVizDotFile {
     }
 
     /**
-     * Index the classes that are directly annotated by each annotation, or that have a field, method or method
-     * parameter directly annotated by it, so that the annotation edges can be drawn without having to ask each
-     * annotation which classes it annotates (which would also return the classes reached through a meta-annotation,
-     * or through {@link java.lang.annotation.Inherited @Inherited} -- those classes are still reachable from the
-     * annotation along a path of edges in the graph). As for the type edges, only the fields, methods and method
-     * parameters that are listed in a class node are read: an annotation on {@code toString()} or
-     * {@code serialVersionUID}, for example, does not join the class to the annotation.
+     * Index the visible classes directly annotated by each annotation, and the visible classes whose displayed
+     * fields, methods, or method parameters are directly annotated by each annotation.
      *
      * @param scanResult
-     *            the scan result the classes came from
+     *            the scan result the classes came from.
      * @param allVisibleClasses
-     *            the classes that have a node in the graph
+     *            the classes that have a node in the graph.
      * @param classAnnotations
-     *            populated with annotation name to the classes it directly annotates
+     *            populated with a mapping from annotation name to the classes it directly annotates.
      * @param memberAnnotations
-     *            populated with annotation name to the classes with a listed field, method or method parameter it
-     *            directly annotates, listing each class once however many of its members the annotation is on
+     *            populated with a mapping from annotation name to the classes with a displayed field, method, or
+     *            method parameter it directly annotates.
      */
     private static void indexAnnotations(final ScanResult scanResult, final List<ClassInfo> allVisibleClasses,
             final Map<String, List<ClassInfo>> classAnnotations,
@@ -1118,24 +1084,14 @@ public final class GraphVizDotFile {
      * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph.
      *
      * <p>
-     * To show non-public classes, call {@link ClassGraph#ignoreClassVisibility()} before scanning.
+     * To include non-public classes, call {@link ClassGraph#ignoreClassVisibility()} before scanning. To include
+     * fields, methods, or annotations, call {@link ClassGraph#enableFieldInfo()},
+     * {@link ClassGraph#enableMethodInfo()}, or {@link ClassGraph#enableAnnotationInfo()} (and
+     * {@link ClassGraph#ignoreFieldVisibility()} or {@link ClassGraph#ignoreMethodVisibility()} for non-public
+     * members) before scanning.
      *
      * <p>
-     * To show fields, call {@link ClassGraph#enableFieldInfo()} before scanning. To show non-public fields, also
-     * call {@link ClassGraph#ignoreFieldVisibility()} before scanning.
-     *
-     * <p>
-     * To show methods, call {@link ClassGraph#enableMethodInfo()} before scanning. To show non-public methods, also
-     * call {@link ClassGraph#ignoreMethodVisibility()} before scanning.
-     *
-     * <p>
-     * To show annotations, call {@link ClassGraph#enableAnnotationInfo()} before scanning. An annotation class that
-     * is not public is drawn as a node of its own only if {@link ClassGraph#ignoreClassVisibility()} was also
-     * called, as for any other class.
-     *
-     * <p>
-     * Classes, fields, methods and method parameters that the compiler generated, rather than ones declared in the
-     * source code, are left out of the graph.
+     * Synthetic (compiler-generated) classes, fields, methods, and method parameters are excluded from the graph.
      *
      * @param scanResult
      *            the {@link ScanResult} the classes came from.
@@ -1145,8 +1101,7 @@ public final class GraphVizDotFile {
      *            the graph options.
      * @return the GraphViz file contents.
      * @throws IllegalStateException
-     *             if {@link ClassGraph#enableClassInfo()} was not called before scanning (since there would be
-     *             nothing to graph).
+     *             if {@link ClassGraph#enableClassInfo()} was not called before scanning.
      */
     public static String generate(final ScanResult scanResult, final ClassInfoList classes,
             final GraphVizDotFileOptions options) {
@@ -1283,25 +1238,19 @@ public final class GraphVizDotFile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph. The
-     * returned graph shows inter-class dependencies only. You must have called
-     * {@link ClassGraph#enableInterClassDependencies()} before scanning to use this method.
-     *
-     * <p>
-     * A class that the compiler generated, rather than one declared in the source code, is left out of the graph,
-     * whether it is one of {@code classes} or a dependency of one of them.
+     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the inter-class
+     * dependency graph. Requires {@link ClassGraph#enableInterClassDependencies()} to have been called before
+     * scanning. Synthetic (compiler-generated) classes are excluded.
      *
      * @param scanResult
      *            the {@link ScanResult} the classes came from.
      * @param classes
      *            the classes whose dependencies should be plotted in the graph.
      * @param options
-     *            the graph options. Only the layout size and the unlisted-dependency setting have any effect on
-     *            this graph.
+     *            the graph options (only the layout size and unlisted-dependency setting apply to this graph).
      * @return the GraphViz file contents.
      * @throws IllegalStateException
-     *             if {@link ClassGraph#enableInterClassDependencies()} was not called before scanning (since there
-     *             would be nothing to graph).
+     *             if {@link ClassGraph#enableInterClassDependencies()} was not called before scanning.
      */
     public static String generateFromInterClassDependencies(final ScanResult scanResult,
             final ClassInfoList classes, final GraphVizDotFileOptions options) {

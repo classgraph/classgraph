@@ -51,29 +51,25 @@ import io.github.classgraph.vfs.reader.RandomAccessOrSequentialReader;
 import io.github.classgraph.vfs.reader.RandomAccessReader;
 
 /**
- * One file within a {@link VfsRoot}: a file in a directory tree, an entry of a jarfile, or a resource in a module.
+ * A file or resource entry within a {@link VfsRoot}: a file in a directory tree, an entry in a jarfile, or a
+ * resource in a module.
  *
  * <p>
- * An entry is stateless, and can be read any number of times, from any number of threads at once. The read methods
- * differ only in what they hand back: {@link #open()} and {@link #openChannel()} stream the content,
- * {@link #read()} maps or wraps it as a {@link java.nio.ByteBuffer}, {@link #load()} copies it into a byte array,
- * and {@link #loadAsString()} decodes that array as UTF-8, or in the charset given to
- * {@link #loadAsString(Charset)}. The first three return something the caller owns and must close; the rest are
- * self-contained.
- *
- * <p>
- * Everything an entry hands out stops working once the root it came from, or the {@link Vfs} that opened that root,
- * is closed.
+ * Entries are stateless and thread-safe. Content can be read via {@link #open()} ({@link InputStream}),
+ * {@link #openChannel()} ({@link ReadableByteChannel}), {@link #read()} ({@link CloseableByteBuffer}),
+ * {@link #load()} ({@code byte[]}), or {@link #loadAsString()} / {@link #loadAsString(Charset)} ({@link String}).
+ * Callers must close the streams, channels, and buffers returned by {@link #open()}, {@link #openChannel()}, and
+ * {@link #read()}; all open handles become invalid when the owning {@link VfsRoot} or {@link Vfs} is closed.
  */
 public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntry {
-    /** The root this entry belongs to. */
+    /** The root containing this entry. */
     private final VfsRoot root;
 
     /**
      * Constructor.
      *
      * @param root
-     *            the root this entry belongs to.
+     *            the root containing this entry.
      */
     VfsEntry(final VfsRoot root) {
         this.root = root;
@@ -82,87 +78,61 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns the root this entry belongs to.
+     * Return the {@link VfsRoot} containing this entry.
      *
-     * @return the root.
+     * @return the owning {@link VfsRoot}.
      */
     public VfsRoot getRoot() {
         return root;
     }
 
     /**
-     * Returns the path of this entry relative to its root, with {@code '/'} as the separator and no leading
-     * {@code '/'}, e.g. {@code "com/xyz/Widget.class"}. This is the same path whichever kind of root the entry came
-     * from, so it is the path to match against, and the path to key a map of entries by.
+     * Return the path of this entry relative to its root, using {@code '/'} separators and no leading {@code '/'}
+     * (e.g. {@code "com/xyz/Widget.class"}).
      *
      * <p>
-     * For an entry of a multi-release jarfile that is only present for some JDK versions, this is the path without
-     * the {@code "META-INF/versions/<version>/"} prefix, so that the same entry has the same path whichever version
-     * of it was selected. Use {@link #getRawPathFromRoot()} to get the unprocessed path the entry is physically
-     * stored under.
+     * For versioned entries in a multi-release jarfile, the {@code "META-INF/versions/<version>/"} prefix is
+     * stripped; use {@link #getRawPathFromRoot()} to obtain the physical path in the archive.
      *
-     * <p>
-     * This is a whole path and not a leafname, which is why it is not called {@code getName()}: {@code
-     * File#getName()} and {@code Path#getFileName()} both return only the last segment of a path, and this returns
-     * all of it. {@link #getLastSegment()} is the method that corresponds to those.
-     *
-     * @return the path of the entry relative to its root.
+     * @return the root-relative path of this entry.
      */
     public abstract String getPathFromRoot();
 
     /**
-     * Returns the last segment of {@link #getPathFromRoot()}: the part after the last {@code '/'}, e.g.
-     * {@code "Widget.class"} for an entry whose path from the root is {@code "com/xyz/Widget.class"}. This is what
-     * {@code File#getName()} would return for the same path. An entry whose path ends in {@code '/'} has an empty
-     * last segment.
+     * Return the filename segment of {@link #getPathFromRoot()} after the last {@code '/'} (e.g.
+     * {@code "Widget.class"} for {@code "com/xyz/Widget.class"}).
      *
-     * <p>
-     * This is the entry-level counterpart of {@link VfsRoot#getLastSegment()}, and is defined the same way: the
-     * text after the last separator. An entry path has no nested jar separators in it -- it is always a plain path
-     * within one root -- so unlike a root path, there is only one way to read its last segment.
-     *
-     * @return the last segment of the path of the entry.
+     * @return the last path segment.
      */
     public final String getLastSegment() {
         return PathSyntax.simpleName(getPathFromRoot());
     }
 
     /**
-     * Returns the raw, unprocessed path this entry is stored under within its root: the path as it physically
-     * appears in the root, before the root's package root prefix was stripped from it and before any multi-release
-     * version prefix was resolved. Use {@link #getPathFromRoot()} to look an entry up or to match it against a
-     * path; use this only to report where the entry physically lies within its root.
+     * Return the physical path of this entry within its root before stripping any package-root or multi-release
+     * {@code "META-INF/versions/<version>/"} prefix.
      *
-     * <p>
-     * This differs from {@link #getPathFromRoot()} only for an entry of a jarfile: in a root opened at a package
-     * root, this path still has the package root prefix on it, and for an entry of a multi-release jarfile that is
-     * only present for some JDK versions, this is the versioned path.
-     *
-     * @return the raw path the entry is stored under, relative to its root.
+     * @return the raw root-relative path of this entry.
      */
     public String getRawPathFromRoot() {
         return getPathFromRoot();
     }
 
     /**
-     * Returns the full path of this entry, which locates it on the machine rather than within its root: a
-     * filesystem path for a file in a directory, the path of the jarfile followed by {@code "!/"} and the entry's
-     * name for a jarfile entry, and the module name followed by {@code "/"} and the entry's name for a module
-     * resource, which is how the JDK itself names something within a module.
+     * Return the full path of this entry: a filesystem path for a directory entry, {@code "<jar-path>!/<entry>"}
+     * for an archive entry, or {@code "<module-name>/<entry>"} for a module resource.
      *
-     * @return the path of the entry.
+     * @return the full path of this entry.
      */
     public abstract String getPath();
 
     /**
-     * Returns the {@link URI} of this entry: a {@code file:} URI for a file in a directory, a {@code jar:} URI for
-     * a jarfile entry, and whatever the module names it as for a module resource, which is a {@code jrt:} URI for a
-     * module of the running JDK. A {@code '!'} that ends a directory name in the path of a jarfile, modular or not,
-     * is spelled {@code %21} in a {@code jar:} URI, as {@link VfsRoot#resolveURI(String)} explains.
+     * Return the {@link URI} of this entry ({@code file:}, {@code jar:}, or module resource URI such as
+     * {@code jrt:}).
      *
-     * @return the {@link URI} of the entry.
+     * @return the {@link URI} of this entry.
      * @throws IllegalStateException
-     *             if the {@link URI} could not be formed.
+     *             if the {@link URI} cannot be constructed.
      */
     public URI getURI() {
         // How a URI is spelled depends on the kind of storage the entry is held in, not on the entry, so the root
@@ -171,12 +141,12 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
     }
 
     /**
-     * Returns the {@link URL} of this entry.
+     * Return the {@link URL} of this entry.
      *
-     * @return the {@link URL} of the entry.
+     * @return the {@link URL} of this entry.
      * @throws IllegalStateException
-     *             if the {@link URL} could not be formed, which includes the case of a {@link URI} whose scheme has
-     *             no protocol handler installed.
+     *             if the {@link URI} cannot be converted to a {@link URL} (for example, if no URL stream handler is
+     *             installed for its scheme).
      */
     public URL getURL() {
         final var uri = getURI();
@@ -188,81 +158,66 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
     }
 
     /**
-     * Returns this entry as a {@link Path} within the {@link VfsRoot#asFileSystem()} view of the root it came from,
-     * so that it can be handed to code that reads through {@link java.nio.file.Files}. Unlike
-     * {@link #getNioPath()}, this never returns null, whatever kind of storage the entry is held in.
+     * Return this entry as a {@link Path} within its root's {@link VfsRoot#asFileSystem()} view.
      *
-     * @return this entry, as a {@link Path} of a read-only virtual filesystem.
+     * @return a {@link Path} representing this entry in the virtual filesystem view.
      * @throws java.nio.file.ClosedFileSystemException
-     *             if the root, or the {@link Vfs} that opened it, has been closed.
+     *             if the root or its {@link Vfs} has been closed.
      */
     public Path asPath() {
         return getRoot().asFileSystem().getPath("/" + getPathFromRoot());
     }
 
     /**
-     * Returns the {@link Path} of this entry in the filesystem, if it has one.
+     * Return the native filesystem {@link Path} for this entry, if backed directly by a mounted filesystem.
      *
-     * @return the {@link Path} of the entry, or null if the entry is not a file in a filesystem this JVM has
-     *         mounted -- which is the case for a jarfile entry and for a module resource.
+     * @return the filesystem {@link Path}, or {@code null} for archive entries and module resources.
      */
     public @Nullable Path getNioPath() {
         return null;
     }
 
     /**
-     * Returns the number of bytes of content this entry has, once decompressed.
+     * Return the uncompressed size of this entry in bytes.
      *
-     * @return the length in bytes, or -1 if the length is not known: a module resource does not know its length
-     *         without being read, and a file whose size could not be read from the filesystem has none to report.
+     * @return the uncompressed size in bytes, or {@code -1} if unknown (e.g. for module resources).
      */
     public abstract long getLength();
 
     /**
-     * Returns the number of bytes this entry occupies in its root, i.e. its size after compression. For an entry
-     * that is not stored compressed, this is the same as {@link #getLength()}. For a zip entry whose central
-     * directory declares a compressed size that runs past the end of the zipfile, this is cut short at the end of
-     * the zipfile.
+     * Return the stored (compressed) size of this entry in bytes, or {@link #getLength()} if uncompressed.
      *
-     * @return the stored size in bytes, or -1 if it is not known.
+     * @return the stored size in bytes, or {@code -1} if unknown.
      */
     public long getCompressedSize() {
         return getLength();
     }
 
     /**
-     * Returns the time this entry was last modified, in milliseconds since the epoch.
+     * Return the last modified timestamp of this entry in milliseconds since the Unix epoch.
      *
      * <p>
-     * The MS-DOS timestamp of a zip entry is a local date and time, and does not record which time zone it is in.
-     * It is read as UTC, so if the zipfile was written in another time zone, the time returned is off by that time
-     * zone's offset. (java.util.zip.ZipFile reads it instead in the default time zone of the JVM.) It also counts
-     * seconds in steps of two, so it can be up to two seconds earlier than the time the file was written. An entry
-     * that also has an extended timestamp extra field or an Info-ZIP Unix extra field, which are in UTC to the
-     * second, gets its time from that field.
+     * Standard MS-DOS zip timestamps have 2-second resolution and no time zone (interpreted here as UTC unless an
+     * extended UTC timestamp extra field is present).
      *
-     * @return the last modified time in milliseconds since the epoch, or 0 if the root does not record it, which is
-     *         the case for a module resource.
+     * @return the last modified time in milliseconds since the epoch, or {@code 0} if unknown.
      */
     public abstract long getLastModifiedMillis();
 
     /**
-     * Returns whether this entry can be read. A lookup by name returns only an entry that can be read, but a
-     * listing does not check, and a file in a directory is the only kind of entry that can be listed and still not
-     * be readable.
+     * Return whether this entry is readable.
      *
-     * @return true if the entry can be read.
+     * @return {@code true} if readable.
      */
     boolean isReadable() {
         return true;
     }
 
     /**
-     * Returns the POSIX file permissions of this entry.
+     * Return the POSIX file permissions for this entry, if available.
      *
-     * @return the permissions, as an unmodifiable set that iterates in {@link PosixFilePermission} declaration
-     *         order, or null if the root does not record them -- which is the case for a module resource, for a
-     *         jarfile written without them, and for a file in a filesystem that does not support them.
+     * @return an unmodifiable set of {@link PosixFilePermission} in declaration order, or {@code null} if the root
+     *         does not record POSIX permissions.
      */
     public @Nullable @Unmodifiable Set<PosixFilePermission> getPosixFilePermissions() {
         return null;
@@ -271,18 +226,13 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Open this entry's content as an {@link InputStream}, decompressing it if it is stored compressed. The caller
-     * owns the returned stream and must close it.
+     * Open an {@link InputStream} over the uncompressed content of this entry. The caller must close the returned
+     * stream; closing the owning {@link VfsRoot} or {@link Vfs} also closes the stream and causes subsequent reads
+     * to throw {@link IOException}.
      *
-     * <p>
-     * Closing the root this entry came from, or the {@link Vfs} that opened that root, closes the stream if the
-     * caller has not closed it yet, releasing the file handle or other resources it holds, and every further read
-     * of the stream throws {@link IOException}. Closing the stream after that does nothing.
-     *
-     * @return the content of the entry, as a stream.
+     * @return an {@link InputStream} for reading this entry's content.
      * @throws IOException
-     *             if the entry could not be read, or if the root, or the {@link Vfs} that opened it, has been
-     *             closed.
+     *             if the entry cannot be opened, or if the root or {@link Vfs} has been closed.
      */
     public final InputStream open() throws IOException {
         final var root = getRoot();
@@ -311,36 +261,26 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
     }
 
     /**
-     * Open this entry's content as an {@link InputStream}, for {@link #open()} to wrap in the check that refuses to
-     * read once the root is closed. {@link #open()} checks that the root is not closed before it calls this, so
-     * this need not check again. The stream this returns checks at most the {@link Vfs}, not the root.
+     * Open the raw {@link InputStream} for this entry prior to wrapping in {@link RootCheckedInputStream}.
      *
-     * @return the content of the entry, as a stream, which the caller owns and must close.
+     * @return the underlying {@link InputStream}.
      * @throws IOException
-     *             if the entry could not be read, which can be because the root, or the {@link Vfs} that opened it,
-     *             has been closed since {@link #open()} checked.
+     *             if the entry cannot be opened.
      */
     abstract InputStream openUnchecked() throws IOException;
 
     /**
-     * The stream {@link #open()} returns: it checks before every read that the root of the entry, and the
-     * {@link Vfs} that opened that root, are still open, so that closing either one stops a stream it handed out,
-     * whatever kind of root it is. Without the check, a stream on a file in a directory, on a jarfile held in
-     * memory, or on a module resource would keep reading after the close, since none of those reads anything the
-     * root releases. The root also tracks this stream, and closes it as it closes if the caller has not, which
-     * takes it out of the root's tracking again.
+     * An {@link InputStream} wrapper that verifies the owning {@link VfsRoot} remains open on each read and
+     * unregisters itself on close.
      */
     private static final class RootCheckedInputStream extends InputStream {
         /** The entry being read. */
         private final VfsEntry entry;
 
-        /** The stream that the entry opened. */
+        /** The underlying stream. */
         private final InputStream inputStream;
 
-        /**
-         * True once {@link #close()} has been called, so that the stream the entry opened is closed only once, even
-         * if the caller closes this stream while the root is closing it.
-         */
+        /** True once {@link #close()} has been called. */
         private final AtomicBoolean closed = new AtomicBoolean();
 
         /**
@@ -349,7 +289,7 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
          * @param entry
          *            the entry being read.
          * @param inputStream
-         *            the stream that the entry opened.
+         *            the underlying stream.
          */
         RootCheckedInputStream(final VfsEntry entry, final InputStream inputStream) {
             this.entry = entry;
@@ -357,11 +297,10 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
         }
 
         /**
-         * Throw an {@link IOException} if the root of the entry, or the {@link Vfs} that opened it, has been
-         * closed.
+         * Throw {@link IOException} if the entry's root or {@link Vfs} has been closed.
          *
          * @throws IOException
-         *             if the root or its {@link Vfs} has been closed.
+         *             if the root or {@link Vfs} has been closed.
          */
         private void checkRootNotClosed() throws IOException {
             final var root = entry.getRoot();
@@ -426,79 +365,48 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
     }
 
     /**
-     * Open this entry's content as a {@link ReadableByteChannel}, decompressing it if it is stored compressed. The
-     * caller owns the returned channel and must close it.
+     * Open a {@link ReadableByteChannel} over the uncompressed content of this entry. The caller must close the
+     * returned channel; closing the owning {@link VfsRoot} or {@link Vfs} closes the underlying stream and causes
+     * subsequent reads to throw {@link IOException}.
      *
-     * <p>
-     * Closing the root this entry came from, or the {@link Vfs} that opened that root, closes the stream the
-     * channel reads from if the caller has not closed the channel yet, releasing the file handle or other resources
-     * it holds, and every further read of the channel throws {@link IOException}. The channel itself still reports
-     * that it is open until the caller closes it.
-     *
-     * @return the content of the entry, as a channel.
+     * @return a {@link ReadableByteChannel} for reading this entry's content.
      * @throws IOException
-     *             if the entry could not be read, or if the root, or the {@link Vfs} that opened it, has been
-     *             closed.
+     *             if the entry cannot be opened, or if the root or {@link Vfs} has been closed.
      */
     public ReadableByteChannel openChannel() throws IOException {
         return Channels.newChannel(open());
     }
 
     /**
-     * Read this entry's whole content as a read-only {@link java.nio.ByteBuffer}. The caller owns the returned
-     * buffer and must close it: the buffer may be a memory mapping, or may belong to the module reader that
-     * produced it, in which case it is only valid until it is closed. It is also only valid until the root it came
-     * from, or the {@link Vfs} that opened that root, is closed, which unmaps any memory mapping behind it -- see
-     * {@link CloseableByteBuffer}.
+     * Read this entry's content as a read-only {@link java.nio.ByteBuffer} wrapped in a
+     * {@link CloseableByteBuffer}. The caller must close the returned wrapper, and must not access the buffer after
+     * the wrapper, its {@link VfsRoot}, or its {@link Vfs} is closed.
      *
-     * @return the content of the entry, as a closeable buffer.
+     * @return a {@link CloseableByteBuffer} wrapping this entry's content.
      * @throws IOException
-     *             if the entry could not be read, or if the root, or the {@link Vfs} that opened it, has been
-     *             closed, or if the entry is larger than 2GB, the largest a {@link java.nio.ByteBuffer} can be.
+     *             if the entry cannot be read, exceeds 2 GiB, or if the root or {@link Vfs} has been closed.
      */
     public abstract CloseableByteBuffer read() throws IOException;
 
     /**
-     * A view of the content of an entry that can be read at any offset.
+     * Random-access view of an entry's content and its cleanup callback.
      *
      * @param reader
-     *            the reader, which reads the content of the entry, and which is not safe to use from more than one
-     *            thread at a time. Its {@link RandomAccessReader#length()} is the number of bytes of content there
-     *            are, which for an entry that is inflated or streamed is only known once it has been read to the
-     *            end.
+     *            the reader over the entry's content (not thread-safe).
      * @param closeAction
-     *            the action that releases whatever the reader holds -- an open file, a view of a memory mapping, or
-     *            a buffer of what has been read so far -- which the caller must run once it has finished reading.
+     *            the cleanup action to release resources held by {@code reader}.
      */
     record RandomAccessContent(RandomAccessReader reader, Runnable closeAction) {
     }
 
     /**
-     * Open a view of this entry's content that can be read at any offset, for a caller that knows it will not read
-     * the content straight through from beginning to end. This is the counterpart of {@link #open()}, which reads
-     * the content as a stream, and it always succeeds: how much of the content has to be brought into memory to
-     * serve a read at an offset is decided per entry, by whichever of the three ways of doing it costs the caller
-     * least.
+     * Open a random-access view of this entry's content. Uncompressed archive entries and directory files are read
+     * directly in place; deflated archive entries and module resources are streamed and buffered on demand up to
+     * the furthest offset read.
      *
-     * <ul>
-     * <li>An entry stored uncompressed in an archive, and a file in a directory, are read where they lie, at the
-     * offset asked for, with nothing held in memory. This is what lets {@link java.nio.file.Files#newByteChannel}
-     * read such an entry straight into the caller's buffer.</li>
-     * <li>An entry stored compressed has to be inflated from the beginning to reach any given offset, so it is
-     * inflated lazily, only as far as the furthest offset that has been read, and what has been inflated so far is
-     * buffered so that a read of a part already passed does not have to inflate it again. A caller that reads only
-     * a header therefore inflates only the header.</li>
-     * <li>An entry that cannot be read at an offset and does not know how long it is -- a module resource, whose
-     * length a {@code ModuleReader} cannot report without reading it -- is read as a stream and buffered up to the
-     * furthest offset that has been read, in the same way as a compressed entry. Not knowing the length up front
-     * costs nothing until the caller asks for it: a caller that reads a header reads only the header, and a caller
-     * that reads the whole of the entry reads it once from beginning to end.</li>
-     * </ul>
-     *
-     * @return the view, which the caller owns and must release by running its close action.
+     * @return the random-access content view, which the caller must close via its {@code closeAction}.
      * @throws IOException
-     *             if the entry could not be opened, or if the root, or the {@link Vfs} that opened it, has been
-     *             closed.
+     *             if the entry cannot be opened, or if the root or {@link Vfs} has been closed.
      */
     RandomAccessContent openRandomAccess() throws IOException {
         // This entry cannot be read at an offset, so read it as a stream, buffering what has been read so far. The
@@ -508,39 +416,36 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
     }
 
     /**
-     * Read this entry's whole content into a byte array, decompressing it if it is stored compressed. Unlike
-     * {@link #read()}, the returned array is the caller's own copy, and stays valid after the {@link Vfs} is
-     * closed.
+     * Read this entry's entire uncompressed content into a new byte array.
      *
-     * @return the content of the entry.
+     * @return a byte array containing the entry's content.
      * @throws IOException
-     *             if the entry could not be read, or if the root, or the {@link Vfs} that opened it, has been
-     *             closed, or if the entry is larger than the largest possible array.
+     *             if the entry cannot be read, exceeds the maximum array size, or if the root or {@link Vfs} has
+     *             been closed.
      */
     public abstract byte[] load() throws IOException;
 
     /**
-     * Read this entry's whole content and decode it as UTF-8.
+     * Read this entry's entire content and decode it as a UTF-8 string.
      *
-     * @return the content of the entry, as a string.
+     * @return the entry's content decoded as UTF-8.
      * @throws IOException
-     *             if the entry could not be read, or if the root, or the {@link Vfs} that opened it, has been
-     *             closed, or if the entry is larger than the largest possible array.
+     *             if the entry cannot be read, exceeds the maximum array size, or if the root or {@link Vfs} has
+     *             been closed.
      */
     public String loadAsString() throws IOException {
         return loadAsString(StandardCharsets.UTF_8);
     }
 
     /**
-     * Read this entry's whole content and decode it in the given charset. Bytes that the charset cannot decode are
-     * replaced rather than throwing, as {@link String#String(byte[], Charset)} specifies.
+     * Read this entry's entire content and decode it using the specified {@link Charset}.
      *
      * @param charset
-     *            the charset to decode the content in.
-     * @return the content of the entry, as a string.
+     *            the charset to use for decoding.
+     * @return the decoded entry content.
      * @throws IOException
-     *             if the entry could not be read, or if the root, or the {@link Vfs} that opened it, has been
-     *             closed, or if the entry is larger than the largest possible array.
+     *             if the entry cannot be read, exceeds the maximum array size, or if the root or {@link Vfs} has
+     *             been closed.
      */
     public String loadAsString(final Charset charset) throws IOException {
         Assert.notNull(charset, "charset");
@@ -550,9 +455,9 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns the full path of this entry.
+     * Return the full path of this entry ({@link #getPath()}).
      *
-     * @return the entry, as a string.
+     * @return the full path string.
      */
     @Override
     public String toString() {
@@ -560,7 +465,7 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
     }
 
     /**
-     * Returns a hash code based on the root this entry belongs to and its path within that root.
+     * Return a hash code based on the owning {@link VfsRoot} and {@link #getPathFromRoot()}.
      *
      * @return the hash code.
      */
@@ -570,16 +475,12 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
     }
 
     /**
-     * Two entries are equal if they belong to the same {@link VfsRoot} and have the same path within it, which is
-     * also the rule by which their {@link #asPath()} views are compared. The entries of two different roots are not
-     * equal even when their full paths are spelled the same, since the two roots can hold different content under
-     * the same path: two jarfiles opened from memory under the same name, two modules of the same name, a package
-     * root view and the jarfile it views, or a root that was closed and the root opened at the same path afterward.
-     * Compare {@link #getPath()} or {@link #getURI()} to find entries of different roots that have the same path.
+     * Return whether {@code obj} is a {@link VfsEntry} belonging to the same {@link VfsRoot} instance with the same
+     * {@link #getPathFromRoot()}.
      *
      * @param obj
      *            the object to compare with.
-     * @return true if the two entries are equal.
+     * @return {@code true} if equal.
      */
     @Override
     public boolean equals(final @Nullable Object obj) {

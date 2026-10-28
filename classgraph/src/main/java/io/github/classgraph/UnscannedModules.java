@@ -41,22 +41,8 @@ import io.github.classgraph.base.LogNode;
 import io.github.classgraph.vfs.Vfs;
 
 /**
- * The modules that are not being scanned, but whose classfiles may still be read in order to complete the class
- * graph above an accepted class.
- *
- * <p>
- * Scanning is extended upwards from an accepted class to its superclasses, interfaces and annotations, so that the
- * part of the class graph above an accepted class is complete. The classfiles of those classes are looked for in
- * the classpath elements that are being scanned, but system modules are not scanned unless
- * {@link ClassGraph#enableSystemModules()} is called, and non-system modules are not scanned unless
- * {@link ClassGraph#enableNonSystemModules()} is called, so a class hierarchy that passes through a class in a
- * module (e.g. through {@code java.util.TimerTask}, which implements {@link Runnable}) would otherwise stop at that
- * class.
- *
- * <p>
- * Only rejecting a module prevents its classfiles from being read this way. The accept and reject criteria for
- * classes do not: scanning is extended upwards to a class in a package that was not accepted, and to a class that
- * was rejected by name or by package, which the queries then leave out of their results.
+ * Non-rejected modules that are not being scanned in full, but from which individual classfiles may be read when
+ * extending the class graph upwards from an accepted class.
  */
 class UnscannedModules {
     /** The modules that are not being scanned, and that were not rejected. */
@@ -140,8 +126,7 @@ class UnscannedModules {
     }
 
     /**
-     * Get the classpath elements that were created for the modules that were looked in, in module order (not in the
-     * order the modules were first looked in, which depends on thread timing).
+     * Get the classpath elements created for modules that were accessed, in module order.
      *
      * @return the classpath elements
      */
@@ -157,8 +142,7 @@ class UnscannedModules {
     }
 
     /**
-     * Get the map from the name of a package to the modules that contain the package, building it if this is the
-     * first lookup.
+     * Get or lazily build the map from package name to the modules containing that package.
      *
      * @return the map from package name to modules, in module order
      */
@@ -182,8 +166,7 @@ class UnscannedModules {
     }
 
     /**
-     * Get the classpath element for a module that is not being scanned, opening the module if this is the first
-     * time it has been looked in.
+     * Get or open the classpath element for an unscanned module.
      *
      * @param moduleReference
      *            the module

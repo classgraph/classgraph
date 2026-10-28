@@ -66,35 +66,18 @@ import io.github.classgraph.base.internal.utils.CollectionUtils;
  * Holds metadata about a class encountered during a scan.
  *
  * <p>
- * A {@link ClassInfo} object is also created for each class that was merely referred to by a scanned class, as its
- * superclass, an implemented interface, an annotation on the class or on one of its fields, methods or method
- * parameters, a member class nested in it, or an enclosing class of it or of one of these classes (or in any other
- * way, if {@link ClassGraph#enableInterClassDependencies()} was called), but whose own classfile was never read
- * during the scan. That happens when the classfile was not found, when the class is not public and
- * {@link ClassGraph#ignoreClassVisibility()} was not called, or when the class was named only in the
- * {@code InnerClasses} attribute of a scanned class or only as one of its inter-class dependencies (see
- * {@link ClassGraph#enableExternalClasses()}) -- {@link Object}, whose classfile is never read as an external
- * class, is the most common example. These placeholder objects hold only what could be inferred from the classes
- * that referred to them: {@link #getResource()} returns null for them, accessors that depend on the classfile
- * having been read return empty results, and the accessors that report where the class was found
- * ({@link #getClasspathElementFile()}, {@link #getClasspathElementURI()}, {@link #getClasspathElementURL()} and
- * {@link #getModuleReference()}) throw {@link IllegalStateException}. A class that was not scanned, and that the
- * scanned classes name only in type descriptors and type signatures, such as the types of fields, gets no
- * {@link ClassInfo} object at all, unless {@link ClassGraph#enableInterClassDependencies()} was called.
+ * A placeholder {@link ClassInfo} is also created for any referenced class whose own classfile was not read during
+ * the scan (for example, {@link Object}, a missing class, or a non-public class when
+ * {@link ClassGraph#ignoreClassVisibility()} was not called). For such placeholders, {@link #getResource()} returns
+ * {@code null}, accessors that require the classfile return empty results, and {@link #getClasspathElementFile()},
+ * {@link #getClasspathElementURI()}, {@link #getClasspathElementURL()}, and {@link #getModuleReference()} throw
+ * {@link IllegalStateException}.
  *
  * <p>
- * Separately, {@link #isExternalClass()} reports whether a class lies outside the accepted packages. An external
- * class may still have been scanned, if its classfile was read (see {@link ClassGraph#enableExternalClasses()} for
- * which external classes are read), in which case none of the above applies to it. External classes are only
- * returned by queries that report all scanned classes, such as {@link ScanResult#getAllClasses()}, if
- * {@link ClassGraph#enableExternalClasses()} was called before scanning.
- *
- * <p>
- * {@link #toString()} does not apply that filter: it renders the class declaration as it would be written in Java
- * source, so it names every supertype and every annotation that the classfile declares, external or not. Filtering
- * them would leave a class that extends {@code java.util.ArrayList} rendered as {@code class com.xyz.MyList},
- * reading as though it extended {@link Object}. Call {@link #getSuperclass()}, {@link #getDirectSuperinterfaces()}
- * and {@link #getDirectAnnotations()} for the filtered view.
+ * {@link #isExternalClass()} returns {@code true} if a class lies outside the accepted packages. External classes
+ * are excluded from query results unless {@link ClassGraph#enableExternalClasses()} was called before scanning.
+ * However, {@link #toString()} always renders the full source-level declaration, including external supertypes and
+ * annotations.
  */
 public sealed class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>, HasName, HasAnnotations
         permits ArrayClassInfo {
@@ -108,9 +91,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     private boolean isRecord;
 
     /**
-     * The names of the record components, in declaration order, or null if the class is not a record, its
-     * {@code Record} attribute is malformed, or its classfile was not scanned. They are read whether or not field
-     * info is enabled.
+     * The names of the record components in declaration order, or null if not a record or if malformed/unscanned.
      */
     private @Nullable List<String> recordComponentNames;
 
@@ -151,13 +132,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      */
     private @Nullable String fullyQualifiedDefiningMethodName;
 
-    /**
-     * If true, this class is not an accepted class: it is known only because an accepted class refers to it,
-     * directly or through other external classes, and its classfile was either not read at all, or read only
-     * because scanning was extended to the classes that accepted classes refer to.
-     *
-     * If false, this class's classfile was read because the class itself is accepted.
-     */
+    /** True if this class was not accepted directly, and is known only because an accepted class references it. */
     boolean isExternalClass = true;
 
     /**
@@ -167,16 +142,11 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     boolean isScannedClass;
 
     /**
-     * Set to true when this class has not been scanned, and its modifiers were taken from the {@code InnerClasses}
-     * entry for it in the classfile of its enclosing class. What other classfiles say about the class is then
-     * ignored.
+     * True if this unscanned class took its modifiers from the {@code InnerClasses} entry in its enclosing class.
      */
     private boolean hasModifiersFromEnclosingClass;
 
-    /**
-     * Set to true when this class has not been scanned, and the access level of at least one {@code InnerClasses}
-     * entry for it in a classfile other than its enclosing class's has been merged into its modifiers.
-     */
+    /** True if this unscanned class had its access level merged from an {@code InnerClasses} entry. */
     private boolean hasAccessLevelFromInnerClassesEntry;
 
     /** The classpath element that this class was found within. */
@@ -231,10 +201,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     @Nullable
     List<TypeAnnotation<ClassTypeSignature>> typeAnnotationsToApply;
 
-    /**
-     * The entries of the {@code InnerClasses} attribute of this class's classfile that name an inner class and were
-     * not linked, or null if there are none (see {@link #getUnlinkedInnerClasses()}).
-     */
+    /** Unlinked {@code InnerClasses} entries of this classfile, or null if none. */
     private @Nullable List<ClassContainment> unlinkedInnerClasses;
 
     /**
@@ -250,26 +217,18 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     private @Nullable ClassInfoList referencedClasses;
 
     /**
-     * Set to true once any Object[] arrays of boxed values or strings in annotationDefaultParamValues have been
-     * lazily converted to arrays of their element type. Volatile, so that a thread that sees this flag set also
-     * sees the converted values.
+     * True once boxed array values in {@link #annotationDefaultParamValues} have been converted to primitive
+     * arrays.
      */
     volatile boolean annotationDefaultParamValuesHasBeenConvertedToPrimitive;
 
     /** The set of classes related to this one. */
     private Map<RelType, Set<ClassInfo>> relatedClasses;
 
-    /**
-     * The order that fields are searched in: this class, then its direct superinterfaces, then its superclass,
-     * recursively (JVMS 5.4.3.2). Computed on first use, under the lock on this object.
-     */
+    /** Cached field search order (JVMS 5.4.3.2). */
     private @Nullable List<ClassInfo> fieldOverrideOrder;
 
-    /**
-     * The order that methods are overridden in: this class, then its superclasses, then its superinterfaces, with
-     * each interface placed before the interfaces it extends (JLS 8.4.8). Computed on first use, under the lock on
-     * this object.
-     */
+    /** Cached method override order (JLS 8.4.8). */
     private @Nullable List<ClassInfo> methodOverrideOrder;
 
     /** The annotations, once they are loaded */
@@ -289,12 +248,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     /** The modifier bit for annotations. */
     private static final int ANNOTATION_CLASS_MODIFIER = 0x2000;
 
-    /**
-     * The {@code ACC_SUPER} bit of a classfile's {@code access_flags} field. This selects the JVM's treatment of
-     * the {@code invokespecial} instruction, and has no counterpart in {@link Modifier} -- the same bit value is
-     * {@link Modifier#SYNCHRONIZED}, which is not a legal class modifier. It is masked out of the value returned by
-     * {@link #getModifiers()}.
-     */
+    /** The {@code ACC_SUPER} flag (0x0020), masked out of {@link #getModifiers()}. */
     // #791
     private static final int ACC_SUPER = 0x0020;
 
@@ -463,9 +417,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * @param classNameToClassInfo
      *            the map to look the class up in first.
      * @param classNameToNewClassInfo
-     *            the map to look the class up in if it is not in {@code classNameToClassInfo}, and to add the new
-     *            {@link ClassInfo} object to if it is in neither map. If this map is concurrent, two threads that
-     *            ask for the same class get the same object.
+     *            the fallback map to look up or insert a newly created {@link ClassInfo}.
      * @return the {@link ClassInfo} object.
      */
     static ClassInfo getOrCreateClassInfo(final String className, final Map<String, ClassInfo> classNameToClassInfo,
@@ -528,12 +480,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Add modifier bits that another classfile's reference to this class implies, such as {@code ACC_INTERFACE} for
-     * a class that it implements, or {@code ACC_ANNOTATION} for a class that it is annotated with. The other
-     * classfile was compiled against some version of this class, which may not be the version on the classpath, so
-     * the bits are added only while this class has not been scanned, and only if its modifiers were not taken from
-     * its enclosing class's {@code InnerClasses} attribute. The bits a placeholder collects this way are replaced
-     * when this class's own classfile is linked.
+     * Add modifier bits implied by a reference from another classfile if this class has not been scanned and has no
+     * modifiers from its enclosing class.
      *
      * @param modifierBits
      *            the modifier bits implied by the reference.
@@ -550,24 +498,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     private static final int ACCESS_LEVEL_MODIFIERS = Modifier.PUBLIC | Modifier.PRIVATE | Modifier.PROTECTED;
 
     /**
-     * Set the modifiers of a nested class from its entry in an {@code InnerClasses} attribute.
-     *
-     * <p>
-     * For a nested class, the {@code access_flags} field in the class's own classfile cannot express the
-     * source-level access level: the JVM requires a nested class to be reachable from its enclosing class, so javac
-     * emits {@code ACC_PUBLIC} (or package-private) there, and records the real access level only in the
-     * {@code InnerClasses} entry. The {@code InnerClasses} bits are therefore authoritative for the access level,
-     * so they replace the access level bits read from the classfile rather than being OR'd into them -- OR-ing left
-     * a {@code protected} nested class with both {@code ACC_PUBLIC} and {@code ACC_PROTECTED} set, so that both
-     * {@link #isPublic()} and {@link #isProtected()} returned true. The remaining bits (e.g. {@code ACC_STATIC},
-     * which only appears in the {@code InnerClasses} entry) are OR'd in.
-     *
-     * <p>
-     * Every classfile that names a nested class has an {@code InnerClasses} entry for it, but only the entries in
-     * the class's own classfile and in its enclosing class's classfile are written from the same source as the
-     * class. An entry in any other classfile was written when that classfile was compiled, against what may be an
-     * older version of the class. So this is called for a scanned class only with the entry from its own classfile;
-     * see {@link #addClassContainment(List, String, Map)} for a class that is not scanned.
+     * Set the modifiers of a nested class from its {@code InnerClasses} attribute entry, replacing access-level
+     * bits and OR-ing in remaining modifier bits.
      *
      * @param innerClassModifierBits
      *            the modifier bits from the {@code InnerClasses} attribute entry for this class
@@ -578,11 +510,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Merge into the modifiers of a nested class that has not been scanned the modifiers from an
-     * {@code InnerClasses} entry for it in a classfile other than its enclosing class's. Such entries may have been
-     * written against different versions of the class, and disagree. The non-access modifier bits are OR'd in, and
-     * the widest access level named by any entry is kept, so that the result does not depend on the order in which
-     * the entries are merged.
+     * Merge modifier bits from a non-enclosing classfile's {@code InnerClasses} entry into an unscanned nested
+     * class, keeping the widest access level.
      *
      * @param innerClassModifierBits
      *            the modifier bits from the {@code InnerClasses} attribute entry for this class
@@ -645,9 +574,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * Set the names of the record components.
      *
      * @param recordComponentNames
-     *            the names of the record components, in declaration order, from the last well-formed {@code Record}
-     *            attribute of the class; or null if the class has no {@code Record} attribute, or if every
-     *            {@code Record} attribute it has is malformed
+     *            the names of the record components in declaration order, or null if none
      */
     void setRecordComponentNames(final @Nullable List<String> recordComponentNames) {
         this.recordComponentNames = recordComponentNames;
@@ -664,24 +591,20 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Set the type annotations of the class, which are added to the class type signature or type descriptor when it
-     * is parsed. Called once per class, from {@code Classfile#linkClassInfo}, after {@link #addScannedClass}, which
-     * rejects a second classfile for the same class.
+     * Set the type annotations of the class, to be applied when its type signature or descriptor is parsed.
      *
      * @param classTypeAnnotations
-     *            the {@link TypeAnnotation} instances read from the classfile. The list is kept, not copied.
+     *            the {@link TypeAnnotation} instances read from the classfile.
      */
     void setTypeAnnotations(final List<TypeAnnotation<ClassTypeSignature>> classTypeAnnotations) {
         this.typeAnnotationsToApply = classTypeAnnotations;
     }
 
     /**
-     * Set the entries of the {@code InnerClasses} attribute of this class's classfile that name an inner class and
-     * were not linked. Called once per class, from {@code Classfile#linkClassContainment}, after
-     * {@link #addScannedClass}, which rejects a second classfile for the same class.
+     * Set the unlinked {@code InnerClasses} entries of this classfile.
      *
      * @param unlinkedInnerClasses
-     *            the entries. The list is kept, not copied.
+     *            the entries.
      * @see #getUnlinkedInnerClasses()
      */
     void setUnlinkedInnerClasses(final List<ClassContainment> unlinkedInnerClasses) {
@@ -689,14 +612,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get the entries of the {@code InnerClasses} attribute of this class's classfile that name an inner class and
-     * were not passed to {@link #addClassContainment}, because the classfile only mentions the class, for example
-     * in a descriptor or a signature, so that the class may have no {@link ClassInfo}. Where a type annotation goes
-     * in a nested type such as {@code Outer.Inner} depends on which of the nested classes are inner classes (JLS
-     * 9.7.4), so these entries are kept, but only if the class or one of its fields or methods has a type
-     * annotation.
+     * Get the unlinked {@code InnerClasses} entries of this classfile, used to resolve nested type annotations.
      *
-     * @return the entries, or the empty list if there are none or if nothing in the class has a type annotation
+     * @return the entries, or the empty list if none
      */
     List<ClassContainment> getUnlinkedInnerClasses() {
         return unlinkedInnerClasses == null ? List.of() : unlinkedInnerClasses;
@@ -734,15 +652,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Add class containment info.
-     *
-     * <p>
-     * The modifier bits of an entry are applied only to a class that has not been scanned, since a scanned class
-     * takes its modifiers from its own classfile. For a class that has not been scanned, the entry in the classfile
-     * of its enclosing class replaces all its modifiers, and the entries in other classfiles, which may have been
-     * compiled against an older version of the class, are then ignored. Until the enclosing class's entry is seen,
-     * the entries in other classfiles are merged: their modifier bits are OR'd, and the widest access level any of
-     * them names is kept. Either way, the result does not depend on the order in which the classfiles are linked.
+     * Record enclosing/nested class relationships and nested class modifiers from {@code InnerClasses} entries.
      *
      * @param classContainmentEntries
      *            the class containment entries
@@ -849,10 +759,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Check whether a field or method of this class is inherited by the subclasses of this class, and, if this is
-     * an interface, by the classes that implement it and its subinterfaces (JLS 8.3, 8.4.8, 9.3, 9.4.1). A private
-     * field or method is not inherited, and nor is a static method of an interface. A static field of an interface
-     * is inherited, as is a static field or method of a class.
+     * Check whether a field or method with the given modifiers is inherited by subtypes (non-private, and not a
+     * static interface method).
      *
      * @param modifiers
      *            the field or method modifiers
@@ -866,8 +774,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Add field info. Called once per class, from {@code Classfile#linkClassInfo}, after {@link #addScannedClass},
-     * which rejects a second classfile for the same class.
+     * Add field info for this class.
      *
      * @param fieldInfoList
      *            the field info list
@@ -900,8 +807,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Add method info. Called once per class, from {@code Classfile#linkClassInfo}, after {@link #addScannedClass},
-     * which rejects a second classfile for the same class.
+     * Add method info for this class.
      *
      * @param methodInfoList
      *            the method info list
@@ -951,9 +857,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Add annotation default values. Called only for an annotation class that has default parameter values, and
-     * then once, from {@code Classfile#linkClassInfo}, after {@link #addScannedClass}, which rejects a second
-     * classfile for the same class.
+     * Add annotation default parameter values for this annotation class.
      *
      * @param paramNamesAndValues
      *            the default param names and values, if this is an annotation
@@ -1053,21 +957,11 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Drop the rejected classes from the result of an "upwards" query, and the external classes too, unless
-     * {@link ClassGraph#enableExternalClasses()} was called.
-     *
-     * <p>
-     * An external class -- one that is known only because an accepted class referred to it, directly or through
-     * other external classes -- is part of an answer only if {@link ClassGraph#enableExternalClasses()} was called,
-     * as for any other class that was not explicitly enabled. A class that was rejected, by name or by package, is
-     * never part of an answer. The class graph is still completed above an accepted class, so a query still
-     * traverses external and rejected classes to reach the classes beyond them, but those classes themselves are
-     * left out of the answer. The queries that need the class graph as the JVM sees it -- the predicates such as
-     * {@link #extendsSuperclass(String)}, and the machinery that resolves type signatures and method overrides --
-     * call the {@code ...IncludingExternal()} methods instead, which skip this filtering.
+     * Filter out rejected classes and (unless {@link ClassGraph#enableExternalClasses()} was called) external
+     * classes.
      *
      * @param classInfoList
-     *            the classes reached by the query, including the external and rejected classes
+     *            the classes reached by the query
      * @return the classes to report to the caller
      */
     private ClassInfoList excludeExternalClasses(final ClassInfoList classInfoList) {
@@ -1076,8 +970,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Whether this class may be returned to the caller by a query: a class that was rejected, by name or by
-     * package, never is, and an external class is only if {@link ClassGraph#enableExternalClasses()} was called.
+     * Return true if this class is not rejected and is either non-external or external classes are enabled.
      *
      * @param scanSpec
      *            the scan spec
@@ -1090,20 +983,12 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     /**
      * Filter classes according to scan spec and class type.
      *
-     * <p>
-     * The rule for {@code excludeExternalClasses}: pass true whenever the filtered set is returned to the caller.
-     * Pass false for a set that is used as the starting point of a further traversal, since an accepted class can
-     * be reachable only through an external or rejected class -- filter the union of such traversals at the end
-     * instead. (The transitive closure of a relationship is always computed over the unfiltered relationships, so
-     * filtering the result of a single call never cuts a traversal short.)
-     *
      * @param classes
      *            the classes
      * @param scanSpec
      *            the scan spec
      * @param excludeExternalClasses
-     *            if true, exclude a class that is rejected, and a class that is external, unless external classes
-     *            were enabled; if false, filter only by class type
+     *            if true, exclude rejected classes and (unless external classes are enabled) external classes
      * @param classTypes
      *            the class types
      * @return the filtered classes.
@@ -1411,13 +1296,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get simple name from fully-qualified class name. Returns everything after the last '.' or the last '$' that
-     * separates two names in the class name, or the whole string if the class is in the root package and is not
-     * nested. A '$' is not taken to separate two names when it is the last character of the class name, as in the
-     * name {@code Foo$} of a Scala object, or when it is at the start of the name after the last '.', or follows
-     * only other '$' characters there, as in {@code $AutoValue_Foo}. A '$' anywhere else is taken to separate an
-     * enclosing class name from a nested class name, although it may be part of a class name. (Note that this is
-     * not the same as the result of {@link Class#getSimpleName()}, which returns "" for anonymous classes.)
+     * Get the simple name of a class from its fully-qualified class name, stripping the package name and any
+     * enclosing class names.
      *
      * @param className
      *            the class name
@@ -1436,12 +1316,10 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get the simple name of the class. Returns everything after the last '.' or the last '$' that separates two
-     * names in the class name, so that the package name and any enclosing class names are stripped, or the whole
-     * string if the class is in the root package and is not nested. A '$' at the end of the class name, as in the
-     * name {@code Foo$} of a Scala object, or at the start of the name after the package name, as in
-     * {@code $AutoValue_Foo}, is part of the simple name. (Note that this is not the same as the result of
-     * {@link Class#getSimpleName()}, which returns "" for anonymous classes.)
+     * Get the simple name of the class, stripping the package name and any enclosing class names. A {@code '$'} at
+     * the start or end of the simple name (e.g. {@code $AutoValue_Foo} or Scala's {@code Foo$}) is preserved as
+     * part of the simple name. Unlike {@link Class#getSimpleName()}, which returns {@code ""} for anonymous
+     * classes, this returns the numeric suffix of an anonymous class.
      *
      * @return The simple name of the class.
      */
@@ -1453,17 +1331,14 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * Get the {@link ModuleInfo} object for the class.
      *
      * <p>
-     * A class in a directory or jar on the traditional classpath is in the unnamed module at runtime, but it is
-     * still given a {@link ModuleInfo} if the directory or jar declares a module name, in a
-     * {@code module-info.class} module descriptor or in the {@code Automatic-Module-Name} attribute of its
-     * manifest. A class in a jar that declares no module name is given a {@link ModuleInfo} named after the
-     * automatic module name derived from the jar's filename, if that is a legal module name. A class in a directory
-     * that declares no module name is given none. See {@link ModuleInfo#getModuleReference()}.
+     * A class in a directory or jar on the traditional classpath is in the unnamed module at runtime, but is still
+     * associated with a {@link ModuleInfo} if its directory or jar declares a module name (via
+     * {@code module-info.class} or an {@code Automatic-Module-Name} manifest attribute) or if an automatic module
+     * name can be derived from the jar filename. See {@link ModuleInfo#getModuleReference()}.
      *
-     * @return the {@link ModuleInfo} object for the class, or null if the module, directory or jar that the class
-     *         was found in has no module name, if the classfile of the class was not read, or if the class is not
-     *         listed as a member of its module: a rejected class, or an external class unless
-     *         {@link ClassGraph#enableExternalClasses()} was called.
+     * @return the {@link ModuleInfo} object for the class, or null if the class has no module name, its classfile
+     *         was not read, or the class is rejected or is an external class when
+     *         {@link ClassGraph#enableExternalClasses()} was not called.
      */
     public @Nullable ModuleInfo getModuleInfo() {
         return moduleInfo;
@@ -1472,9 +1347,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     /**
      * Get the {@link PackageInfo} object for the class.
      *
-     * @return the {@link PackageInfo} object for the package that contains the class, or null if the classfile of
-     *         the class was not read, or if the class is not listed as a member of its package: a rejected class,
-     *         or an external class unless {@link ClassGraph#enableExternalClasses()} was called.
+     * @return the {@link PackageInfo} object for the package containing the class, or null if the classfile was not
+     *         read, or the class is rejected or is an external class when
+     *         {@link ClassGraph#enableExternalClasses()} was not called.
      */
     public @Nullable PackageInfo getPackageInfo() {
         return packageInfo;
@@ -1493,11 +1368,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     /**
      * Checks if this is an external class.
      *
-     * @return true if this class is an external class, i.e. is not itself an accepted class, and is known only
-     *         because an accepted class refers to it, directly or through other external classes, for example as
-     *         its superclass, an interface, an annotation or an enclosing class (see
-     *         {@link ClassGraph#enableExternalClasses()} for the full list). An external class may still have been
-     *         scanned: see the class documentation.
+     * @return true if this class is not an accepted class, and is known only because an accepted class refers to it
+     *         (directly or through other external classes).
      */
     public boolean isExternalClass() {
         return isExternalClass;
@@ -1524,24 +1396,14 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get the class modifier bits, in the same form as {@link Class#getModifiers()}.
+     * Get the class modifier bits, in the same form as {@link Class#getModifiers()} (with the {@code ACC_SUPER} bit
+     * masked out). Returns 0 for an {@link ArrayClassInfo}.
      *
      * <p>
-     * The {@code ACC_SUPER} bit (0x0020) of the classfile's {@code access_flags} field is masked out, because it is
-     * not a modifier: it selects the JVM's treatment of the {@code invokespecial} instruction, javac sets it on
-     * almost every class, and the same bit value in {@link Modifier} is {@link Modifier#SYNCHRONIZED}, which is not
-     * a legal class modifier. {@link Class#getModifiers()} masks it out for the same reason.
-     *
-     * <p>
-     * For an {@link ArrayClassInfo}, this returns 0, not the modifiers that {@link Class#getModifiers()} returns
-     * for an array class: see {@link ArrayClassInfo}.
-     *
-     * <p>
-     * <b>Note:</b> comparing the returned value against a hardcoded integer is fragile. Prefer the named accessors
-     * ({@link #isPublic()}, {@link #isProtected()}, {@link #isPrivate()}, {@link #isStatic()}, {@link #isFinal()},
-     * {@link #isAbstract()}, {@link #isInterface()}, {@link #isAnnotation()}, {@link #isEnum()},
-     * {@link #isSynthetic()}), or test individual bits with the {@link Modifier} predicates, rather than comparing
-     * the whole value.
+     * Prefer the named accessors ({@link #isPublic()}, {@link #isProtected()}, {@link #isPrivate()},
+     * {@link #isStatic()}, {@link #isFinal()}, {@link #isAbstract()}, {@link #isInterface()},
+     * {@link #isAnnotation()}, {@link #isEnum()}, {@link #isSynthetic()}) or {@link Modifier} predicates over
+     * comparing the raw bitmask.
      *
      * @return The class modifier bits, e.g. {@link Modifier#PUBLIC}.
      */
@@ -1664,11 +1526,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Checks if this class is an {@link Enum} type, as {@link Class#isEnum()} does: the class must have the
-     * {@code ACC_ENUM} flag, and its direct superclass must be {@link Enum}. The anonymous class that holds the
-     * body of an enum constant (for example {@code Op$1} for the constant {@code PLUS { ... }} of an enum
-     * {@code Op}) also has the {@code ACC_ENUM} flag, but is a subclass of the enum, not an enum type, so this
-     * returns false for it.
+     * Checks if this class is an {@link Enum} type, matching {@link Class#isEnum()} (returns false for the
+     * anonymous subclass of an enum constant body).
      *
      * @return true if this class is an {@link Enum} type.
      */
@@ -1722,14 +1581,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Checks if this class extends the named superclass.
-     *
-     * <p>
-     * The whole superclass chain is tested, including any external superclasses, whether or not
-     * {@link ClassGraph#enableExternalClasses()} was called -- this reports the class hierarchy as the JVM sees it.
-     *
-     * <p>
-     * A class never extends itself, so this returns false if {@code superclassName} names this class.
+     * Checks if this class extends the named superclass (testing the full superclass chain, including external
+     * superclasses). Returns false if {@code superclassName} names this class itself.
      *
      * @param superclassName
      *            The name of a superclass.
@@ -1837,11 +1690,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Checks whether this class implements the named interface.
-     *
-     * <p>
-     * All superinterfaces are tested, including any external ones, whether or not
-     * {@link ClassGraph#enableExternalClasses()} was called -- this reports the class hierarchy as the JVM sees it.
+     * Checks whether this class implements the named interface (testing all superinterfaces, including external
+     * ones).
      *
      * @param interfaceName
      *            The name of an interface.
@@ -1853,12 +1703,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Checks whether this class has the named annotation.
-     *
-     * <p>
-     * All annotations and meta-annotations are tested, including any external ones, whether or not
-     * {@link ClassGraph#enableExternalClasses()} was called -- this reports the annotations as the JVM sees them.
-     * The annotations inherited from superclasses are those listed by {@link #getAllAnnotations()}.
+     * Checks whether this class has the named annotation or meta-annotation (including {@link Inherited}
+     * annotations on superclasses and external annotations).
      *
      * @param annotationName
      *            the name of the annotation class
@@ -2208,9 +2054,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get the order that fields are searched in (JVMS 5.4.3.2): this class first, then each of its direct
-     * superinterfaces, each followed by its own superinterfaces, then its superclass, searched in the same way. A
-     * class that is reached more than once is searched only the first time.
+     * Get the field lookup order for this class (JVMS 5.4.3.2): this class, its superinterfaces, and its
+     * superclasses.
      *
      * @return the override order
      */
@@ -2246,13 +2091,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get the classes and interfaces in the order of overridden methods, in descending priority.
-     * <p>
-     * First collects this class and all its superclasses, as their methods always have a higher priority than any
-     * method declared by an interface. Then collects the interfaces, inserting each interface before any interface
-     * that it extends that was already collected. The order of unrelated interfaces is unspecified.
-     * <p>
-     * See Java Language Specification 8.4.8 for details.
+     * Get the classes and interfaces in descending method override priority order (JLS 8.4.8): this class and its
+     * superclasses first, followed by superinterfaces in topological order.
      *
      * @return the override order
      */
@@ -2358,8 +2198,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * superinterfaces of an interface).
      *
      * <p>
-     * External superclasses -- superclasses that were read only in order to complete the class graph above this
-     * class -- are included only if {@link ClassGraph#enableExternalClasses()} was called.
+     * External superclasses are included only if {@link ClassGraph#enableExternalClasses()} was called.
      *
      * @return the list of all superclasses of this class, or the empty list if none.
      */
@@ -2368,9 +2207,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get all superclasses of this class, including the external superclasses, i.e. the superclasses that were read
-     * only in order to complete the class graph above this class, and the rejected superclasses. Used by the
-     * queries that need the class graph as the JVM sees it, rather than as it is reported to the user.
+     * Get all superclasses of this class, including external and rejected superclasses.
      *
      * @return the list of all superclasses of this class, or the empty list if none.
      */
@@ -2388,10 +2225,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * {@link Object}, and null is returned only for {@link Object} itself and for interfaces.
      *
      * <p>
-     * An external superclass -- a superclass that was read only in order to complete the class graph above this
-     * class -- is returned only if {@link ClassGraph#enableExternalClasses()} was called; otherwise null is
-     * returned. A rejected superclass is never returned, as for {@link #getAllSuperclasses()}: null is returned
-     * instead, even if {@link ClassGraph#enableExternalClasses()} was called.
+     * An external superclass is returned only if {@link ClassGraph#enableExternalClasses()} was called; otherwise
+     * null is returned. A rejected superclass is never returned, even if {@link ClassGraph#enableExternalClasses()}
+     * was called.
      *
      * @return the superclass of this class, or null if none.
      */
@@ -2401,9 +2237,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get the single direct superclass of this class, or null if none, including an external superclass, i.e. a
-     * superclass that was read only in order to complete the class graph above this class. Used by the queries that
-     * need the class graph as the JVM sees it, rather than as it is reported to the user.
+     * Get the direct superclass of this class, or null if none, including external and rejected superclasses.
      *
      * @return the superclass of this class, or null if none.
      */
@@ -2431,8 +2265,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get the classes that this class is nested in, including the external ones, i.e. the ones that were read only
-     * in order to complete the class graph above this class, and the rejected ones.
+     * Get the classes that this class is nested in, including external and rejected classes.
      *
      * @return The classes that this class is nested in, or the empty list if this is not a nested class.
      */
@@ -2444,7 +2277,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
 
     /**
      * Get the classes nested in this class, including local and anonymous classes (which
-     * {@link Class#getDeclaredClasses()} leaves out), and the classes nested in those.
+     * {@link Class#getDeclaredClasses()} omits), and the classes nested in those.
      *
      * @return The classes nested in this class, at any depth, or the empty list if there are none. The classes
      *         declared directly in this class are selected by {@link ClassInfoList#directOnly()}.
@@ -2454,8 +2287,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get the classes nested in this class, including the external ones, i.e. the ones that were read only in order
-     * to complete the class graph, and the rejected ones.
+     * Get the classes nested in this class, including external and rejected classes.
      *
      * @return The classes nested in this class, or the empty list if there are none.
      */
@@ -2471,8 +2303,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      *
      * @return The fully-qualified name of the method or constructor this class is declared in, or null if this is
      *         not an anonymous class or a local class, or if it is declared in an initializer (a static or instance
-     *         initializer block, or a field initializer) rather than in a method or constructor. (The classfile
-     *         does not say which initializer the class is declared in.)
+     *         initializer block, or a field initializer) rather than in a method or constructor.
      */
     public @Nullable String getFullyQualifiedDefiningMethodName() {
         return fullyQualifiedDefiningMethodName;
@@ -2487,8 +2318,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * indirectly, if this is an interface.
      *
      * <p>
-     * External superinterfaces -- superinterfaces that were read only in order to complete the class graph above
-     * this class or interface -- are included only if {@link ClassGraph#enableExternalClasses()} was called.
+     * External superinterfaces are included only if {@link ClassGraph#enableExternalClasses()} was called.
      *
      * @return The list of all superinterfaces of this class or interface, or the empty list if none.
      */
@@ -2497,10 +2327,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get all superinterfaces of this class or interface, including the external superinterfaces, i.e. the
-     * superinterfaces that were read only in order to complete the class graph above this class or interface, and
-     * the rejected superinterfaces. Used by the queries that need the class graph as the JVM sees it, rather than
-     * as it is reported to the user.
+     * Get all superinterfaces of this class or interface, including external and rejected superinterfaces.
      *
      * @return The list of all superinterfaces of this class or interface, or the empty list if none.
      */
@@ -2540,8 +2367,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * The returned list also contains the transitive subinterfaces of this interface, since an interface that
      * extends this interface is a subtype of it. To separate the two, call {@link ClassInfoList#getInterfaces()}
      * for just the subinterfaces, or {@link ClassInfoList#getStandardClasses()} for just the implementing classes.
-     * (Note that {@link #getAllSubclasses()} does not traverse the interface hierarchy -- use this method instead
-     * to find the subinterfaces of an interface.)
+     * (Note that {@link #getAllSubclasses()} does not traverse the interface hierarchy; use this method or
+     * {@link #getAllSubinterfaces()} instead to find the subinterfaces of an interface.)
      *
      * @return the list of all the classes (and their subclasses) that implement this interface, and the transitive
      *         subinterfaces of this interface, if this is an interface, otherwise returns the empty list.
@@ -2628,8 +2455,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * Filters out meta-annotations in the {@code java.lang.annotation} package.
      *
      * <p>
-     * External annotations -- annotations that were read only in order to complete the class graph above this class
-     * -- are included only if {@link ClassGraph#enableExternalClasses()} was called.
+     * External annotations are included only if {@link ClassGraph#enableExternalClasses()} was called.
      *
      * @return the list of annotations and meta-annotations on this class.
      * @throws IllegalStateException
@@ -2640,10 +2466,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get the annotations and meta-annotations on this class, including the external annotations, i.e. the
-     * annotations that were read only in order to complete the class graph above this class, and the rejected
-     * annotations. Used by the queries that need the class graph as the JVM sees it, rather than as it is reported
-     * to the user.
+     * Get the annotations and meta-annotations on this class, including external and rejected annotations.
      *
      * @return the list of annotations and meta-annotations on this class.
      * @throws IllegalStateException
@@ -2833,8 +2656,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      *            {@link RelType#CLASSES_WITH_METHOD_PARAMETER_ANNOTATION}, or
      *            {@link RelType#CLASSES_WITH_NONPRIVATE_METHOD_PARAMETER_ANNOTATION}.
      * @return A list of classes that have a declared field, method or method parameter with this annotation or
-     *         meta-annotation, including the external and rejected classes, which the caller filters out of its
-     *         result, or the empty list if none.
+     *         meta-annotation, including external and rejected classes, or the empty list if none.
      */
     private ClassInfoList getClassesWithFieldOrMethodAnnotation(final RelType relType) {
         final var isField = relType == RelType.CLASSES_WITH_FIELD_ANNOTATION
@@ -2924,9 +2746,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get the default parameter values for this annotation, first converting any Object[] arrays of boxed values or
-     * strings to arrays of their element type. No lock is taken: two threads may convert the values at once, which
-     * gives the same result as converting them once.
+     * Get the default parameter values for this annotation, first converting any {@code Object[]} arrays of boxed
+     * values or strings to arrays of their element type.
      *
      * @return the default parameter values, or null if none.
      */
@@ -2997,8 +2818,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     // Methods
 
     /**
-     * Get the methods and/or constructors declared by the class. Static initializer blocks are never returned --
-     * they can only be reached by name, via {@link #getDeclaredMethodInfo(String)}.
+     * Get the methods and/or constructors declared by the class, excluding static initializer blocks.
      *
      * @param getNormalMethods
      *            whether to get methods that are not constructors
@@ -3026,9 +2846,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get the methods declared by the class that have the given name. Unlike
-     * {@link #getDeclaredMethodInfoOfKind(boolean, boolean)}, this ignores the kind of the method, so it can return
-     * constructors ({@code "<init>"}) and static initializer blocks ({@code "<clinit>"}).
+     * Get the methods declared by the class that have the given name, including constructors ({@code "<init>"}) and
+     * static initializer blocks ({@code "<clinit>"}).
      *
      * @param methodName
      *            the method name
@@ -3050,8 +2869,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Merge the declared methods of this class and of its superclasses and interfaces, in method override order,
-     * dropping any method that was already overridden by a method of the same name and type descriptor.
+     * Merge the declared methods of this class and of its superclasses and interfaces in method override order,
+     * dropping overridden methods with the same name and type descriptor.
      *
      * @param declaredMethodsOf
      *            returns the declared methods to merge, for one class in the override order
@@ -3077,8 +2896,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
 
     /**
      * Get the methods of the class, its superclasses and its interfaces, and/or the constructors of the class
-     * itself. Static initializer blocks are never returned -- they can only be reached by name, via
-     * {@link #getMethodInfo(String)}.
+     * itself, excluding static initializer blocks.
      *
      * @param getNormalMethods
      *            whether to get methods that are not constructors
@@ -3094,10 +2912,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get the methods of the class, its superclasses and its interfaces that have the given name. Unlike
-     * {@link #getMethodInfoOfKind(boolean, boolean)}, this ignores the kind of the method, so it can return this
-     * class's own constructors ({@code "<init>"}) and static initializer block ({@code "<clinit>"}), but never
-     * those of a superclass or interface.
+     * Get the methods of the class, its superclasses and its interfaces that have the given name, including this
+     * class's own constructors ({@code "<init>"}) and static initializer block ({@code "<clinit>"}).
      *
      * @param methodName
      *            the method name
@@ -3417,7 +3233,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * </ul>
      *
      * <p>
-     * Constructors are not included -- to find annotated constructors, filter
+     * Constructors are not included; to find annotated constructors, filter
      * {@link #getDeclaredMethodAndConstructorInfo()} using
      * {@link MethodInfoList#filter(java.util.function.Predicate)}.
      *
@@ -3452,7 +3268,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * </ul>
      *
      * <p>
-     * Constructors are not included -- to find annotated constructors, filter
+     * Constructors are not included; to find annotated constructors, filter
      * {@link #getDeclaredMethodAndConstructorInfo()} using
      * {@link MethodInfoList#filter(java.util.function.Predicate)}.
      *
@@ -3491,8 +3307,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * </ul>
      *
      * <p>
-     * Constructors are not included -- to find annotated constructors, filter
-     * {@link #getMethodAndConstructorInfo()} using {@link MethodInfoList#filter(java.util.function.Predicate)}.
+     * Constructors are not included; to find annotated constructors, filter {@link #getMethodAndConstructorInfo()}
+     * using {@link MethodInfoList#filter(java.util.function.Predicate)}.
      *
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} be called
@@ -3525,8 +3341,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * </ul>
      *
      * <p>
-     * Constructors are not included -- to find annotated constructors, filter
-     * {@link #getMethodAndConstructorInfo()} using {@link MethodInfoList#filter(java.util.function.Predicate)}.
+     * Constructors are not included; to find annotated constructors, filter {@link #getMethodAndConstructorInfo()}
+     * using {@link MethodInfoList#filter(java.util.function.Predicate)}.
      *
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} be called
@@ -3577,7 +3393,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * @return A list of all annotations or meta-annotations on methods declared by the class, (not including
      *         methods declared by the interfaces or superclasses of this class), as a list of {@link ClassInfo}
      *         objects, or the empty list if none. N.B. these annotations do not contain specific annotation
-     *         parameters -- call {@link MethodInfo#getAllAnnotationInfo()} to get details on specific method
+     *         parameters; call {@link MethodInfo#getAllAnnotationInfo()} to get details on specific method
      *         annotation instances.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
@@ -3593,7 +3409,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * @return A list of all annotations or meta-annotations on the parameters of methods declared by the class,
      *         (not including methods declared by the interfaces or superclasses of this class), as a list of
      *         {@link ClassInfo} objects, or the empty list if none. N.B. these annotations do not contain specific
-     *         annotation parameters -- call {@link MethodParameterInfo#getAllAnnotationInfo()} to get details on
+     *         annotation parameters; call {@link MethodParameterInfo#getAllAnnotationInfo()} to get details on
      *         specific method parameter annotation instances.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
@@ -3604,11 +3420,10 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get all classes that have this class as a method annotation, and the classes that inherit the method, if the
+     * Get all classes that have this class as a method annotation, and the classes that inherit the method if the
      * method is non-private: the subclasses of the declaring class, and, if the declaring class is an interface,
-     * the classes that implement it, their subclasses, and its subinterfaces. A static method of an interface is
-     * not inherited. An inheriting class is found even if the class that declares the method is external or
-     * rejected.
+     * the classes that implement it, their subclasses, and its subinterfaces. Static interface methods are not
+     * inherited.
      *
      * @return A list of classes that declare a method with this annotation or meta-annotation, and the classes that
      *         inherit the method, or the empty list if none.
@@ -3623,10 +3438,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
 
     /**
      * Get all classes that have this class as a method parameter annotation, and the classes that inherit the
-     * method, if the method is non-private: the subclasses of the declaring class, and, if the declaring class is
-     * an interface, the classes that implement it, their subclasses, and its subinterfaces. A static method of an
-     * interface is not inherited. An inheriting class is found even if the class that declares the method is
-     * external or rejected.
+     * method if the method is non-private: the subclasses of the declaring class, and, if the declaring class is an
+     * interface, the classes that implement it, their subclasses, and its subinterfaces. Static interface methods
+     * are not inherited.
      *
      * @return A list of classes that declare a method with a parameter that is annotated with this annotation or
      *         meta-annotation, and the classes that inherit the method, or the empty list if none.
@@ -3966,7 +3780,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * Get all field annotations.
      *
      * @return A list of all annotations on fields of this class, or the empty list if none. N.B. these annotations
-     *         do not contain specific annotation parameters -- call {@link FieldInfo#getAllAnnotationInfo()} to get
+     *         do not contain specific annotation parameters; call {@link FieldInfo#getAllAnnotationInfo()} to get
      *         details on specific field annotation instances.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableFieldInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
@@ -3978,9 +3792,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
 
     /**
      * Get the classes that have this class as a field annotation or meta-annotation, and the classes that inherit
-     * the field, if the field is non-private: the subclasses of the declaring class, and, if the declaring class is
-     * an interface, the classes that implement it, their subclasses, and its subinterfaces. An inheriting class is
-     * found even if the class that declares the field is external or rejected.
+     * the field if the field is non-private: the subclasses of the declaring class, and, if the declaring class is
+     * an interface, the classes that implement it, their subclasses, and its subinterfaces.
      *
      * @return A list of classes that declare a field with this annotation or meta-annotation, and the classes that
      *         inherit the field, or the empty list if none.
@@ -3999,12 +3812,10 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * Get the parsed type signature for the class.
      *
      * @return The parsed type signature for the class, including any generic type parameters, or null if the class
-     *         has no {@code Signature} attribute, which is the case unless the class declaration uses type
-     *         variables or parameterized types -- in its own type parameters, its superclass, or its interfaces.
+     *         has no {@code Signature} attribute (i.e. the class declaration does not use type variables or
+     *         parameterized types in its own type parameters, its superclass, or its interfaces).
      * @throws IllegalArgumentException
-     *             if the class type signature cannot be parsed (this should only be thrown in the case of classfile
-     *             corruption, or a compiler bug that causes an invalid type signature to be written to the
-     *             classfile).
+     *             if the class type signature cannot be parsed.
      */
     public @Nullable ClassTypeSignature getTypeSignature() {
         synchronized (this) {
@@ -4027,8 +3838,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
 
     /**
      * Get the parsed type signature for the class, or null if the class has no {@code Signature} attribute or if
-     * its type signature cannot be parsed. The JVM does not check the {@code Signature} attribute when it loads a
-     * class, so a class whose type signature does not parse can still be used, and is treated as non-generic.
+     * its type signature cannot be parsed.
      *
      * @return The parsed type signature for the class, or null.
      */
@@ -4042,14 +3852,11 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Add the type annotations of this class to the given class type signature or synthetic type descriptor. A type
-     * annotation that cannot be matched to the type it names (from a corrupt classfile, or a compiler bug) is
-     * skipped, rather than making the whole class type unreadable.
+     * Apply the type annotations of this class to the given class type signature or synthetic type descriptor.
      *
      * @param classType
      *            the class type signature or synthetic type descriptor to add the type annotations to.
      */
-    // #897
     private void applyTypeAnnotations(final ClassTypeSignature classType) {
         TypeAnnotation.applyAll(typeAnnotationsToApply, classType, this);
     }
@@ -4058,8 +3865,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * Get the type signature string for the class.
      *
      * @return The type signature string for the class, including any generic type parameters, or null if the class
-     *         has no {@code Signature} attribute, which is the case unless the class declaration uses type
-     *         variables or parameterized types -- in its own type parameters, its superclass, or its interfaces.
+     *         has no {@code Signature} attribute (i.e. the class declaration does not use type variables or
+     *         parameterized types in its own type parameters, its superclass, or its interfaces).
      */
     public @Nullable String getTypeSignatureString() {
         return typeSignatureStr;
@@ -4067,10 +3874,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
 
     /**
      * Returns the parsed type signature for this class, possibly including type parameters. If the class has no
-     * {@code Signature} attribute, i.e. if neither the class nor its superclass or interfaces use type variables or
-     * parameterized types, or if the type signature cannot be parsed, then a type descriptor is synthesized from
-     * the class, superclass and interface names and returned instead (a classfile may have a class type signature,
-     * but never has a class type descriptor). May include type annotations on the superclass or interface(s).
+     * {@code Signature} attribute, or if the type signature cannot be parsed, then a type descriptor synthesized
+     * from the class, superclass, and interface names is returned instead. May include type annotations on the
+     * superclass or interface(s).
      *
      * @return The parsed generic type signature for the class, or if not available, the synthetic type descriptor
      *         for the class.
@@ -4124,8 +3930,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * @return The {@link URI} of the classpath element that this class was found within.
      * @throws IllegalStateException
      *             if the classpath element does not have a valid URI (e.g. for modules whose location URI is null),
-     *             or if the classpath element is not known for this class, because this {@link ClassInfo} is a
-     *             placeholder for a class that was referenced by a scanned class but was not itself scanned.
+     *             or if the classpath element is not known for this class because it was referenced by a scanned
+     *             class but not scanned itself.
      */
     public URI getClasspathElementURI() {
         if (classfileResource == null) {
@@ -4142,8 +3948,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * @return The {@link URL} of the classpath element that this class was found within.
      * @throws IllegalStateException
      *             if the classpath element URI cannot be converted to a {@link URL}, or if the classpath element is
-     *             not known for this class, because this {@link ClassInfo} is a placeholder for a class that was
-     *             referenced by a scanned class but was not itself scanned.
+     *             not known for this class because it was referenced by a scanned class but not scanned itself.
      */
     public URL getClasspathElementURL() {
         try {
@@ -4159,15 +3964,11 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * {@link #getModuleReference}.)
      *
      * @return The {@link File} for the classpath element package root dir or jar that this class was found within,
-     *         or null if this class was found in a module backed by a "jrt:" URI, or a module whose location is
-     *         unknown or is not an existing file, or in a directory or jar in a filesystem that supports the
-     *         {@link java.nio.file.Path} API but not the {@link File} API. A jar downloaded from a URL, such as an
-     *         http or https URL, is held in RAM, and this returns null for it, unless it is larger than
-     *         {@link ClassGraph#setMaxBufferedJarRAMSize(int)} allows: it is then written to a temporary file, and
-     *         this returns that file, which is deleted when the {@link ScanResult} is closed.
+     *         or null if this class was found in a module or in a filesystem or RAM-backed jar not backed by a
+     *         local {@link File}.
      * @throws IllegalStateException
-     *             if the classpath element is not known for this class, because this {@link ClassInfo} is a
-     *             placeholder for a class that was referenced by a scanned class but was not itself scanned.
+     *             if the classpath element is not known for this class because it was referenced by a scanned class
+     *             but not scanned itself.
      */
     public @Nullable File getClasspathElementFile() {
         if (classpathElement == null) {
@@ -4183,8 +3984,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * @return The module that this class was found within, as a {@link ModuleReference}, or null if this class was
      *         found in a directory or jar in the classpath. (See also {@link #getClasspathElementFile()}.)
      * @throws IllegalStateException
-     *             if the classpath element is not known for this class, because this {@link ClassInfo} is a
-     *             placeholder for a class that was referenced by a scanned class but was not itself scanned.
+     *             if the classpath element is not known for this class because it was referenced by a scanned class
+     *             but not scanned itself.
      */
     public @Nullable ModuleReference getModuleReference() {
         if (classpathElement == null) {
@@ -4196,24 +3997,19 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     /**
      * The {@link Resource} for the classfile of this class.
      *
-     * @return The {@link Resource} for the classfile of this class. Returns null if the classfile for this class
-     *         was not actually read during the scan, e.g. because this class was not itself accepted, but was
-     *         referenced by an accepted class.
+     * @return The {@link Resource} for the classfile of this class, or null if the classfile was not read during
+     *         the scan.
      */
     public @Nullable Resource getResource() {
         return classfileResource;
     }
 
     /**
-     * The string form ({@link Object#toString()}) of the classloader that this class was found under. This is the
-     * same string that the verbose scanning log shows for the classpath element, so it can be used to work out
-     * which classloader a class came from -- but it is only an identifier, not the classloader itself: ClassGraph
-     * reads classfiles directly rather than through a classloader, and drops every classloader reference once the
-     * classpath has been found, so that a scan cannot keep a classloader alive.
+     * Get the string representation ({@link Object#toString()}) of the classloader associated with the classpath
+     * element in which this class was found.
      *
-     * @return The string form of the classloader that this class was found under. Returns null if the classloader
-     *         is not known, e.g. because this class was not itself accepted, but was referenced by an accepted
-     *         class, or because the class was found in a module loaded by the bootstrap classloader.
+     * @return The string representation of the classloader, or null if unknown or loaded by the bootstrap
+     *         classloader.
      */
     public @Nullable String getClassLoaderString() {
         return classpathElement == null ? null : classpathElement.getClassLoaderString();
@@ -4290,8 +4086,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Add names of classes referenced by this class. Called once per class, from {@code Classfile#linkClassInfo},
-     * after {@link #addScannedClass}, which rejects a second classfile for the same class.
+     * Add the names of classes referenced by this class.
      *
      * @param refdClassNames
      *            the referenced class names
@@ -4301,15 +4096,13 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get {@link ClassInfo} objects for the classes referenced by this class's own classfile: the classes named in
-     * its constant pool (including its superclass and interfaces) and its type signature, and the classes named by
-     * its declared fields, methods and constructors and by the annotations directly on it, if those were recorded.
+     * Find all {@link ClassInfo} objects referenced by this class's classfile, type signature, and recorded
+     * declared members and annotations.
      *
      * @param classNameToClassInfo
-     *            the map to add a {@link ClassInfo} object to, for a referenced class that has none in the scan
-     *            result.
+     *            the map from class name to {@link ClassInfo}
      * @param refdClassInfo
-     *            the referenced class info
+     *            the set of referenced {@link ClassInfo} objects to populate
      * @param log
      *            the log node, or null to skip logging
      */
@@ -4371,20 +4164,13 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get the class dependencies: the classes referenced by this class's own classfile. These are its superclass
-     * and interfaces, the classes named in its constant pool and type signature, and, if they were scanned, the
-     * classes named by its declared fields, methods and constructors (their types, type signatures and annotations,
-     * and the exceptions that the methods throw), by the annotations directly on this class, and, for an annotation
-     * class, by the default values of its parameters. The members and {@link java.lang.annotation.Inherited}
-     * annotations that this class inherits, and the meta-annotations of its annotations, belong to other classes,
-     * so their dependencies are found by asking those classes, not this one. {@code java.lang.Object} is left out,
-     * and so is a rejected class, even if {@link ClassGraph#enableExternalClasses()} was called.
+     * Get the classes referenced by this class's classfile, including its superclass, interfaces, constant pool
+     * class references, type signature, and (if scanned) declared fields, methods, constructors, direct
+     * annotations, and annotation default parameter values. Excludes {@code java.lang.Object} and rejected classes.
      *
-     * @return A {@link ClassInfoList} of {@link ClassInfo} objects for the classes referenced by this class. Note
-     *         that you need to call {@link ClassGraph#enableInterClassDependencies()} before
-     *         {@link ClassGraph#scan()} for this method to work. You should also call
-     *         {@link ClassGraph#enableExternalClasses()} before {@link ClassGraph#scan()} if you want non-accepted
-     *         classes to appear in the result.
+     * @return A {@link ClassInfoList} of {@link ClassInfo} objects for the classes referenced by this class. Call
+     *         {@link ClassGraph#enableExternalClasses()} before {@link ClassGraph#scan()} to include non-accepted
+     *         classes in the result.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableInterClassDependencies()} was not called before scanning.
      */
@@ -4438,15 +4224,13 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Determine whether a supertype is implicit in the declaration of this class, i.e. is added by the compiler and
-     * cannot be written in the {@code extends} or {@code implements} clause in Java source:
-     * {@code java.lang.Object} as the superclass of a class, {@code java.lang.Record} as the superclass of a
-     * record, {@code java.lang.Enum} as the superclass of an enum, and {@code java.lang.annotation.Annotation} as a
-     * superinterface of an annotation.
+     * Return true if the named supertype is implicit in the declaration of this class ({@code java.lang.Object},
+     * {@code java.lang.Record} for records, {@code java.lang.Enum} for enums, or
+     * {@code java.lang.annotation.Annotation} for annotations).
      *
      * @param supertypeName
      *            the name of the superclass or superinterface
-     * @return true if the supertype is implicit, so should be omitted when this class' declaration is rendered
+     * @return true if the supertype is implicit
      */
     boolean isImplicitSupertype(final String supertypeName) {
         return switch (supertypeName) {
@@ -4459,13 +4243,12 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Determine whether a supertype signature refers to a supertype that is implicit in the declaration of this
-     * class, so should be omitted when the declaration is rendered. An annotated supertype is never omitted, since
-     * its type annotation is written in the source even when the supertype itself is implicit.
+     * Return true if the given supertype signature refers to an unannotated supertype that is implicit in the
+     * declaration of this class.
      *
      * @param supertypeSignature
      *            the signature of the superclass or superinterface
-     * @return true if the supertype is implicit and unannotated, so should be omitted
+     * @return true if the supertype is implicit and unannotated
      */
     boolean isImplicitSupertype(final ClassRefTypeSignature supertypeSignature) {
         return !supertypeSignature.hasTypeAnnotations()
@@ -4473,17 +4256,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Append the record components of this class to a buffer, in the form {@code "(int x, String name)"}. Does
-     * nothing if this class is not a record.
-     *
-     * <p>
-     * The record components are listed in declaration order, which is the order of the record's {@code Record}
-     * attribute, and each is rendered from the instance field of the same name, which gives its type. (A record may
-     * also declare static fields, which are not components.) If the {@code Record} attribute was malformed, or if
-     * the record has components and field info was not enabled during the scan or the field of a component was not
-     * visible to the scan, then the whole component list is omitted rather than rendered with components missing,
-     * since that would wrongly state which components the record has. A record with no components renders
-     * {@code "()"}, whether or not field info was enabled.
+     * Append the record components of this class to a buffer in the form {@code "(int x, String name)"} if this
+     * class is a record and all component fields are available.
      *
      * @param useSimpleNames
      *            if true, strip package and outer class names from class names

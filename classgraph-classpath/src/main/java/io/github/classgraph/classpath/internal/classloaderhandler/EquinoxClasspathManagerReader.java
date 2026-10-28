@@ -40,14 +40,13 @@ import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.classpath.ClasspathOrder;
 
 /**
- * Reads the classpath entries of an Equinox {@code ClasspathManager} and of the fragments attached to its bundle.
- * Used by {@link EquinoxClassLoaderHandler} and {@link OSGiDefaultClassLoaderHandler}.
+ * Reads classpath entries from an Equinox {@code ClasspathManager} and the fragments attached to its bundle.
  */
 final class EquinoxClasspathManagerReader {
     /** The fields of a {@code BundleFile} that hold a sub-path within the bundle's base file. */
     private static final List<String> BUNDLE_FILE_SUBPATH_FIELD_NAMES = List.of("cp", "nestedDirName");
 
-    /** The most wrappers to look through to find the bundle file that a nested directory lives inside. */
+    /** The maximum number of wrapper hops to traverse when unwrapping a nested directory's bundle file. */
     private static final int MAX_WRAPPER_HOPS = 32;
 
     /** Not instantiable. */
@@ -56,35 +55,31 @@ final class EquinoxClasspathManagerReader {
     }
 
     /**
-     * Return true if a {@code BundleFile} is an instance of the named Equinox {@code bundlefile} class. Equinox
-     * moved these classes from {@code org.eclipse.osgi.baseadaptor.bundlefile} to
-     * {@code org.eclipse.osgi.storage.bundlefile} in 3.10, so only the part of the name from the package that both
-     * versions share is compared.
+     * Checks whether a {@code BundleFile} is an instance of the named Equinox {@code bundlefile} class.
      *
      * @param bundlefile
      *            the {@code BundleFile}.
      * @param className
      *            the simple name of the {@code bundlefile} class.
-     * @return true if the {@code BundleFile} is an instance of that class.
+     * @return {@code true} if the {@code BundleFile} is an instance of that class.
      */
     private static boolean isBundleFileClass(final Object bundlefile, final String className) {
         return bundlefile.getClass().getName().endsWith(".bundlefile." + className);
     }
 
     /**
-     * Add the classpath entry of a {@code BundleFile}, and of every {@code BundleFile} it wraps or is chained to. A
-     * {@code BundleFileWrapper} adds no entry of its own, only those of the {@code BundleFile} it delegates to.
+     * Adds the classpath entry of a {@code BundleFile} and of any {@code BundleFile}s it wraps or is chained to.
      *
      * @param bundlefile
-     *            the {@code BundleFile}, or null (ignored)
+     *            the {@code BundleFile}, or {@code null}.
      * @param visited
-     *            the {@code BundleFile}s already visited, so that a cycle cannot cause infinite recursion
+     *            the {@code BundleFile}s already visited.
      * @param classLoader
-     *            the classloader
+     *            the classloader.
      * @param classpathOrderOut
-     *            the classpath order
+     *            the classpath order.
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or {@code null} to skip logging.
      */
     private static void addBundleFile(final @Nullable Object bundlefile, final Set<Object> visited,
             final ClassLoader classLoader, final ClasspathOrder classpathOrderOut,
@@ -153,17 +148,17 @@ final class EquinoxClasspathManagerReader {
     }
 
     /**
-     * Add the classpath entries of the {@code ClasspathEntry[] entries} field of a {@code ClasspathManager} or a
+     * Adds the classpath entries from the {@code entries} field of a {@code ClasspathManager} or
      * {@code FragmentClasspath}.
      *
      * @param owner
-     *            the {@code ClasspathManager} or {@code FragmentClasspath}, or null
+     *            the {@code ClasspathManager} or {@code FragmentClasspath}, or {@code null}.
      * @param classLoader
-     *            the class loader
+     *            the classloader.
      * @param classpathOrderOut
-     *            the classpath order out
+     *            the classpath order.
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or {@code null} to skip logging.
      */
     private static void addEntries(final @Nullable Object owner, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final @Nullable ClassGraphLog log) {
@@ -184,17 +179,16 @@ final class EquinoxClasspathManagerReader {
     }
 
     /**
-     * Add the classpath entries of a {@code ClasspathManager}, both its own and those of the fragments attached to
-     * its bundle.
+     * Adds the classpath entries of a {@code ClasspathManager} and the fragments attached to its bundle.
      *
      * @param manager
-     *            the {@code ClasspathManager}, or null
+     *            the {@code ClasspathManager}, or {@code null}.
      * @param classLoader
-     *            the class loader
+     *            the classloader.
      * @param classpathOrderOut
-     *            the classpath order out
+     *            the classpath order.
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or {@code null} to skip logging.
      */
     static void addClasspathManagerEntries(final @Nullable Object manager, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final @Nullable ClassGraphLog log) {

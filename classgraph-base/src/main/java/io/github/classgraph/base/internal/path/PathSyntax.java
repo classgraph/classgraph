@@ -36,27 +36,15 @@ import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
 
 /**
- * The syntax of a single path: its segments, its nested jar separators, and its leafname.
- *
- * <p>
- * These operations read the path as text, and do not ask the filesystem what it names. The exceptions are
- * {@link #indexOfNestedJarSeparator(String)} and {@link #hasURLScheme(String)}, and the methods that call them,
- * such as {@link #sanitizeEntryPath(String, String, boolean, boolean, boolean)}, which have to test whether a path
- * names an existing file or directory, because neither a {@code '!'} separator nor a URL scheme can be told from a
- * filename by syntax alone. Reading and resolving the file a path names are the business of {@link FileUtils} and
- * {@link FastPathResolver} respectively.
+ * Utilities for parsing and sanitizing paths, nested jar separators, and path segments.
  */
 public final class PathSyntax {
     /**
-     * The separator between the random part of a ClassGraph temporary filename and the leafname of the file that
-     * was extracted to it.
+     * The separator between the random prefix of a ClassGraph temporary filename and the extracted file's leafname.
      */
     public static final String TEMP_FILENAME_LEAF_SEPARATOR = "---";
 
-    /**
-     * The prefix that every ClassGraph temporary filename begins with. A leafname is only read as a temporary
-     * filename if it starts with this, so that a file genuinely named {@code "a---b.jar"} keeps its whole name.
-     */
+    /** The prefix for all ClassGraph temporary filenames. */
     public static final String TEMP_FILENAME_PREFIX = "ClassGraph--";
 
     /** Not instantiable. */
@@ -67,34 +55,22 @@ public final class PathSyntax {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Sanitize a path on the host against "zip slip" vulnerability, by removing path segments if ".." is found in
-     * the URL, but without allowing navigation above the path hierarchy root. Each nested jar separator '!' starts
-     * a new path hierarchy root; which '!' characters are separators is decided by testing the filesystem, or for a
-     * URL by syntax (see {@link #indexOfNestedJarSeparator(String)}). Also removes "." and empty path segments
-     * ("//"). To sanitize a path within a directory or archive, where '!' is always an ordinary character, use
-     * {@link #sanitizeRelativePath(String, boolean)}.
+     * Sanitize a host path against path traversal ("zip slip") by collapsing {@code "."}, empty segments
+     * ({@code "//"}), and {@code ".."} segments within each {@code '!'} nested jar section without navigating above
+     * the section root.
      *
      * @param prefix
-     *            The scheme prefix and authority that were split off the front of the path and are not sanitized,
-     *            such as {@code "http://host"}, or the empty string if the path is a filesystem path. Whether a '!'
-     *            is a nested jar separator depends on whether the path is a URL, so the separator is found in the
-     *            path with its prefix, so that the path of a remote URL is not tested as if it were a local path.
+     *            The scheme prefix and authority stripped from the front of the path, or the empty string for a
+     *            filesystem path.
      * @param path
      *            The path to sanitize.
      * @param removeInitialSlash
-     *            If true, remove any '/' character(s) from the beginning of the returned path.
+     *            If {@code true}, remove any leading {@code '/'} characters.
      * @param removeFinalSlash
-     *            If true, remove any '/' character(s) from the end of the returned path.
+     *            If {@code true}, remove any trailing {@code '/'} characters.
      * @param collapseParentSegmentsInFirstSection
-     *            If true, a ".." segment before the first nested jar separator removes the segment before it, as it
-     *            does in every later section. If false, a ".." segment there is left in the path for the platform
-     *            to resolve. Pass false only for the first section of a path that names a file on disk, where the
-     *            two can differ: on Linux and macOS, after a symlinked directory, ".." names the parent of the
-     *            directory the symlink points at, not the parent of the symlink, so collapsing it here would name a
-     *            different file than the one the path reaches (on Windows the path APIs collapse it lexically, so
-     *            the two agree there). Every later section is a path within an archive, which has no symlinks and
-     *            no filesystem to ask, so ".." there is always collapsed -- that is what stops a "zip slip" entry
-     *            name from escaping the archive.
+     *            If {@code true}, collapse {@code ".."} segments before the first nested jar separator; if
+     *            {@code false}, preserve them for the filesystem to resolve.
      * @return The sanitized path.
      */
     public static String sanitizeEntryPath(final String prefix, final String path, final boolean removeInitialSlash,
@@ -116,20 +92,14 @@ public final class PathSyntax {
     }
 
     /**
-     * Sanitize a path relative to the root of a directory or archive, such as a zip entry name or a resource path,
-     * against "zip slip" vulnerability: drop {@code "."} and empty path segments ("//"), remove the preceding
-     * segment for each {@code ".."} segment without allowing navigation above the root, and remove any initial '/'
-     * character(s).
-     *
-     * <p>
-     * Unlike {@link #sanitizeEntryPath(String, String, boolean, boolean, boolean)}, this treats every '!' as an
-     * ordinary character, since a path within a root is not a path on the host, and so contains no nested jar
-     * separator. The filesystem is never read.
+     * Sanitize a relative path within a directory or archive against path traversal ("zip slip"), collapsing
+     * {@code "."}, empty segments, and {@code ".."} segments without navigating above the root, and stripping
+     * leading {@code '/'} characters. Treats {@code '!'} as an ordinary character.
      *
      * @param relativePath
      *            The path to sanitize.
      * @param removeFinalSlash
-     *            If true, remove any '/' character(s) from the end of the returned path.
+     *            If {@code true}, remove any trailing {@code '/'} characters.
      * @return The sanitized path.
      */
     public static String sanitizeRelativePath(final String relativePath, final boolean removeFinalSlash) {
@@ -141,18 +111,18 @@ public final class PathSyntax {
     }
 
     /**
-     * Sanitize a non-empty path, given the index of its outermost nested jar separator.
+     * Sanitize a non-empty path given the index of its outermost nested jar separator.
      *
      * @param path
      *            The path to sanitize.
      * @param nestedJarSepIdx
-     *            The index of the outermost nested jar separator '!' in the path, or -1 if there is none.
+     *            The index of the outermost nested jar separator {@code '!'} in the path, or -1 if none.
      * @param removeInitialSlash
-     *            If true, remove any '/' character(s) from the beginning of the returned path.
+     *            If {@code true}, remove any leading {@code '/'} characters.
      * @param removeFinalSlash
-     *            If true, remove any '/' character(s) from the end of the returned path.
+     *            If {@code true}, remove any trailing {@code '/'} characters.
      * @param collapseParentSegmentsInFirstSection
-     *            If false, a ".." segment before the first nested jar separator is left in the path.
+     *            If {@code false}, preserve {@code ".."} segments before the first nested jar separator.
      * @return The sanitized path.
      */
     private static String sanitize(final String path, final int nestedJarSepIdx, final boolean removeInitialSlash,
@@ -196,18 +166,16 @@ public final class PathSyntax {
     }
 
     /**
-     * Check whether a path contains any segment that has to be removed, i.e. a {@code ".."} segment, a {@code "."}
-     * segment, or an empty segment, or a section after a nested jar separator that has no segments, which
-     * {@link #appendSanitizedSegments(String, int, boolean, StringBuilder)} drops together with the separator
-     * before it.
+     * Check whether a path contains any empty, {@code "."}, or collapsible {@code ".."} segment, or an empty
+     * trailing nested jar section.
      *
      * @param path
      *            The path to check.
      * @param nestedJarSepIdx
-     *            The index of the first nested jar separator {@code '!'} in the path, or -1 if there is none.
+     *            The index of the first nested jar separator {@code '!'} in the path, or -1 if none.
      * @param collapseParentSegmentsInFirstSection
-     *            If false, a {@code ".."} segment before the first nested jar separator is left in the path.
-     * @return true if the path has to be sanitized.
+     *            If {@code false}, preserve {@code ".."} segments before the first nested jar separator.
+     * @return {@code true} if the path requires sanitization.
      */
     private static boolean hasSegmentToSanitize(final String path, final int nestedJarSepIdx,
             final boolean collapseParentSegmentsInFirstSection) {
@@ -260,18 +228,14 @@ public final class PathSyntax {
     }
 
     /**
-     * Append a path to a {@link StringBuilder}, dropping empty and {@code "."} segments, and removing the preceding
-     * segment for each {@code ".."} segment. Each segment is preceded by {@code '/'}, and each nested jar separator
-     * is written as {@code '!'} (so that {@code "jar:"} URL syntax is produced, since {@code '/'} always follows).
-     * A final {@code '/'} is kept if the last section has any segments.
+     * Append sanitized path sections and segments to {@code pathSanitized}.
      *
      * @param path
      *            The path to sanitize.
      * @param nestedJarSepIdx
-     *            The index of the first nested jar separator {@code '!'} in the path, or -1 if there is none.
+     *            The index of the first nested jar separator {@code '!'} in the path, or -1 if none.
      * @param collapseParentSegmentsInFirstSection
-     *            If false, a {@code ".."} segment before the first nested jar separator is kept as an ordinary
-     *            segment, for the filesystem to resolve.
+     *            If {@code false}, preserve {@code ".."} segments before the first nested jar separator.
      * @param pathSanitized
      *            The buffer to append the sanitized path to.
      */
@@ -339,28 +303,19 @@ public final class PathSyntax {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Determine whether the '!' at a given index of a path is a nested jar separator.
-     *
-     * <p>
-     * The {@code "jar:"} URL scheme spells the separator {@code "!/"}: {@link java.net.JarURLConnection} rejects a
-     * URL whose '!' is not followed by '/' when the URL is constructed, before any connection is opened. ClassGraph
-     * accepts the looser form its own API has always taken as well, where a bare '!' separates. Which form a path
-     * is written in is decided by the outermost separator, since that one is identified by testing the filesystem
-     * rather than by syntax: if it is followed by '/', the path is in the scheme's form, and a later '!' separates
-     * only when it is followed by '/' too; if it is a bare '!', every '!' from it onwards separates.
-     *
-     * <p>
-     * A '!' that ends the path counts as followed by '/' either way: it is what a trailing {@code "!/"} is left as
-     * once {@code FastPathResolver#stripTrailingSeparators} has removed the '/'.
+     * Determine whether the {@code '!'} at {@code plingIdx} is a nested jar separator. If the separator at
+     * {@code outermostSepIdx} is followed by {@code '/'}, only later {@code '!'} characters followed by {@code '/'}
+     * (or at the end of the path) are treated as separators; otherwise every {@code '!'} from
+     * {@code outermostSepIdx} onwards is treated as a separator.
      *
      * @param path
      *            the path.
      * @param plingIdx
-     *            the index of a '!' character within the path.
+     *            the index of a {@code '!'} character within the path.
      * @param outermostSepIdx
-     *            the index of the outermost separator, from {@link #indexOfNestedJarSeparator(String)}, or -1 if
-     *            the path has none.
-     * @return true if the '!' at {@code plingIdx} is a nested jar separator.
+     *            the index of the outermost separator from {@link #indexOfNestedJarSeparator(String)}, or -1 if
+     *            none.
+     * @return {@code true} if the {@code '!'} at {@code plingIdx} is a nested jar separator.
      */
     // #903
     public static boolean isNestedJarSeparatorAt(final String path, final int plingIdx, final int outermostSepIdx) {
@@ -371,51 +326,26 @@ public final class PathSyntax {
     }
 
     /**
-     * Determine whether the character at a given index is followed by '/', or is the last in the path.
+     * Determine whether the character at {@code idx} is followed by {@code '/'} or is at the end of the path.
      *
      * @param path
      *            the path.
      * @param idx
      *            the index of a character within the path.
-     * @return true if the character at that index ends a section of the path.
+     * @return {@code true} if the character at {@code idx} ends a path section.
      */
     private static boolean endsSectionOfPath(final String path, final int idx) {
         return idx == path.length() - 1 || path.charAt(idx + 1) == '/';
     }
 
     /**
-     * Find the index of the outermost nested jar separator ('!') in a path, i.e. the '!' that separates the
-     * outermost jarfile from a path nested within it, or -1 if the path contains no nested jar separator.
-     *
-     * <p>
-     * A '!' is not necessarily a separator -- it is a legal character in a file or directory name on every platform
-     * ClassGraph supports, and users do put it in their directory names. The {@link java.net.JarURLConnection} spec
-     * defines the separator as {@code "!/"}, and gives no way of escaping a literal '!' other than percent-encoding
-     * it as {@code %21} within the inner URL, so the separator cannot be identified by syntax alone:
-     * {@code /dir!/x.jar} is ambiguous between a jar {@code x.jar} in a directory named {@code dir!}, and an entry
-     * {@code x.jar} within a jarfile named {@code dir}.
-     *
-     * <p>
-     * That ambiguity is resolved here by testing the filesystem: the outermost '!' separator is the first '!' whose
-     * preceding path names an existing regular file (which must be the outermost jarfile). If no '!' is preceded by
-     * an existing file, and the path has no URL scheme, the path contains no separator, and any '!' in it is a
-     * literal filename character. Which of the later '!' characters separate is then decided by how this one is
-     * spelled -- see {@link #isNestedJarSeparatorAt(String, int, int)}. A path that a security manager refuses to
-     * let be tested is taken to name nothing, as it is by {@link FileUtils}, since it could not be read either.
-     *
-     * <p>
-     * The filesystem cannot be consulted for non-{@code file:} URLs (e.g. {@code http:} jar URLs), so if no '!' is
-     * preceded by an existing file and the path has a URL scheme, the syntactic rule applies instead, and the first
-     * '!' after the URL's authority is taken to be the separator (a '!' in the authority, such as in the userinfo
-     * of {@code http://user!name@host/x.jar!/pkg}, is an ordinary character). The filesystem is tested before the
-     * path is read as a URL, and not after, because a relative path can itself begin with something shaped like a
-     * URL scheme: {@code ':'} is a legal filename character everywhere but Windows, so a directory named
-     * {@code foo:bar} cannot be told by syntax from a URL with the scheme {@code foo}. See
-     * {@link #hasURLScheme(String)}.
+     * Find the index of the outermost nested jar separator ({@code '!'}) in a path, or -1 if none. Distinguishes a
+     * separator from a literal {@code '!'} in a filename by checking whether the preceding path names an existing
+     * regular file (or, for non-local URLs, by finding the first {@code '!'} after the URL authority).
      *
      * @param path
      *            the path, with any {@code "jar:"} and {@code "file:"} scheme prefixes already stripped.
-     * @return the index of the outermost nested jar separator, or -1 if there is none.
+     * @return the index of the outermost nested jar separator, or -1 if none.
      */
     // #903
     public static int indexOfNestedJarSeparator(final String path) {
@@ -423,19 +353,15 @@ public final class PathSyntax {
     }
 
     /**
-     * Find the index of the outermost nested jar separator ('!') in a path, as
-     * {@link #indexOfNestedJarSeparator(String)} does, optionally testing the filesystem with {@code ".."} segments
-     * collapsed textually.
+     * Find the index of the outermost nested jar separator ({@code '!'}) in a path, optionally collapsing
+     * {@code ".."} segments before testing the filesystem.
      *
      * @param path
      *            the path, with any {@code "jar:"} and {@code "file:"} scheme prefixes already stripped.
      * @param collapseParentSegmentsFromIdx
-     *            if non-negative, the index in the path from which {@code ".."} segments are collapsed textually
-     *            before the filesystem is tested, as
-     *            {@link #sanitizeEntryPath(String, String, boolean, boolean, boolean)} collapses them; the part of
-     *            the path before it is a URL prefix that is never collapsed. If -1, the path is tested as written,
-     *            and the filesystem resolves any {@code ".."} segment.
-     * @return the index of the outermost nested jar separator, or -1 if there is none.
+     *            if non-negative, the index from which {@code ".."} segments are collapsed textually before testing
+     *            the filesystem; if -1, the path is tested as written.
+     * @return the index of the outermost nested jar separator, or -1 if none.
      */
     private static int indexOfNestedJarSeparator(final String path, final int collapseParentSegmentsFromIdx) {
         final var firstPlingIdx = path.indexOf('!');
@@ -479,15 +405,15 @@ public final class PathSyntax {
     }
 
     /**
-     * Get the file to test for whether a prefix of a path names a file.
+     * Return the {@link File} for testing whether a path prefix names an existing file.
      *
      * @param path
      *            the path.
      * @param endIdx
      *            the end index of the prefix of the path to test.
      * @param collapseParentSegmentsFromIdx
-     *            if non-negative, the index in the path from which {@code ".."} segments are collapsed textually;
-     *            if -1, the prefix is tested as written.
+     *            if non-negative, the index from which {@code ".."} segments are collapsed textually; if -1, the
+     *            prefix is tested as written.
      * @return the file to test.
      */
     private static File fileToTest(final String path, final int endIdx, final int collapseParentSegmentsFromIdx) {
@@ -501,13 +427,11 @@ public final class PathSyntax {
     }
 
     /**
-     * Find the index of the innermost nested jar separator ('!') in a path, or -1 if the path contains no nested
-     * jar separator. See {@link #indexOfNestedJarSeparator(String)} for how separators are distinguished from
-     * literal '!' characters in filenames.
+     * Find the index of the innermost nested jar separator ({@code '!'}) in a path, or -1 if none.
      *
      * @param path
      *            the path, with any {@code "jar:"} and {@code "file:"} scheme prefixes already stripped.
-     * @return the index of the innermost nested jar separator, or -1 if there is none.
+     * @return the index of the innermost nested jar separator, or -1 if none.
      */
     // #903
     public static int lastIndexOfNestedJarSeparator(final String path) {
@@ -527,12 +451,12 @@ public final class PathSyntax {
     }
 
     /**
-     * Rewrite a path so that every nested jar separator in it is spelled {@code "!/"}, as the {@code "jar:"} URL
-     * scheme requires, leaving any '!' that belongs to a file or entry name as it is.
+     * Ensure every nested jar separator in {@code path} is followed by {@code '/'}, leaving literal {@code '!'}
+     * characters in filenames unchanged.
      *
      * @param path
      *            the path, with any {@code "jar:"} and {@code "file:"} scheme prefixes already stripped.
-     * @return the path, with a '/' added after each separator that lacked one.
+     * @return the path with {@code '/'} added after each bare nested jar separator.
      */
     // #903
     public static String toJarUrlSeparators(final String path) {
@@ -555,26 +479,11 @@ public final class PathSyntax {
     }
 
     /**
-     * Determine whether a path is a URL, i.e. whether it begins with a URL scheme that names how to fetch it,
-     * rather than naming something in the local filesystem.
-     *
-     * <p>
-     * A URL scheme cannot be recognized by syntax alone. {@code ':'} is a legal filename character on every
-     * platform ClassGraph supports except Windows, and a relative path is not required to begin with a {@code '/'},
-     * so the relative path {@code foo:bar} is spelled exactly like a URL whose scheme is {@code foo}. (An absolute
-     * path is unambiguous, since it begins with a separator, and so is a Windows path, since a drive designation is
-     * a single character and a scheme is at least two.)
-     *
-     * <p>
-     * The ambiguity is resolved the same way {@link #indexOfNestedJarSeparator(String)} resolves the one around
-     * {@code '!'}: by testing the filesystem. A path whose outermost element exists locally names that file or
-     * directory, and is not a URL. Only if nothing exists there is the path read as a URL, which is also the only
-     * case in which the scheme could have been of any use. A path that a security manager refuses to let be tested
-     * is taken to name nothing, and so is read as a URL.
+     * Determine whether a path begins with a URL scheme and does not name an existing local file or directory.
      *
      * @param path
      *            the path, with any {@code "jar:"} and {@code "file:"} scheme prefixes already stripped.
-     * @return true if the path is a URL rather than a path into the local filesystem.
+     * @return {@code true} if the path is a URL rather than a local filesystem path.
      */
     public static boolean hasURLScheme(final String path) {
         if (!URLPaths.startsWithURLScheme(path)) {
@@ -589,18 +498,8 @@ public final class PathSyntax {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns the leafname of a path, after first stripping off everything from the nested jar separator ('!')
-     * onwards, if present, so that the leafname of a path within a jarfile is the name of the jarfile itself. This
-     * is the name that accept and reject criteria are matched against: a criterion names the jarfile it wants
-     * accepted or rejected, and every path within that jarfile has to answer to that name.
-     *
-     * <p>
-     * This differs from {@link #lastSegment(String)}, which names the innermost thing in the path rather than the
-     * outermost jarfile. For {@code "/a/outer.jar!/BOOT-INF/lib/inner.jar"} this returns {@code "outer.jar"} and
-     * {@code lastSegment} returns {@code "inner.jar"}. Both are correct answers to different questions -- "which
-     * jarfile is this path in" versus "what does this path name" -- so the two cannot be collapsed into one method.
-     * Use this one when matching a path against a user-supplied criterion, and {@code lastSegment} when naming a
-     * thing to a person or deriving an identifier from it.
+     * Return the leafname of a path after stripping any nested jar suffix from the outermost {@code '!'} separator
+     * onwards and any ClassGraph temporary filename prefix.
      *
      * @param path
      *            A file path.
@@ -617,29 +516,24 @@ public final class PathSyntax {
     }
 
     /**
-     * Returns the last segment of a path: the name of the innermost nested jarfile for a nested jar path, and the
-     * leafname of the path otherwise. Unlike {@link #leafName(String)}, which stops at the outermost nested jar
-     * separator so that a path within a jarfile is named by the jarfile, this names the last thing in the path --
-     * see that method for when to use which. Both strip a ClassGraph temporary filename prefix from the segment
-     * they return, so an extracted nested jarfile is named by the jarfile rather than by the temporary file it was
-     * extracted into.
+     * Return the last segment of a path (the innermost jar or entry name for a nested jar path), stripping any
+     * ClassGraph temporary filename prefix.
      *
      * @param path
      *            A file path.
-     * @return The innermost segment of the path.
+     * @return The last segment of the path.
      */
     public static String lastSegment(final String path) {
         return segmentEndingAt(path, path.length());
     }
 
     /**
-     * Returns the segment of a path that ends at {@code endIdx}: everything after the last directory separator
-     * before {@code endIdx}, with any ClassGraph temporary filename prefix stripped off it.
+     * Return the path segment ending at {@code endIdx}, with any ClassGraph temporary filename prefix stripped.
      *
      * @param path
      *            A file path.
      * @param endIdx
-     *            The index to end the segment at.
+     *            The end index of the segment.
      * @return The segment.
      */
     private static String segmentEndingAt(final String path, final int endIdx) {
@@ -663,9 +557,7 @@ public final class PathSyntax {
     }
 
     /**
-     * Returns the simple name of an entry name: everything after the last {@code '/'}. An entry name is always
-     * spelled with {@code '/'} as its separator, whatever the platform, and is never a temporary filename, so
-     * unlike {@link #leafName(String)} this is a plain split at the last {@code '/'}.
+     * Return the substring of an entry name after its last {@code '/'}.
      *
      * @param name
      *            An entry name, relative to the root that contains it.

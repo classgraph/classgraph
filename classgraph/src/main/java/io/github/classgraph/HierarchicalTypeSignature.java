@@ -68,11 +68,10 @@ public abstract sealed class HierarchicalTypeSignature extends ScanResultObject
     }
 
     /**
-     * Give this type signature, which type variable substitution has just built to replace another one, a copy of
-     * the type annotations of the type signature it replaces.
+     * Copy type annotations from another type signature.
      *
      * @param source
-     *            the type signature that this type signature replaces.
+     *            the type signature to copy type annotations from.
      */
     void copyTypeAnnotationsFrom(final HierarchicalTypeSignature source) {
         final var sourceTypeAnnotations = source.typeAnnotations;
@@ -80,11 +79,10 @@ public abstract sealed class HierarchicalTypeSignature extends ScanResultObject
     }
 
     /**
-     * Put type annotations before the type annotations of this type signature, which type variable substitution has
-     * just built.
+     * Prepend type annotations to this type signature.
      *
      * @param annotations
-     *            the type annotations to put first.
+     *            the type annotations to prepend.
      */
     void prependTypeAnnotations(final List<AnnotationInfo> annotations) {
         var typeAnnotationList = typeAnnotations;
@@ -104,9 +102,7 @@ public abstract sealed class HierarchicalTypeSignature extends ScanResultObject
     }
 
     /**
-     * Throw {@link IllegalStateException} if this type signature came from a scan that did not enable annotation
-     * info. Type annotations are only read from the classfile when annotation info is enabled, so otherwise an
-     * empty list of type annotations would look like "no type annotations".
+     * Check that annotation info was enabled for the scan.
      *
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
@@ -120,8 +116,7 @@ public abstract sealed class HierarchicalTypeSignature extends ScanResultObject
     }
 
     /**
-     * Test whether this type has any type annotations. Unlike {@link #getTypeAnnotationInfo()}, this does not throw
-     * if annotation info was not enabled, so it can be used when rendering a type signature.
+     * Return true if this type has any type annotations.
      *
      * @return true if this type has any type annotations.
      */

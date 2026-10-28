@@ -55,8 +55,8 @@ public final class ModuleInfoList extends MappableInfoList<ModuleInfo> {
     }
 
     /**
-     * Construct a new unmodifiable {@link ModuleInfoList} from a completed collection of {@link ModuleInfo}
-     * objects. The collection is copied, and the modules are sorted by name.
+     * Construct a new unmodifiable {@link ModuleInfoList} from a collection of {@link ModuleInfo} objects, sorted
+     * by module name.
      *
      * @param moduleInfoCollection
      *            the module info collection
@@ -67,8 +67,7 @@ public final class ModuleInfoList extends MappableInfoList<ModuleInfo> {
     }
 
     /**
-     * Constructor. As in {@link InfoList#InfoList(List)}, this list claims the given list, and the caller is
-     * responsible for having sorted it.
+     * Construct a {@link ModuleInfoList} backed by the given pre-sorted list.
      *
      * @param moduleInfo
      *            the elements of the list

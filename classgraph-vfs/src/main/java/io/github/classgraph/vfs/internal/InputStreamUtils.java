@@ -32,8 +32,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * Reading from an {@link InputStream} that may not keep to the contract of
- * {@link InputStream#read(byte[], int, int)}.
+ * Utility methods for reading from an {@link InputStream}.
  */
 public final class InputStreamUtils {
     /** Not instantiable. */
@@ -41,26 +40,19 @@ public final class InputStreamUtils {
     }
 
     /**
-     * Read into a range of an array, as {@link InputStream#read(byte[], int, int)} does, but never return zero for
-     * a range that is not empty.
-     *
-     * <p>
-     * {@link InputStream#read(byte[], int, int)} is supposed to block until at least one byte has been read, but
-     * some streams return zero instead, at their end or before it. Taking that zero for the end of the stream
-     * truncates the content, and reading again loops forever on a stream that returns zero at its end, which is
-     * what {@link InputStream#transferTo(java.io.OutputStream)} and
-     * {@link InputStream#readNBytes(byte[], int, int)} do. So a zero is resolved by reading a single byte with
-     * {@link InputStream#read()}, which can only return a byte or -1 for the end of the stream.
+     * Read into a range of an array, as {@link InputStream#read(byte[], int, int)} does, falling back to
+     * {@link InputStream#read()} if {@code read(buf, off, len)} returns zero for a non-empty range so that a
+     * non-compliant stream never returns zero when {@code len > 0}.
      *
      * @param inputStream
      *            the stream to read from.
      * @param buf
-     *            the array to read into.
+     *            the destination buffer.
      * @param off
-     *            the index in {@code buf} to read into.
+     *            the start offset in {@code buf}.
      * @param len
-     *            the largest number of bytes to read.
-     * @return the number of bytes read, or -1 at the end of the stream. This is zero only if {@code len} is zero.
+     *            the maximum number of bytes to read.
+     * @return the number of bytes read, or -1 at the end of the stream (zero only when {@code len == 0}).
      * @throws IOException
      *             if the stream could not be read.
      */

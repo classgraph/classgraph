@@ -43,91 +43,63 @@ import io.github.classgraph.vfs.internal.slice.Slice;
 
 /** A zip entry within a {@link LogicalZipFile}. */
 public final class FastZipEntry implements Comparable<FastZipEntry> {
-    /**
-     * The most that deflate can expand its input by: a match of 258 bytes, the longest there is, takes at least 2
-     * bits, so a compressed byte can inflate to at most 1032 bytes.
-     */
+    /** The theoretical maximum deflate expansion ratio (1032:1). */
     private static final long MAX_DEFLATE_RATIO = 1032L;
 
     /** The parent logical zipfile. */
     final LogicalZipFile parentLogicalZipFile;
 
-    /**
-     * The offset of the entry's local header, as an offset relative to the parent logical zipfile.
-     */
+    /** The offset of the entry's local header relative to the parent logical zipfile. */
     private final long locHeaderPos;
 
     /** The zip entry path. */
     public final String entryName;
 
     /**
-     * True if {@link #entryName} is exactly the name stored in the central directory, so that
-     * {@link java.util.jar.JarFile}, which looks entries up by the name they are stored under, finds the entry
-     * under it; false if sanitizing changed the name, or if an Info-ZIP Unicode path extra field, which
-     * {@link java.util.jar.JarFile} ignores, replaced it with a different name.
+     * True if {@link #entryName} matches the verbatim name stored in the central directory (neither modified by
+     * path sanitization nor replaced by an Info-ZIP Unicode path extra field).
      */
     final boolean nameIsVerbatim;
 
     /** True if the zip entry is deflated; false if the zip entry is stored. */
     public final boolean isDeflated;
 
-    /**
-     * The compressed size of the zip entry, in bytes. Never negative, since an entry whose central directory gives
-     * a negative size is skipped.
-     */
+    /** The non-negative compressed size of the zip entry, in bytes. */
     public final long compressedSize;
 
-    /**
-     * The uncompressed size of the zip entry, in bytes. Never negative, since an entry whose central directory
-     * gives a negative size is skipped.
-     */
+    /** The non-negative uncompressed size of the zip entry, in bytes. */
     public final long uncompressedSize;
 
     /**
-     * The last modified millis since the epoch, or 0L if it is unknown or not yet converted from the MSDOS date and
-     * time (0L is also the value of a time of exactly the epoch, which an extra field can give). Volatile, since it
-     * caches the conversion of the MSDOS date and time, and the entries of a zipfile are shared between the threads
-     * reading it: a long field that is not volatile may be written in two halves, so a thread that read a value
-     * another thread was caching could read half of one value and half of another.
+     * The last modified time in epoch milliseconds, or 0L if unknown or not yet converted from the MS-DOS date and
+     * time fields.
      */
     private volatile long lastModifiedTimeMillis;
 
-    /**
-     * The last modified time in MSDOS format, or 0 if an extra field of the entry gave the last modified time.
-     */
+    /** The last modified time in MS-DOS format, or 0 if provided by an extra field. */
     private final int lastModifiedTimeMSDOS;
 
-    /**
-     * The last modified date in MSDOS format, or 0 if an extra field of the entry gave the last modified time.
-     */
+    /** The last modified date in MS-DOS format, or 0 if provided by an extra field. */
     private final int lastModifiedDateMSDOS;
 
     /**
-     * The high 16 bits of the external file attributes of this entry, which is the Unix mode of the entry if the
-     * zipfile was written on a Unix-like system, or 0 if it was not. (The low 16 bits, which hold the MS-DOS
-     * attributes, are not read: the only thing this is used for is the entry's POSIX permissions.)
+     * The high 16 bits of the entry's external file attributes (the Unix mode if written on a Unix-like system, or
+     * 0 otherwise).
      */
     public final int fileAttributes;
 
-    /**
-     * The {@link Slice} for the zip entry's raw data (which can be either stored or deflated), or null until
-     * {@link #getRawSlice()} is first called. Volatile, so that a {@link Slice} created by one thread is safely
-     * published to any other thread that reads this field (two threads racing to initialize this field each end up
-     * with an equivalent {@link Slice}, which is harmless, since a sub-slice does not own any resources).
-     */
+    /** Lazily initialized {@link Slice} for the zip entry's raw (stored or deflated) data. */
     private volatile @Nullable Slice slice;
 
     /**
-     * The version of the multi-release section this entry was resolved from (&gt;= 9), or 8 for an entry of the
-     * base layer, an entry of a jarfile that is not versioned at all, and an entry under a version prefix that this
-     * JVM would not select.
+     * The multi-release version number (&gt;= 9) for a versioned entry applicable to this JVM, or 8 for a base or
+     * unversioned entry.
      */
     final int version;
 
     /**
-     * The name of the entry with its {@code "META-INF/versions/{versionInt}/"} prefix stripped, or the name it is
-     * stored under if it has no such prefix, if versioned sections are not being resolved, or if the version prefix
-     * is not one this JVM would select.
+     * The entry name with any applicable {@code "META-INF/versions/{versionInt}/"} prefix stripped, or
+     * {@link #entryName} if unversioned or multi-release resolution is disabled.
      */
     public final String entryNameUnversioned;
 
@@ -137,37 +109,30 @@ public final class FastZipEntry implements Comparable<FastZipEntry> {
      * Constructor.
      *
      * @param parentLogicalZipFile
-     *            The parent logical zipfile containing this entry.
+     *            the parent logical zipfile containing this entry.
      * @param locHeaderPos
-     *            The offset of the LOC header for this entry within the parent logical zipfile.
+     *            the offset of the LOC header for this entry within the parent logical zipfile.
      * @param entryName
-     *            The name of the entry.
+     *            the name of the entry.
      * @param nameIsVerbatim
-     *            True if the name of the entry is exactly the name stored in the central directory; false if
-     *            sanitizing changed it, or if an Info-ZIP Unicode path extra field replaced it with a different
-     *            name.
+     *            true if {@code entryName} is the verbatim name stored in the central directory.
      * @param isDeflated
-     *            True if the entry is deflated; false if the entry is stored.
+     *            true if the entry is deflated; false if stored.
      * @param compressedSize
-     *            The compressed size of the entry.
+     *            the compressed size of the entry.
      * @param uncompressedSize
-     *            The uncompressed size of the entry.
+     *            the uncompressed size of the entry.
      * @param lastModifiedTimeMillis
-     *            The last modified date/time in millis since the epoch, as given by an extra field, or 0L if no
-     *            extra field gave it (in which case, the MSDOS time and date fields will be provided).
+     *            the last modified timestamp in epoch milliseconds from an extra field, or 0L if none.
      * @param lastModifiedTimeMSDOS
-     *            The last modified time, in MSDOS format, or 0 if an extra field gave lastModifiedTimeMillis.
+     *            the last modified time in MS-DOS format, or 0 if {@code lastModifiedTimeMillis} was provided.
      * @param lastModifiedDateMSDOS
-     *            The last modified date, in MSDOS format, or 0 if an extra field gave lastModifiedTimeMillis.
+     *            the last modified date in MS-DOS format, or 0 if {@code lastModifiedTimeMillis} was provided.
      * @param fileAttributes
-     *            The high 16 bits of the external file attributes of the zip entry, which is the Unix mode of the
-     *            entry if the zipfile was written on a Unix-like system, or 0 if it was not.
+     *            the high 16 bits of the external file attributes (Unix mode, or 0 if none).
      * @param multiReleaseVersionsEnabled
-     *            If true, strip any "META-INF/versions/{versionInt}/" prefix from the entry name, so that the
-     *            versioned entries can mask the entries they override; if false, leave multi-release entry names
-     *            unchanged, so that every version of an entry is reported separately. The prefix is only stripped
-     *            if {@code nameIsVerbatim} is true too, since the JVM only reads an entry as a versioned entry if
-     *            the name it is stored under begins with the prefix.
+     *            if true and {@code nameIsVerbatim} is true, strip any applicable
+     *            {@code "META-INF/versions/{versionInt}/"} prefix to populate {@link #entryNameUnversioned}.
      */
     FastZipEntry(final LogicalZipFile parentLogicalZipFile, final long locHeaderPos, final String entryName,
             final boolean nameIsVerbatim, final boolean isDeflated, final long compressedSize,
@@ -242,16 +207,10 @@ public final class FastZipEntry implements Comparable<FastZipEntry> {
     }
 
     /**
-     * A copy of this entry with its version prefix left in place, for a jarfile that turned out not to declare
-     * {@code Multi-Release: true} in its manifest.
+     * Return a copy of this entry with its multi-release version prefix left unresolved (for jarfiles whose
+     * manifest does not declare {@code Multi-Release: true}).
      *
-     * <p>
-     * Whether a jarfile is a multi-release jarfile is only known once its manifest has been parsed, which cannot
-     * happen until its central directory has been read, so every entry is created as if the jarfile were a
-     * multi-release jarfile, and any entry that resolved a version prefix is replaced by this copy if it turns out
-     * that it is not one.
-     *
-     * @return a copy of this entry whose unversioned name is the name it is stored under.
+     * @return a copy of this entry with {@link #entryNameUnversioned} equal to {@link #entryName}.
      */
     FastZipEntry withVersionPrefixUnresolved() {
         return new FastZipEntry(parentLogicalZipFile, locHeaderPos, entryName, nameIsVerbatim, isDeflated,
@@ -262,14 +221,10 @@ public final class FastZipEntry implements Comparable<FastZipEntry> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the compressed size of the entry, but no more than the number of bytes from the entry's local header to
-     * the end of the zipfile. The entry's data follows its local header, so it cannot occupy more than that. A
-     * deflated entry whose compressed size runs past the end of the zipfile is still read, to the end of its
-     * deflate stream (see {@link #getRawSlice()}), so for such an entry the compressed size says nothing about how
-     * many bytes the entry really holds, while this is an upper bound on it. Unlike {@link #getRawSlice()}, this
-     * does not read the local header.
+     * Get the compressed size of the entry, capped at the number of bytes from the entry's local header to the end
+     * of the zipfile.
      *
-     * @return the compressed size, cut short at the end of the zipfile.
+     * @return the compressed size bounded by the remaining zipfile length.
      */
     public long getCompressedSizeWithinZipfile() {
         // Compared by subtraction, which cannot overflow: locHeaderPos lies within the zipfile
@@ -277,25 +232,13 @@ public final class FastZipEntry implements Comparable<FastZipEntry> {
     }
 
     /**
-     * Lazily get the slice of the zipfile that holds the entry's stored bytes -- this is deferred until zip entry
-     * data needs to be read, in order to avoid randomly seeking within zipfile for every entry as the central
-     * directory is read.
-     *
-     * <p>
-     * The slice holds the bytes as they are stored in the zipfile, which are still compressed if the entry is
-     * deflated ({@link #isDeflated}). Use {@link #open()}, {@link #load()} or {@link #read()} to read the content
-     * of the entry.
-     *
-     * <p>
-     * The slice is {@link #compressedSize} bytes long, except for a deflated entry whose compressed size runs past
-     * the end of the zipfile: its slice runs only to the end of the zipfile, so it may also hold bytes that follow
-     * the entry's deflate stream, which inflating the slice never reads.
+     * Lazily create and return the {@link Slice} covering the entry's raw (stored or compressed) bytes. Use
+     * {@link #open()}, {@link #load()}, or {@link #read()} to read the uncompressed content of the entry.
      *
      * @return the {@link Slice} covering the entry's stored bytes.
      * @throws IOException
-     *             if the entry's local header could not be read or is invalid, if the entry's data starts past the
-     *             end of the zipfile, or if the entry is stored and its compressed size runs past the end of the
-     *             zipfile.
+     *             if the entry's local header is invalid or out of bounds, or if a stored entry extends past the
+     *             end of the zipfile.
      */
     public Slice getRawSlice() throws IOException {
         var slice = this.slice;
@@ -385,16 +328,10 @@ public final class FastZipEntry implements Comparable<FastZipEntry> {
     }
 
     /**
-     * Get the length to expect the content of a deflated entry to inflate to, for sizing the buffer it is inflated
-     * into: the uncompressed size the central directory declares, but no more than the compressed bytes of the
-     * entry could inflate to. The declared size can be anything, and a buffer of that size, up to 16 MB, is
-     * allocated up front, so without the cap an entry of a few bytes that declared 16 MB would make each read of it
-     * allocate 16 MB. The cap is computed from the length of the entry's raw slice rather than from the compressed
-     * size the central directory declares, since a compressed size that runs past the end of the zipfile is cut
-     * short at the end of the zipfile, so the cap is set by bytes the zipfile really holds.
+     * Return the expected uncompressed size of a deflated entry for buffer sizing, capped at the maximum size that
+     * the entry's stored bytes can inflate to.
      *
-     * @return the length to expect the inflated content to have, which is only a hint: the content is read to its
-     *         end whatever its length.
+     * @return the expected inflated byte length hint.
      * @throws IOException
      *             if the entry's raw slice could not be read.
      */
@@ -464,18 +401,13 @@ public final class FastZipEntry implements Comparable<FastZipEntry> {
     }
 
     /**
-     * Sort in decreasing order of version number, then lexicographically increasing order of unversioned entry
-     * path, then of entry path, then in decreasing order of position within the zipfile.
-     *
-     * <p>
-     * This orders the entries of a single zipfile, which is the only way entries are ever sorted. It ignores which
-     * zipfile an entry belongs to, so a sorted set or map must not be given the entries of more than one zipfile:
-     * identically named entries of two zipfiles compare equal, and the second of them would be dropped as a
-     * duplicate. The ordering is not consistent with equals, which is object identity.
+     * Compare entries of the same zipfile in decreasing order of {@link #version}, then lexicographically by
+     * {@link #entryNameUnversioned}, then by {@link #entryName}, and finally in decreasing order of
+     * {@link #locHeaderPos}. Note: this ordering is inconsistent with {@link Object#equals(Object)}.
      *
      * @param o
-     *            the object to compare to
-     * @return the result of comparison
+     *            the entry to compare to
+     * @return the comparison result
      */
     @Override
     public int compareTo(final FastZipEntry o) {

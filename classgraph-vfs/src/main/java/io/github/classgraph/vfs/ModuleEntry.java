@@ -36,10 +36,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import io.github.classgraph.base.internal.utils.ProxyingInputStream;
 import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
 
-/**
- * One resource of a module. Reading it acquires a {@link ModuleReader} from the module's recycler, and hands the
- * reader back to the recycler once the stream or buffer that was read from it has been closed.
- */
+/** A resource entry in a {@link ModuleRoot}. */
 final class ModuleEntry extends VfsEntry {
     /** The path of the resource within the module. */
     private final String name;
@@ -48,7 +45,7 @@ final class ModuleEntry extends VfsEntry {
      * Constructor.
      *
      * @param root
-     *            the module this entry was read from.
+     *            the module root containing this entry.
      * @param name
      *            the path of the resource within the module.
      */
@@ -98,7 +95,7 @@ final class ModuleEntry extends VfsEntry {
         try {
             inputStream = ModuleReaderUtils.open(reader, name);
             final var proxyingInputStream = new ProxyingInputStream(inputStream) {
-                /** True once the {@link ModuleReader} has been recycled, so that it is only recycled once. */
+                /** Whether the {@link ModuleReader} has been returned to the recycler. */
                 private final AtomicBoolean recycled = new AtomicBoolean();
 
                 @Override

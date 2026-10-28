@@ -33,7 +33,6 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Iterator;
@@ -48,77 +47,51 @@ import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.base.internal.utils.Assert;
 
 /**
- * Where the classpath elements and modules are looked for. Nothing is looked for until something here is enabled.
- *
- * <p>
- * The classpath sources are kept in the order they were enabled in, and searched in that order. The module sources
- * are searched before all of them, because that is the order in which the JVM resolves a class: a builtin
- * classloader looks the class's package up among the modules before it delegates to its parent or falls back to its
- * classpath.
- *
- * <p>
- * This is deliberately not part of {@link ClasspathSpec}: a {@code ScanResult} holds the specs the scan was run
- * with for as long as the caller holds the {@code ScanResult}, and a scan must not keep a {@link ClassLoader} or a
- * {@link ModuleLayer} alive. This object is held only by the {@code ClassGraph} or
- * {@link io.github.classgraph.classpath.ClasspathFinder} instance that the caller configured, and by the scan
- * itself while it runs; it is unreachable from the {@code ScanResult}.
+ * Holds the configured sources from which classpath entries and modules are discovered.
  */
 public class ScanSourceSpec {
-    /** A place that classpath elements are looked for. */
+    /** A configured source of classpath elements. */
     public sealed interface ClasspathSource {
     }
 
-    /**
-     * The classpath elements declared by the classloaders found in the environment: the context classloader of the
-     * calling thread, the classloader of the caller's own class, the system classloader, the classloaders of the
-     * classes on the call stack, and the parents of all of those.
-     */
+    /** Classloaders discovered in the caller's runtime environment and their parent classloaders. */
     public record DetectedClassLoaders() implements ClasspathSource {
     }
 
     /**
-     * The classpath elements declared by the given classloaders, and by their parents. The generated {@code equals}
-     * and {@code hashCode} compare the classloaders with {@link Object#equals}, which is not identity for every
-     * classloader (TomEE makes two distinct classloaders equal, #515), so instances must not be compared or used as
-     * map keys.
+     * Explicit classloaders and their parent classloaders.
      *
      * @param classLoaders
-     *            the classloaders.
+     *            the classloaders to search.
      */
     public record NamedClassLoaders(List<ClassLoader> classLoaders) implements ClasspathSource {
     }
 
     /**
-     * Classpath elements given directly, rather than found by asking a classloader.
+     * Explicit classpath elements supplied directly by the caller.
      *
      * @param classpathEntries
-     *            the classpath elements, one entry per element.
+     *            the normalized classpath element objects.
      */
     public record NamedClasspathEntries(List<Object> classpathEntries) implements ClasspathSource {
     }
 
     /**
-     * A whole classpath given directly, still to be split at {@link File#pathSeparatorChar}. The split is left
-     * until the classpath is found, because which URL schemes' own {@code ':'} must not be read as a separator is
-     * not settled until then: the caller may register a scheme after handing over the classpath that names it.
+     * A {@link File#pathSeparatorChar}-delimited classpath string to be split when classpath discovery runs.
      *
      * @param classpath
-     *            the classpath, with the elements separated by {@link File#pathSeparatorChar}.
+     *            the delimited classpath string.
      */
     public record ClasspathString(String classpath) implements ClasspathSource {
     }
 
-    /** The places classpath elements are looked for, in the order they were enabled in. */
+    /** Configured classpath sources, in the order they were enabled. */
     private final List<ClasspathSource> classpathSources = new ArrayList<>();
 
-    /**
-     * If true, the caller asked for the module layers that are visible from it, and the boot layer, to be searched.
-     * They are also searched without being asked for when a kind of module is enabled and the caller named no
-     * layers -- see {@link #searchesDetectedModuleLayers(ClasspathSpec)}.
-     */
+    /** Whether {@link #enableDetectedModuleLayers()} was explicitly called. */
     private boolean detectedModuleLayersRequested;
 
-    /** If non-null, the module layers the caller named. */
+    /** Explicit module layers added via {@link #enableModuleLayers(ModuleLayer...)}, or null if none. */
     private @Nullable List<ModuleLayer> namedModuleLayers;
 
     // -----------------------------------------------------------------------------------------------------------
@@ -130,18 +103,18 @@ public class ScanSourceSpec {
 
     // -----------------------------------------------------------------------------------------------------------
 
-    /** Search the classloaders found in the environment for classpath elements. */
+    /** Enables discovery of classloaders in the runtime environment. */
     public void enableClasspath() {
         classpathSources.add(new DetectedClassLoaders());
     }
 
     /**
-     * Search the given classloaders for classpath elements.
+     * Adds explicit classloaders to search for classpath elements.
      *
      * @param classLoaders
      *            the classloaders to search.
      * @throws IllegalArgumentException
-     *             if no classloader is given.
+     *             if {@code classLoaders} is empty.
      */
     public void enableClassLoaders(final ClassLoader... classLoaders) {
         Assert.notNullElements(classLoaders, "classLoaders");
@@ -154,21 +127,13 @@ public class ScanSourceSpec {
     }
 
     /**
-     * Search the given classpath elements. Each {@link String}, {@link File}, {@link Path}, {@link URL} or
-     * {@link URI} is one classpath entry, and a {@link String} is not split on {@link File#pathSeparatorChar}. An
-     * element that is an {@link Iterable} (other than a {@link Path}) or an array of objects is replaced by its own
-     * elements, to any depth, except that an {@link Iterable} that is not a {@link Collection} and yields only
-     * itself, as an Ant {@code Resource} does, is one classpath entry. That, and any other element, is read by its
-     * {@link Object#toString()}, except that a {@link BaseStream} (any {@code Stream}, {@code IntStream},
-     * {@code LongStream} or {@code DoubleStream}), {@link Iterator} or {@link Enumeration} that is not an
-     * {@link Iterable} is rejected.
+     * Flattens, validates, and adds explicit classpath elements.
      *
      * @param classpathEntries
-     *            the classpath elements.
+     *            the classpath elements (or nested arrays/iterables of elements).
      * @throws IllegalArgumentException
-     *             if the elements hold no classpath element, or hold a {@link ClassLoader}, a {@link BaseStream}
-     *             (any {@code Stream}, {@code IntStream}, {@code LongStream} or {@code DoubleStream}), an
-     *             {@link Iterator} or an {@link Enumeration} that is not an {@link Iterable}.
+     *             if no elements are provided, or if an element is a {@link ClassLoader}, {@link BaseStream},
+     *             {@link Iterator}, or {@link Enumeration}.
      */
     public void enableClasspathEntries(final List<?> classpathEntries) {
         final List<Object> normalized = new ArrayList<>(classpathEntries.size());
@@ -205,13 +170,12 @@ public class ScanSourceSpec {
     }
 
     /**
-     * Search the classpath elements of the given classpath, which is split at {@link File#pathSeparatorChar} when
-     * the classpath is found rather than now.
+     * Adds a {@link File#pathSeparatorChar}-delimited classpath string.
      *
      * @param classpath
-     *            the classpath, with the elements separated by {@link File#pathSeparatorChar}.
+     *            the delimited classpath string.
      * @throws IllegalArgumentException
-     *             if the classpath holds no classpath element.
+     *             if {@code classpath} contains no elements.
      */
     public void enableClasspathString(final String classpath) {
         // Only the emptiness of the classpath is tested here, which no set of registered URL schemes can change:
@@ -222,20 +186,17 @@ public class ScanSourceSpec {
         classpathSources.add(new ClasspathString(classpath));
     }
 
-    /** Search the module layers that are visible from the caller, and the boot layer. */
+    /** Enables searching module layers visible from the call stack and boot layer. */
     public void enableDetectedModuleLayers() {
         detectedModuleLayersRequested = true;
     }
 
     /**
-     * Whether the module layers that are visible from the caller are searched: they are, if the caller asked for
-     * them, and also if a kind of module was enabled and the caller named no layers of its own. Layers the caller
-     * named otherwise replace the detected ones rather than adding to them, since naming layers is how a caller
-     * says which layers to search.
+     * Returns whether module layers detected in the environment should be searched.
      *
      * @param classpathSpec
-     *            the classpath settings, which say which kinds of module are scanned.
-     * @return true if the module layers detected in the environment are searched.
+     *            the classpath configuration.
+     * @return true if detected module layers should be searched.
      */
     public boolean searchesDetectedModuleLayers(final ClasspathSpec classpathSpec) {
         return detectedModuleLayersRequested
@@ -243,24 +204,20 @@ public class ScanSourceSpec {
     }
 
     /**
-     * Whether any classloader is asked for classpath elements, as opposed to the classpath elements all being given
-     * directly.
+     * Returns whether any classloader source (detected or named) is enabled.
      *
-     * @return true if the classloaders detected in the environment, or classloaders the caller named, are searched.
+     * @return true if classloaders are searched.
      */
     public boolean searchesClassLoaders() {
         return classpathSources.stream().anyMatch(ScanSourceSpec::isClassLoaderSource);
     }
 
     /**
-     * Whether a classpath source asks classloaders for classpath elements. Each kind of source is named, so a new
-     * kind of source fails until it is added here.
+     * Returns whether the given classpath source queries classloaders.
      *
      * @param source
      *            the classpath source.
-     * @return true if the source is a set of classloaders, false if it is a set of classpath entries.
-     * @throws AssertionError
-     *             if the source is of a kind that is not named here.
+     * @return true if the source queries classloaders; false if it specifies classpath entries directly.
      */
     private static boolean isClassLoaderSource(final ClasspathSource source) {
         if (source instanceof DetectedClassLoaders || source instanceof NamedClassLoaders) {
@@ -273,13 +230,12 @@ public class ScanSourceSpec {
     }
 
     /**
-     * Search the given module layers instead of the ones that are visible from the caller, unless
-     * {@link #enableDetectedModuleLayers()} is called as well, in which case both are searched.
+     * Adds explicit module layers to search.
      *
      * @param moduleLayers
      *            the module layers to search.
      * @throws IllegalArgumentException
-     *             if no module layer is given.
+     *             if {@code moduleLayers} is empty.
      */
     public void enableModuleLayers(final ModuleLayer... moduleLayers) {
         Assert.notNullElements(moduleLayers, "moduleLayers");
@@ -295,19 +251,18 @@ public class ScanSourceSpec {
     // -----------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the places classpath elements are looked for.
+     * Returns the enabled classpath sources in registration order.
      *
-     * @return the classpath sources, in the order they were enabled in.
+     * @return the classpath sources, as an unmodifiable list.
      */
     public List<ClasspathSource> getClasspathSources() {
         return Collections.unmodifiableList(classpathSources);
     }
 
     /**
-     * Get the module layers the caller named.
+     * Returns the explicit module layers added via {@link #enableModuleLayers(ModuleLayer...)}, or null if none.
      *
-     * @return the module layers named by {@link #enableModuleLayers(ModuleLayer...)}, in the order they were named
-     *         in, or null if none were named.
+     * @return the named module layers, or null.
      */
     public @Nullable List<ModuleLayer> getNamedModuleLayers() {
         final var moduleLayers = namedModuleLayers;
@@ -315,19 +270,15 @@ public class ScanSourceSpec {
     }
 
     /**
-     * Check that every option that says how the sources are searched was asked for alongside a source that it
-     * applies to. No config method turns on another config method for you, so an option with no source to apply to
-     * would otherwise be silently ignored. {@code ClassGraph} and
-     * {@link io.github.classgraph.classpath.ClasspathFinder} both check their sources with this, so that the two
-     * refuse the same configurations.
+     * Verifies that any configured module layer or classloader refinement options have a corresponding module or
+     * classloader source enabled.
      *
      * @param classpathSpec
-     *            the classpath settings.
+     *            the classpath configuration.
      * @param className
-     *            the simple name of the class whose config methods were called, e.g. {@code "ClassGraph"}, which
-     *            the exception message names the methods by.
+     *            the simple name of the caller-facing configuration class for error messages.
      * @throws IllegalArgumentException
-     *             if an option was asked for without a source that it applies to.
+     *             if a refinement option was enabled without a corresponding source.
      */
     public void checkSourcesAreExplicit(final ClasspathSpec classpathSpec, final String className) {
         // The module layer options say which layers to look in, so they need a kind of module to look for
@@ -351,13 +302,12 @@ public class ScanSourceSpec {
     // -----------------------------------------------------------------------------------------------------------
 
     /**
-     * Log the sources that the caller enabled.
+     * Logs the configured sources.
      *
      * @param classpathSpec
-     *            the classpath settings, which say whether the module layers detected in the environment are
-     *            searched.
+     *            the classpath configuration.
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or null to skip logging.
      */
     public void log(final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
         if (log != null) {

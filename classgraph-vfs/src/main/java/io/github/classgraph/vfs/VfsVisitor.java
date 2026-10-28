@@ -29,57 +29,39 @@
 package io.github.classgraph.vfs;
 
 /**
- * Receives the entries of a {@link VfsRoot} as {@link VfsRoot#walk(VfsVisitor)} enumerates them, and decides which
- * directories are worth enumerating at all.
+ * Visitor for entries enumerated by {@link VfsRoot#walk(VfsVisitor)}.
  *
  * <p>
- * A walk is single-threaded, and calls {@link #enterDirectory(String)} for a directory before
- * {@link #visitEntry(VfsEntry)} for any entry in it, so a visitor that needs to work something out per directory
- * can work it out in {@link #enterDirectory(String)} and keep it in a field for {@link #visitEntry(VfsEntry)} to
- * read. The decision is made per directory rather than per entry because the answer is usually the same for every
- * entry in a directory, and because a directory tree then need not list an unwanted directory at all, which is most
- * of the work of walking one.
+ * Walks are single-threaded and invoke {@link #enterDirectory(String)} for a directory before invoking
+ * {@link #visitEntry(VfsEntry)} for any entry in it.
  */
 public interface VfsVisitor {
     /**
-     * Called for a directory before any entry directly in it is visited, to decide whether those entries are
-     * wanted.
-     *
-     * <p>
-     * Returning false means no entry directly in this directory is wanted. What else it skips depends on the kind
-     * of root:
+     * Called for a directory before visiting any entry directly in it.
      *
      * <ul>
-     * <li>For a directory tree, returning false also skips every directory below this one, without listing them.
-     * This method is called for a directory after it is called for the directory's parent, and only if the parent
-     * was not skipped.
-     * <li>For a jarfile or a module, the entry list has already been read, so skipping a subtree would save
-     * nothing. Returning false skips only this directory's own entries, and the directories below it are still
-     * offered. This method is called only for directories that directly contain at least one entry.
+     * <li>For a directory tree, returning {@code false} skips both the directory's entries and all subdirectories
+     * beneath it without listing them.
+     * <li>For an archive or module, returning {@code false} skips only the entries directly in this directory;
+     * subdirectories are still offered (so callers that strip a package root prefix such as
+     * {@code "BOOT-INF/classes/"} can skip {@code "BOOT-INF/"} without skipping its subdirectories). Only
+     * directories that directly contain at least one entry are offered, and a directory whose entries are not
+     * contiguous may be offered more than once.
      * </ul>
      *
-     * <p>
-     * An archive walk does not skip the directories below a skipped one because a caller may strip a package root
-     * prefix such as {@code "BOOT-INF/classes/"} from the names before judging them. {@code "BOOT-INF/"} is then
-     * unrelated to the directories below it once they are stripped, so skipping it must not skip them.
-     *
-     * <p>
-     * For a jarfile or a module, a directory whose entries are not contiguous in the root's natural order is passed
-     * to this method once per run of them, so a visitor must not assume it is called at most once per directory.
-     *
      * @param dirName
-     *            the name of the directory, relative to the root's package root, with a trailing {@code '/'}, e.g.
-     *            {@code "com/xyz/"}. The root itself is {@code "/"}.
+     *            the directory path relative to the package root, with a trailing {@code '/'} (e.g.
+     *            {@code "com/xyz/"}, or {@code "/"} for the root itself).
      * @return true to visit the entries directly in this directory, or false to skip them.
      */
     boolean enterDirectory(String dirName);
 
     /**
-     * Called for each entry of a directory that {@link #enterDirectory(String)} did not skip.
+     * Called for each entry in a directory accepted by {@link #enterDirectory(String)}.
      *
      * @param entry
      *            the entry.
-     * @return true to go on walking, or false to stop the walk immediately.
+     * @return true to continue walking, or false to stop the walk immediately.
      */
     boolean visitEntry(VfsEntry entry);
 }

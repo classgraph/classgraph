@@ -31,13 +31,14 @@ import org.jspecify.annotations.NullMarked;
 
 /**
  * The classpath and module path finder of
- * <a href="https://github.com/classgraph/classgraph">ClassGraph</a>: works out
- * where a running JVM loads its classes and resources from, including from the
- * custom classloaders of application servers, build tools and frameworks.
+ * <a href="https://github.com/classgraph/classgraph">ClassGraph</a>: resolves the locations from which a running
+ * JVM loads classes and resources, including custom classloaders of application servers, build tools, and
+ * frameworks.
  *
  * <p>
- * This module is {@link org.jspecify.annotations.NullMarked}: unless a type is
- * annotated {@link org.jspecify.annotations.Nullable}, it is never null.
+ * This module is {@link org.jspecify.annotations.NullMarked}: parameters and return values are non-null unless
+ * annotated with {@link org.jspecify.annotations.Nullable}, and passing {@code null} for a non-null parameter
+ * throws {@link NullPointerException}.
  *
  * @author Luke Hutchison
  */

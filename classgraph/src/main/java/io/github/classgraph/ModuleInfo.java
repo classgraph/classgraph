@@ -45,13 +45,11 @@ import io.github.classgraph.base.internal.utils.Assert;
  * Holds metadata about a named module encountered during a scan.
  *
  * <p>
- * A directory or jar found on the traditional classpath is in the unnamed module at runtime, but it is still listed
- * here, under the name it declares through {@code module-info.class} or the {@code Automatic-Module-Name} manifest
- * attribute. A jar that declares neither is listed under the automatic module name that the module system would
- * derive from its filename, if that is a legal module name; a directory that declares neither is not listed. Use
- * {@link #getModuleReference()} to tell these names apart from a module resolved in a {@link ModuleLayer}: it is
- * null for every name that came from a classpath directory or jar, and non-null only for a module that was actually
- * resolved in a {@link ModuleLayer}.
+ * A directory or jar on the traditional classpath is in the unnamed module at runtime, but is still represented by
+ * a {@link ModuleInfo} if it declares a module name via {@code module-info.class} or the
+ * {@code Automatic-Module-Name} manifest attribute, or (for a jar) if a valid automatic module name can be derived
+ * from its filename. {@link #getModuleReference()} is non-null only for modules resolved in a {@link ModuleLayer},
+ * and null for modules derived from classpath directories or jars.
  *
  * <p>
  * There is one {@link ModuleInfo} for each classpath element that holds a module, so two classpath elements with
@@ -76,9 +74,7 @@ public final class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnn
     private @Nullable URI locationURI;
 
     /**
-     * {@link AnnotationInfo} objects for any annotations on the module-info.class file, if present, else null. An
-     * annotation equal to one already in the list is not added again. A list rather than a set is used, because the
-     * repeats of a repeatable annotation, which are added after the scan, can be equal to each other.
+     * {@link AnnotationInfo} objects for any annotations on the {@code module-info.class} file, or null if none.
      */
     private @Nullable List<AnnotationInfo> annotationInfoList;
 
@@ -154,12 +150,10 @@ public final class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnn
     }
 
     /**
-     * The {@link ModuleReference} for this module, or null if its name came from a directory or jar on the
-     * traditional classpath -- whether the directory or jar declared the name or the name was derived from the
-     * jar's filename -- rather than from a module resolved in a {@link ModuleLayer}.
+     * Get the {@link ModuleReference} for this module, or null if this module was derived from a directory or jar
+     * on the traditional classpath rather than resolved in a {@link ModuleLayer}.
      *
-     * @return the {@link ModuleReference}, or null for a name that came from a directory or jar on the traditional
-     *         classpath.
+     * @return the {@link ModuleReference}, or null if derived from the traditional classpath.
      */
     public @Nullable ModuleReference getModuleReference() {
         return moduleReference;

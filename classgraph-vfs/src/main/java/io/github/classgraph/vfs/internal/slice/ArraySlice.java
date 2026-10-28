@@ -84,11 +84,8 @@ public final class ArraySlice extends Slice {
     }
 
     /**
-     * Load the slice as a byte array.
-     *
-     * <p>
-     * When the slice covers the whole of the backing array, the backing array itself is returned rather than a
-     * copy, so a caller that writes to the returned array changes what every later read of the same slice sees.
+     * Load the slice as a byte array. Returns {@link #arr} directly when the slice covers the entire array, or a
+     * copy of the slice range otherwise.
      *
      * @return the content of the slice
      */

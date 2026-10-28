@@ -40,19 +40,16 @@ import java.util.function.Predicate;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Expands the arrays and {@link Iterable}s that hold classpath entries, nested to any depth. The classpath entries
- * that a classloader handler adds and the ones passed to
- * {@link ScanSourceSpec#enableClasspathEntries(java.util.List)} are expanded by this one rule, so that the same
- * object names the same classpath entries on both.
+ * Flattens nested arrays and {@link Iterable} instances containing classpath entries.
  */
 final class ClasspathEntryFlattener {
     /**
-     * An active container and the iterator that resumes its expansion after a nested container finishes.
+     * Stack frame tracking an active array or {@link Iterable} expansion.
      *
      * @param container
-     *            the array or iterable being expanded, or null for the initial single-entry frame.
+     *            the array or iterable being expanded, or null for the root frame.
      * @param elements
-     *            the iterator to resume after a nested container finishes.
+     *            the iterator over the container's elements.
      */
     private record Expansion(@Nullable Object container, Iterator<?> elements) {
     }
@@ -63,23 +60,15 @@ final class ClasspathEntryFlattener {
     }
 
     /**
-     * Pass each classpath entry held by an object to an action, in order. An array of objects, or an
-     * {@link Iterable} other than a {@link Path} (which is an {@link Iterable} of its own name elements), is
-     * replaced by its own elements, to any depth. Any other object, including null and an array of primitives, is
-     * one classpath entry.
-     *
-     * <p>
-     * An array or {@link Iterable} that is met again while its own elements are being passed on is not expanded
-     * again, which would never end: an array or {@link Collection} is skipped, since every entry it holds is
-     * already being passed on by the expansion that encloses it, and any other {@link Iterable} is passed on as one
-     * classpath entry. (An Apache Ant {@code FileResource} is an {@link Iterable} that yields only itself, and its
-     * string form is the path of its file.)
+     * Applies {@code action} to each flattened classpath entry in {@code object}, expanding nested arrays and
+     * {@link Iterable} instances (except {@link Path} and self-yielding non-{@link Collection} iterables such as
+     * Apache Ant {@code Resource} instances) while guarding against cycles.
      *
      * @param object
-     *            the classpath entry, or the array or {@link Iterable} of classpath entries.
+     *            the classpath entry, or a nested array or {@link Iterable} of classpath entries.
      * @param action
-     *            the action to apply to each classpath entry, which returns true if it added the entry.
-     * @return true if the action returned true for at least one classpath entry.
+     *            predicate applied to each leaf classpath entry.
+     * @return true if {@code action} returned true for at least one entry.
      */
     static boolean forEachEntry(final @Nullable Object object, final Predicate<@Nullable Object> action) {
         // The arrays and Iterables that enclose the element being expanded, compared by identity, since the

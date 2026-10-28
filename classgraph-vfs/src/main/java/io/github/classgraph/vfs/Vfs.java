@@ -75,9 +75,9 @@ import io.github.classgraph.vfs.internal.recycler.Recycler;
 import io.github.classgraph.vfs.internal.zip.JarOpener;
 
 /**
- * A virtual filesystem: opens a directory, a jarfile, or a module, however it is named -- by path string, by
- * {@link File}, by {@link Path}, by {@link URI}, by {@link URL}, by {@link ModuleReference}, as an
- * {@link InputStream}, or as a byte array -- and gives back the same {@link VfsRoot} interface for all of them.
+ * A virtual filesystem providing unified read access to directories, jarfiles, and modules specified by path
+ * string, {@link File}, {@link Path}, {@link URI}, {@link URL}, {@link ModuleReference}, {@link InputStream}, or
+ * byte array.
  *
  * <pre>
  * try (Vfs vfs = new Vfs()) {
@@ -90,75 +90,42 @@ import io.github.classgraph.vfs.internal.zip.JarOpener;
  * </pre>
  *
  * <p>
- * The entries of a root are named the same way whichever kind of root it is -- relative to the root, with
- * {@code '/'} as the separator -- and are read through the same {@link VfsEntry} methods, as an
- * {@link InputStream}, a {@link java.nio.channels.ReadableByteChannel}, a {@link java.nio.ByteBuffer}, a byte array
- * or a string. So code that reads a jarfile reads a directory or a module without changing a line.
+ * Entries within any {@link VfsRoot} use root-relative paths with {@code '/'} separators and can be read as an
+ * {@link InputStream}, {@link java.nio.channels.ReadableByteChannel}, {@link java.nio.ByteBuffer}, byte array, or
+ * string. Stored nested jarfiles are read in place without extracting to disk; deflated nested jarfiles exceeding
+ * {@link VfsSpec#getMaxBufferedJarRAMSize()} are inflated to a temporary file that is deleted when the root or this
+ * {@link Vfs} is closed.
  *
  * <p>
- * A nested jarfile is read in place, without being extracted to disk, unless it is stored deflated rather than
- * uncompressed and is too large to inflate into RAM -- only then is it spilled to a temporary file, which is
- * deleted when the root that extracted it is closed, and no later than when this {@link Vfs} is closed. A
- * {@link CloseableByteBuffer} the caller has not closed does not delay that: the root closes every buffer it handed
- * out, every stream from {@link VfsEntry#open()}, and every channel opened through its
- * {@link VfsRoot#asFileSystem()} view, before it releases what it owns, so the file is unmapped and deleted as the
- * root closes, with the one exception described at {@link #close()}.
+ * Opened roots (except those opened from an {@link InputStream} or byte array) are cached by canonical path or
+ * {@link ModuleReference}, so opening the same location multiple times returns the same {@link VfsRoot}. Iterating
+ * this {@link Vfs} yields the currently cached roots, and {@link #evict(VfsRoot)} removes a root from the cache
+ * without closing it. {@link #close()} closes all opened roots, streams, channels, and buffers, and releases all
+ * underlying file handles, memory mappings, and temporary files.
  *
  * <p>
- * A {@link Vfs} caches every root it opens, so opening the same path twice returns the same {@link VfsRoot}, and a
- * jarfile that encloses several nested jarfiles is only read once. Iterating the {@link Vfs} gives back the roots
- * it has cached, and {@link #evict(VfsRoot)} takes one back out of the cache without stopping it working for
- * anything still holding it. The cache, the open file handles and the temporary files are all released by
- * {@link #close()}, which invalidates every {@link VfsRoot} and {@link VfsEntry} it handed out, so a {@link Vfs}
- * should be held open for as long as its entries are being read.
- *
- * <p>
- * Every method is safe to call from multiple threads at once. Two threads that ask for the same path at the same
- * time get back the same {@link VfsRoot}, and the jarfile behind it is only read once: the second thread waits for
- * the first, until the first makes no progress for as long as
- * {@link VfsSpec#setOpenWaitTimeout(java.time.Duration)} allows. How storage is read is set by a copy of the
- * {@link VfsSpec} this {@link Vfs} was constructed with, taken by the constructor, so its settings cannot change
- * while it is open. {@link #close()} takes effect the moment it is called, so a thread that calls any other method
- * after that -- even while the close is still running -- gets an {@link IOException} from an {@code open} method,
- * or an {@link IllegalStateException} from {@link #verbose()}, rather than a root backed by storage that is being
- * released.
+ * All methods on {@link Vfs} are thread-safe. Concurrent calls to open the same path share the resulting
+ * {@link VfsRoot}, waiting up to {@link VfsSpec#getOpenWaitTimeout()} for progress.
  */
 public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
-    /** The settings that govern how storage is read: a copy of those passed in, which cannot be changed. */
+    /** Immutable copy of the configuration settings for this {@link Vfs}. */
     private final VfsSpec vfsSpec;
 
-    /** The interruption checker shared by every thread reading through this {@link Vfs}. */
+    /** Shared interruption checker for operations on this {@link Vfs}. */
     private final InterruptionChecker interruptionChecker;
 
-    /**
-     * True once {@link #close()} has been called. This is the one place the closed state of a {@link Vfs} is held:
-     * everything that has to turn a caller away once it is closing reads this same flag, either through
-     * {@link #isClosed()} or by being handed the flag itself.
-     */
+    /** True once {@link #close()} has been called. */
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
-    /**
-     * The pool of {@code Inflater} instances that deflated zip entries are inflated with. One pool per {@link Vfs}
-     * rather than one per root, since an inflater is borrowed for the length of a single read and carries nothing
-     * of the jarfile it was used on, so the roots pool them best between them. Force-closed by {@link #close()}.
-     */
+    /** Pool of {@link Inflater} instances used to read deflated zip entries. */
     private final Recycler<Inflater, RuntimeException> inflaterRecycler = RecycledInflaterInputStream
             .newInflaterRecycler();
 
-    /**
-     * The roots that have been opened from a path, keyed by every path that names each -- the path as it was
-     * opened, its canonical form, and the path the root reports itself at -- so that one directory or jarfile named
-     * several ways is opened once. A root opened through a {@link Path} in a non-default filesystem is keyed only
-     * by its filesystem identity and URI, and by the URL it was opened by, if it was opened by one. Two threads
-     * that ask for the same path at the same time build the root only once, since a lookup for a key whose root is
-     * still being built blocks until it is ready. The enclosing jarfiles of a nested jarfile are opened through
-     * this same cache, one frame of re-entry per {@code "!"} section, so each of them is a root in its own right,
-     * cached under its own path.
-     */
+    /** Cache of opened roots keyed by path string or {@link PathKey}. */
     private final SingletonMap<Object, VfsRoot> rootsByPath = new SingletonMap<>(closed);
 
     /**
-     * The URI of a path identifies it only within its particular filesystem instance.
+     * Cache key for a {@link Path} in a non-default {@link FileSystem}.
      *
      * @param fileSystem
      *            the source filesystem, compared by identity.
@@ -182,31 +149,23 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         }
     }
 
-    /** The roots that have been opened from a {@link ModuleReference}, keyed by that module. */
+    /** Cache of roots opened from a {@link ModuleReference}. */
     private final Map<ModuleReference, VfsRoot> rootsByModule = new ConcurrentHashMap<>();
 
-    /**
-     * Every root this {@link Vfs} has opened and not yet closed -- including one opened from an {@link InputStream}
-     * or a byte array, which the path cache does not hold -- so that {@link #close()} can close each of them. A
-     * root removes itself from this set when it is closed.
-     */
+    /** All currently open roots owned by this {@link Vfs}. */
     private final Set<VfsRoot> openRoots = ConcurrentHashMap.newKeySet();
 
-    /** The log node that {@link #verbose()} turns on, or null if not logging. */
+    /** Verbose log node enabled by {@link #verbose()}, or {@code null} if logging is disabled. */
     private volatile @Nullable LogNode log;
 
-    /** Constructor, using the default value of every setting -- see {@link VfsSpec}. */
+    /** Construct a {@link Vfs} with default {@link VfsSpec} settings. */
     public Vfs() {
         this(new VfsSpec(), new InterruptionChecker());
     }
 
     /**
-     * Constructor, taking the settings to read storage with.
-     *
-     * <p>
-     * The {@link VfsSpec} is copied, so everything this {@link Vfs} opens is read with the settings it had when
-     * this constructor was called. Changing a setting of the {@link VfsSpec} afterward does not change this
-     * {@link Vfs}, only a {@link Vfs} constructed from it afterward.
+     * Construct a {@link Vfs} with the specified settings. The {@link VfsSpec} is defensively copied, so subsequent
+     * modifications to {@code vfsSpec} do not affect this {@link Vfs}.
      *
      * <pre>
      * try (Vfs vfs = new Vfs(new VfsSpec().disableMultiReleaseVersions().setMaxBufferedJarRAMSize(65536))) {
@@ -215,22 +174,19 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * </pre>
      *
      * @param vfsSpec
-     *            the settings to read storage with.
+     *            the settings to use.
      */
     public Vfs(final VfsSpec vfsSpec) {
         this(vfsSpec, new InterruptionChecker());
     }
 
     /**
-     * Constructor for the other ClassGraph modules, which share an {@link InterruptionChecker} with the rest of a
-     * scan. {@link InterruptionChecker} is in a package that is only exported to those modules, so on the module
-     * path no other module can obtain one to pass. This constructor is public only for those modules, and is not
-     * part of the API.
+     * Internal constructor sharing an {@link InterruptionChecker} across ClassGraph modules.
      *
      * @param vfsSpec
-     *            the settings to read storage with.
+     *            the settings to use.
      * @param interruptionChecker
-     *            the interruption checker to share with the rest of the scan.
+     *            the shared interruption checker.
      * @hidden
      */
     @SuppressWarnings("exports")
@@ -244,13 +200,10 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Log what is read to the {@code io.github.classgraph.ClassGraph} logger, at {@code INFO} level. This is
-     * intended for working out why something is not being read as expected, and is not a stable output format.
+     * Enable verbose logging to the {@code io.github.classgraph.ClassGraph} logger at {@code INFO} level when this
+     * {@link Vfs} is closed.
      *
-     * <p>
-     * The log is written when this {@link Vfs} is closed.
-     *
-     * @return this (for method chaining).
+     * @return {@code this} (for method chaining).
      * @throws IllegalStateException
      *             if this {@link Vfs} has been closed.
      */
@@ -265,57 +218,37 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Open a directory or a jarfile named by a path.
+     * Open a directory or jarfile specified by path or URL string.
      *
      * <p>
-     * The path may name a directory or a jarfile in the local filesystem, or a URL with any scheme the JVM has a
-     * URL stream handler or a filesystem provider for, other than one denied by
-     * {@link VfsSpec#denyURLScheme(String)}. A URL names a directory if the filesystem provider installed for its
-     * scheme serves a directory there, and a jarfile otherwise; an http or https URL always names a jarfile. A
-     * jarfile nested within another jarfile is named by separating the enclosing jarfile from the nested one with
-     * {@code "!/"}, to any depth, e.g. {@code "outer.jar!/lib/inner.jar"}. A trailing {@code "!/"} section that
-     * does not name a nested jarfile names a package root within the jarfile instead, e.g.
-     * {@code "spring-boot-app.jar!/BOOT-INF/classes"}, in which case only the entries under that root are reported,
-     * with the root stripped from their names.
-     *
-     * <p>
-     * A relative path is resolved against the current directory. A {@code ".."} segment in the part of the path
-     * that names a file on disk is resolved by the filesystem, as it is when the JVM opens the same path, so it can
-     * climb out of the current directory, and after a symlinked directory it names the parent of the directory the
-     * symlink points at.
-     *
-     * <p>
-     * A directory or jarfile is opened once however it is named, so the same {@link VfsRoot} is returned for a
-     * plain path, for the {@code "file:"} or {@code "jar:"} URL of the same thing, for a path that reaches it
-     * through a symlink, and, on Windows, for a path written with backslashes rather than forward slashes, or one
-     * that names a directory by its 8.3 short name. The root reports itself at the canonical path of the directory
-     * or jarfile that backs it, whichever of those names it was opened by.
+     * The path may be a local filesystem path or a URL with any scheme supported by an installed URL stream handler
+     * or {@link java.nio.file.spi.FileSystemProvider} (unless denied via {@link VfsSpec#denyURLScheme(String)}).
+     * Nested jarfiles and package roots within a jarfile are separated using {@code "!/"} to any depth (e.g.
+     * {@code "outer.jar!/lib/inner.jar"} or {@code "spring-boot-app.jar!/BOOT-INF/classes"}). Relative paths are
+     * resolved against the current working directory, and equivalent paths (including symlinks,
+     * {@code file:}/{@code
+     * jar:} URLs, or Windows backslash/short paths) resolve to the same cached {@link VfsRoot}.
      *
      * @param path
-     *            the path to open.
-     * @return the opened root.
+     *            the path or URL string to open.
+     * @return the opened {@link VfsRoot}.
      * @throws IOException
-     *             if the path could not be opened or read, or if this {@link Vfs} has been closed.
+     *             if the path cannot be opened or read, or if this {@link Vfs} has been closed.
      */
     public VfsRoot open(final String path) throws IOException {
         return open(path, log);
     }
 
     /**
-     * Open a directory or a jarfile named by a path, logging to the given log node rather than to the one
-     * {@link #verbose()} turned on. This is for callers that write a log of their own, and want what the virtual
-     * filesystem logs nested under the part of it that it belongs to.
-     *
-     * <p>
-     * A path is only opened once, so only the first call for a given path logs anything.
+     * Open a directory or jarfile specified by path or URL string, logging to {@code logNode}.
      *
      * @param path
-     *            the path to open.
+     *            the path or URL string to open.
      * @param logNode
-     *            the log node to log to, or null to not log.
-     * @return the opened root.
+     *            the log node to log to, or {@code null}.
+     * @return the opened {@link VfsRoot}.
      * @throws IOException
-     *             if the path could not be opened or read, or if this {@link Vfs} has been closed.
+     *             if the path cannot be opened or read, or if this {@link Vfs} has been closed.
      */
     public VfsRoot open(final String path, final @Nullable LogNode logNode) throws IOException {
         Assert.notNull(path, "path");
@@ -337,45 +270,31 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Resolve a path to the form that {@link #open(String)} caches it under, leaving a {@code ".."} segment in the
-     * part of the path that names a file on disk for the filesystem to resolve. Collapsing such a segment textually
-     * would drop a leading {@code ".."} from a relative path, so that {@code "../x.jar"} named {@code "x.jar"} in
-     * the current directory, and would name the wrong file after a symlinked directory. A relative path is left
-     * relative, for the filesystem to resolve against the current directory.
+     * Normalize a path string into the key form used by {@link #open(String)}.
      *
      * @param path
      *            the path to resolve.
-     * @return the resolved path.
+     * @return the resolved path string.
      */
     static String resolvePath(final String path) {
         return FastPathResolver.resolveFilePath(/* resolveBasePath = */ null, path);
     }
 
     /**
-     * Look a key up in {@link #rootsByPath}, building the root if no thread has opened that key yet, and return the
-     * root open at that key. {@link InterruptedException} is deliberately let through raw rather than being wrapped
-     * in an {@link IOException} here: a build that opens the jarfile enclosing a nested one re-enters this method,
-     * and wrapping the interruption in the inner frame would leave the outer frame reporting the cancellation of
-     * the calling thread as a failure of the path it was opening. Only the public {@code open} methods convert it.
+     * Look up or build a {@link VfsRoot} in {@link #rootsByPath} for {@code key}.
      *
      * @param key
-     *            the cache key: a path in the form {@link #resolvePath(String)} returns, or the filesystem identity
-     *            and URI of a {@link Path} in a non-default filesystem.
+     *            the cache key (a normalized path string or a {@link PathKey}).
      * @param aliasReportedPath
-     *            whether to also record the root under the path it reports itself at. This is false for a root
-     *            opened through a {@link Path} in a non-default filesystem, whose reported path names the file the
-     *            filesystem is backed by, not that filesystem: a directory {@code "/dir"} of a mounted zipfile
-     *            reports itself as {@code "the-jarfile.jar!/dir"}, and opening that path by name has to open the
-     *            package root of the jarfile itself, not return a root that reads through a filesystem the caller
-     *            may close.
+     *            whether to also register the root under its canonical {@link VfsRoot#reportedPath()}.
      * @param factory
-     *            builds the root if no thread has opened that key yet.
-     * @return the root open at that key.
+     *            the factory used to create the root on cache miss.
+     * @return the opened {@link VfsRoot}.
      * @throws IOException
-     *             if the key could not be opened or read, if another thread was opening it and made no progress for
-     *             {@link VfsSpec#getOpenWaitTimeout()}, or if this {@link Vfs} has been closed.
+     *             if the key cannot be opened, if waiting for another thread times out, or if this {@link Vfs} is
+     *             closed.
      * @throws InterruptedException
-     *             if the thread was interrupted.
+     *             if the thread is interrupted.
      */
     private VfsRoot openThroughCache(final Object key, final boolean aliasReportedPath,
             final SingletonMap.NewInstanceFactory<VfsRoot> factory) throws IOException, InterruptedException {
@@ -433,20 +352,17 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Look a key up in {@link #rootsByPath}, building the root with {@link #openRootUncached(String, LogNode)} if
-     * no thread has opened that key yet. This is how one frame of {@link #openRootUncached(String, LogNode)}
-     * re-enters the cache to open the jarfile enclosing a nested one, or to open a non-canonical path under its
-     * canonical form; the cache allows the re-entry, since each frame locks only its own key.
+     * Look up or build a {@link VfsRoot} in {@link #rootsByPath} using {@link #openRootUncached(String, LogNode)}.
      *
      * @param key
-     *            the cache key, in the form {@link #resolvePath(String)} returns.
+     *            the normalized path key.
      * @param logNode
-     *            the log node that a build logs to, or null to skip logging.
-     * @return the root open at that key.
+     *            the log node, or {@code null}.
+     * @return the opened {@link VfsRoot}.
      * @throws IOException
-     *             if the key could not be opened or read, or if this {@link Vfs} has been closed.
+     *             if the key cannot be opened or if this {@link Vfs} is closed.
      * @throws InterruptedException
-     *             if the thread was interrupted.
+     *             if the thread is interrupted.
      */
     private VfsRoot openReentrant(final String key, final @Nullable LogNode logNode)
             throws IOException, InterruptedException {
@@ -454,20 +370,12 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Record the path a root reports itself at as another key it can be found by in {@link #rootsByPath}, unless
-     * that is the key it was just found by, or another root already holds that key. The root is handed the action
-     * that takes the alias back out of the cache, so that closing the root removes it.
-     *
-     * <p>
-     * A root read through a {@link Path} in a non-default filesystem is never recorded under the path it reports
-     * itself at, for the reason {@link #openThroughCache(Object, boolean, SingletonMap.NewInstanceFactory)} gives:
-     * that path can name the storage behind the filesystem rather than the filesystem. Such a root is reached by a
-     * path string when that string is a URL that the filesystem's provider serves.
+     * Register {@code root}'s canonical reported path as an alias in {@link #rootsByPath}.
      *
      * @param root
-     *            the root that was just opened or found in the cache.
+     *            the opened root.
      * @param openedKey
-     *            the key it was opened or found by.
+     *            the key under which the root was opened.
      */
     private void registerAlias(final VfsRoot root, final Object openedKey) {
         final var nioPath = root.getNioPath();
@@ -483,18 +391,14 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Hand a root that {@link #openRootUncached(String, LogNode)} is about to return the action that takes the key
-     * it is being built under back out of {@link #rootsByPath}, so that closing the root removes it from the cache.
-     * The cache entry itself is written by the cache once the build returns, so a root closed in the narrow window
-     * between this registration and that write leaves a stale entry behind, which
-     * {@link #openThroughCache(Object, boolean, SingletonMap.NewInstanceFactory)} discards and retries when it is
-     * next looked up.
+     * Register a close callback on {@code root} to remove {@code key} from {@link #rootsByPath} when {@code root}
+     * is closed.
      *
      * @param key
-     *            the key the root is being built under.
+     *            the cache key.
      * @param root
-     *            the root being returned for that key.
-     * @return the root.
+     *            the root being returned for {@code key}.
+     * @return {@code root}.
      */
     private VfsRoot recordPathKey(final Object key, final VfsRoot root) {
         root.addUnregistration(() -> rootsByPath.discard(key, root));
@@ -502,23 +406,14 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Record a root that was just built within a container root -- a package root view of the container's jarfile,
-     * or the root of a jarfile nested within it -- as open, and add it to the container's children, so that closing
-     * the container closes the child. The child joins the container's children only here, once it is fully built,
-     * so that a container closed by another thread while the child was being built cannot close a child whose
-     * fields are not yet set -- such a close would release nothing of what the child goes on to own. If the
-     * container was closed before the child was added, the container's close may not have seen it, so the child is
-     * closed here instead, and the caller -- always a build running under
-     * {@link #openThroughCache(Object, boolean, SingletonMap.NewInstanceFactory)} -- then sees a closed root,
-     * discards it, and retries or turns its caller away. The closed root is returned rather than an exception being
-     * thrown, so that the caller retries against the container's replacement and gets a live root back: a race with
-     * a close of the container is not a failure of the path.
+     * Register {@code child} as an open root and attach it as a child of {@code container}, closing {@code child}
+     * immediately if {@code container} is already closed.
      *
      * @param container
-     *            the root the child was built within.
+     *            the enclosing archive root.
      * @param child
-     *            the child root that was just built.
-     * @return the child root.
+     *            the newly created child root.
+     * @return {@code child}.
      */
     private ArchiveRoot adoptWithin(final ArchiveRoot container, final ArchiveRoot child) {
         adopt(child);
@@ -532,17 +427,13 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Record a root that was just built as open, so that {@link #close()} closes it, and hand the root the action
-     * that takes it back out of the set of open roots, so that closing the root removes it. Every root this
-     * {@link Vfs} builds passes through here, whether or not it is then cached under a path. The caller must still
-     * make the closed check that discards the root if this {@link Vfs} was closed while it was being built --
-     * {@link #discardIfClosed(String, VfsRoot)} does both.
+     * Track {@code root} in {@link #openRoots} and register its removal callback on close.
      *
      * @param <R>
-     *            the type of the root.
+     *            the root type.
      * @param root
-     *            the root that was just built.
-     * @return the root.
+     *            the newly created root.
+     * @return {@code root}.
      */
     private <R extends VfsRoot> R adopt(final R root) {
         openRoots.add(root);
@@ -551,22 +442,22 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Add a root that has just been opened to a cache of opened roots, unless another thread opened the same path
-     * first, in which case the root that thread cached is returned and the one passed in is discarded.
+     * Insert {@code root} into {@code cache} under {@code key}, or close {@code root} and return the existing root
+     * if another thread cached one first.
      *
      * @param <K>
-     *            the type of the cache key.
+     *            the cache key type.
      * @param cache
-     *            the cache to add the root to.
+     *            the target cache map.
      * @param key
-     *            the key to cache the root under.
+     *            the cache key.
      * @param root
-     *            the root that was just opened.
+     *            the newly created root.
      * @param what
-     *            what was opened, for the exception message.
+     *            description of the opened resource for exception messages.
      * @return the cached root.
      * @throws IOException
-     *             if this {@link Vfs} was closed while the root was being opened.
+     *             if this {@link Vfs} was closed while opening the root.
      */
     private <K> VfsRoot cacheRoot(final Map<K, VfsRoot> cache, final K key, final VfsRoot root, final String what)
             throws IOException {
@@ -583,18 +474,16 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Return a root that has just been opened, unless this {@link Vfs} was closed while it was being opened, in
-     * which case close the root and throw, rather than handing back a root that is backed by storage that has
-     * already been released. Closing the root also takes it back out of the set of open roots and any cache it was
-     * put in, since {@link #close()} may have passed over all of those before the root was recorded in them.
+     * Close {@code root} and throw {@link IOException} if this {@link Vfs} has been closed, otherwise return
+     * {@code root}.
      *
      * @param what
-     *            what was opened, for the exception message.
+     *            description of the opened resource for exception messages.
      * @param root
-     *            the root that was just opened.
-     * @return the root.
+     *            the newly created root.
+     * @return {@code root}.
      * @throws IOException
-     *             if this {@link Vfs} was closed while the root was being opened.
+     *             if this {@link Vfs} has been closed.
      */
     private VfsRoot discardIfClosed(final String what, final VfsRoot root) throws IOException {
         if (isClosed()) {
@@ -606,28 +495,17 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Open a directory or a jarfile named by a path, when no root is cached under that path yet. This is only
-     * called by {@link #rootsByPath}, which holds the key while this runs, so a path is only built once however
-     * many threads ask for it at the same time.
-     *
-     * <p>
-     * A path that names something within a jarfile -- {@code "outer.jar!/lib/inner.jar"} -- is opened one
-     * {@code "!/"} section at a time: the path up to the last separator is opened through the cache, which opens
-     * the section before that, and so on down to the jarfile in the local filesystem, and each of those enclosing
-     * jarfiles is a root in its own right, cached under its own path. A path that is not the canonical spelling of
-     * what it names -- one that reaches a jarfile through a symlink, or that names a nested jarfile through a
-     * non-canonical spelling of the enclosing one -- is opened by re-entering the cache under the canonical
-     * spelling, so that both spellings share one root.
+     * Open a directory, jarfile, nested jarfile, or package root for a normalized path on cache miss.
      *
      * @param resolvedPath
-     *            the path to open, in the form {@link #resolvePath(String)} returns it.
+     *            the normalized path string from {@link #resolvePath(String)}.
      * @param outerLog
-     *            the log node to log under, or null to skip logging.
-     * @return the opened root.
+     *            the parent log node, or {@code null}.
+     * @return the opened {@link VfsRoot}.
      * @throws IOException
-     *             if the path could not be opened or read.
+     *             if the path cannot be opened or read.
      * @throws InterruptedException
-     *             if the thread was interrupted.
+     *             if the thread is interrupted.
      */
     private VfsRoot openRootUncached(final String resolvedPath, final @Nullable LogNode outerLog)
             throws IOException, InterruptedException {
@@ -737,15 +615,12 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Find the directory that a path with a URL scheme names through the filesystem provider installed for its
-     * scheme, if there is one. An http or https URL is never looked up as a {@link Path}, since it names a jarfile
-     * to download, and a scheme that {@link VfsSpec#denyURLScheme(String)} denied is not looked up either, so that
-     * opening the path as a jarfile refuses it.
+     * Return the directory {@link Path} for a URL string if an installed
+     * {@link java.nio.file.spi.FileSystemProvider} serves a directory at that URI.
      *
      * @param url
-     *            the path, in the form {@link #resolvePath(String)} returns it, which has a URL scheme.
-     * @return the directory, or null if the path does not name a directory through an installed filesystem
-     *         provider.
+     *            the resolved URL string.
+     * @return the directory {@link Path}, or {@code null} if not a directory served by an installed provider.
      */
     private @Nullable Path directoryAtURL(final String url) {
         final var scheme = url.substring(0, url.indexOf(':')).toLowerCase(Locale.ROOT);
@@ -765,13 +640,13 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Open a directory or a jarfile named by a {@link File}.
+     * Open a directory or jarfile specified by a {@link File}.
      *
      * @param file
      *            the directory or jarfile to open.
-     * @return the opened root.
+     * @return the opened {@link VfsRoot}.
      * @throws IOException
-     *             if the file could not be opened or read, or if this {@link Vfs} has been closed.
+     *             if the file cannot be opened or read, or if this {@link Vfs} has been closed.
      */
     public VfsRoot open(final File file) throws IOException {
         Assert.notNull(file, "file");
@@ -779,24 +654,18 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Open a directory or a jarfile named by a {@link Path}. The {@link Path} may be in a filesystem other than the
-     * default one, e.g. in a zipfile mounted with {@link FileSystems#newFileSystem(Path, ClassLoader)}. A path in
-     * another filesystem is read through that filesystem, unless {@link VfsSpec#denyURLScheme(String)} denied the
-     * scheme of its URI, in which case it is refused, as it is when it is named by that URI. For a path in a
-     * zipfile mounted as a filesystem, whose URI is a {@code jar:} URI, the scheme checked is that of the
-     * filesystem that holds the zipfile.
+     * Open a directory or jarfile specified by a {@link Path} in the default or any custom {@link FileSystem}.
      *
      * <p>
-     * A directory in another ClassGraph filesystem view can itself be wrapped, repeatedly. Each filesystem instance
-     * has its own cache identity, even if its paths report the same URI as another instance. The source filesystem
-     * is borrowed, not closed by this {@link Vfs}, and must remain open while the wrapped root is used.
+     * For paths in a non-default {@link FileSystem}, the source filesystem must remain open while the returned root
+     * is used, and its URI scheme must not be denied by {@link VfsSpec#denyURLScheme(String)}.
      *
      * @param path
      *            the directory or jarfile to open.
-     * @return the opened root.
+     * @return the opened {@link VfsRoot}.
      * @throws IOException
-     *             if the path could not be opened or read, if the scheme of its URI has been denied, or if this
-     *             {@link Vfs} has been closed.
+     *             if the path cannot be opened or read, if its URI scheme is denied, or if this {@link Vfs} has
+     *             been closed.
      */
     public VfsRoot open(final Path path) throws IOException {
         Assert.notNull(path, "path");
@@ -828,20 +697,19 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Open a directory or a jarfile named by a {@link Path} in a filesystem other than the default one, through
-     * {@link #rootsByPath}.
+     * Open a directory or jarfile from a {@link Path} in a non-default {@link FileSystem} via {@link #rootsByPath}.
      *
      * @param path
-     *            the directory or jarfile to open.
+     *            the directory or jarfile path.
      * @param key
-     *            the cache key, containing the source filesystem identity and the path's URI.
+     *            the cache key combining the source filesystem identity and path URI.
      * @param outerLog
-     *            the log node to log under, or null to skip logging.
-     * @return the opened root.
+     *            the parent log node, or {@code null}.
+     * @return the opened {@link VfsRoot}.
      * @throws IOException
-     *             if the path could not be opened or read, or if this {@link Vfs} has been closed.
+     *             if the path cannot be opened or read, or if this {@link Vfs} has been closed.
      * @throws InterruptedException
-     *             if the thread was interrupted.
+     *             if the thread is interrupted.
      */
     private VfsRoot openInOtherFilesystem(final Path path, final PathKey key, final @Nullable LogNode outerLog)
             throws IOException, InterruptedException {
@@ -856,16 +724,13 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Open a directory or a jarfile named by a {@link URI}.
+     * Open a directory or jarfile specified by a {@link URI}.
      *
      * @param uri
-     *            the {@link URI} to open. A {@code "jar:"} or {@code "file:"} URI names something in the local
-     *            filesystem; any other scheme is opened if the JVM has a URL stream handler or a filesystem
-     *            provider for it and {@link VfsSpec#denyURLScheme(String)} has not denied it, as a directory if
-     *            that provider serves one there, and as a jarfile otherwise.
-     * @return the opened root.
+     *            the {@link URI} to open.
+     * @return the opened {@link VfsRoot}.
      * @throws IOException
-     *             if the {@link URI} could not be opened or read, or if this {@link Vfs} has been closed.
+     *             if the {@link URI} cannot be opened or read, or if this {@link Vfs} has been closed.
      */
     public VfsRoot open(final URI uri) throws IOException {
         Assert.notNull(uri, "uri");
@@ -873,16 +738,13 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Open a directory or a jarfile named by a {@link URL}.
+     * Open a directory or jarfile specified by a {@link URL}.
      *
      * @param url
-     *            the {@link URL} to open. A {@code "jar:"} or {@code "file:"} URL names something in the local
-     *            filesystem; any other scheme is opened if {@link VfsSpec#denyURLScheme(String)} has not denied it,
-     *            as a directory if the filesystem provider installed for that scheme serves one there, and as a
-     *            jarfile otherwise.
-     * @return the opened root.
+     *            the {@link URL} to open.
+     * @return the opened {@link VfsRoot}.
      * @throws IOException
-     *             if the {@link URL} could not be opened or read, or if this {@link Vfs} has been closed.
+     *             if the {@link URL} cannot be opened or read, or if this {@link Vfs} has been closed.
      */
     public VfsRoot open(final URL url) throws IOException {
         Assert.notNull(url, "url");
@@ -890,14 +752,13 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Open a module.
+     * Open a module from a {@link ModuleReference}.
      *
      * @param moduleReference
-     *            the module to open.
-     * @return the opened root.
+     *            the module reference to open.
+     * @return the opened {@link VfsRoot}.
      * @throws IOException
-     *             if this {@link Vfs} has been closed. The module itself is not opened until its entries are listed
-     *             or read.
+     *             if this {@link Vfs} has been closed.
      */
     public VfsRoot open(final ModuleReference moduleReference) throws IOException {
         Assert.notNull(moduleReference, "moduleReference");
@@ -911,44 +772,33 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Open a module of the boot {@link ModuleLayer} by name, e.g. {@code "java.logging"}.
-     *
-     * <p>
-     * This reads a module that the JVM has already resolved, whether it came from the runtime image, from the
-     * module path, or from an automatic module on the classpath.
+     * Open a module in the {@linkplain ModuleLayer#boot() boot layer} by name (e.g. {@code "java.logging"}).
      *
      * @param moduleName
-     *            the name of the module to open.
-     * @return the opened root.
+     *            the module name.
+     * @return the opened {@link VfsRoot}.
      * @throws NoSuchFileException
-     *             if the boot layer has no module of that name.
+     *             if no module with {@code moduleName} exists in the boot layer.
      * @throws IOException
-     *             if this {@link Vfs} has been closed. The module itself is not opened until its entries are listed
-     *             or read.
+     *             if this {@link Vfs} has been closed.
      */
     public VfsRoot openModule(final String moduleName) throws IOException {
         return openModule(moduleName, ModuleLayer.boot());
     }
 
     /**
-     * Open a module of a given {@link ModuleLayer} by name.
-     *
-     * <p>
-     * The layer's own modules are searched first, then the modules of its parent layers, in the order
-     * {@link java.lang.module.Configuration#findModule(String)} searches them: depth-first, so the first parent and
-     * all of its ancestors are searched before the second parent. The first module found with the given name wins,
-     * which is the module the JVM resolves that name to in that layer.
+     * Open a module in the given {@link ModuleLayer} (or its parent layers, searched in
+     * {@link java.lang.module.Configuration#findModule(String)} order) by name.
      *
      * @param moduleName
-     *            the name of the module to open.
+     *            the module name.
      * @param layer
-     *            the layer to resolve the name in.
-     * @return the opened root.
+     *            the module layer to search.
+     * @return the opened {@link VfsRoot}.
      * @throws NoSuchFileException
-     *             if neither the layer nor any of its ancestors has a module of that name.
+     *             if no module with {@code moduleName} exists in {@code layer} or its parent layers.
      * @throws IOException
-     *             if this {@link Vfs} has been closed. The module itself is not opened until its entries are listed
-     *             or read.
+     *             if this {@link Vfs} has been closed.
      */
     public VfsRoot openModule(final String moduleName, final ModuleLayer layer) throws IOException {
         Assert.notNull(moduleName, "moduleName");
@@ -963,22 +813,17 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Open a jarfile read from an {@link InputStream}. The stream is read to the end, into RAM, or into a temporary
-     * file if it is longer than {@link VfsSpec#getMaxBufferedJarRAMSize()}, since a zipfile's central directory is
-     * at the end of the file and so cannot be reached by reading forwards.
-     *
-     * <p>
-     * Unlike the other {@code open} methods, this one does not cache what it opens, since each call reads a
-     * different stream.
+     * Open a jarfile from an {@link InputStream}. The stream is buffered into RAM, or spilled to a temporary file
+     * if larger than {@link VfsSpec#getMaxBufferedJarRAMSize()}. The returned root is not cached, and {@code
+     * inputStream} is not closed by this method.
      *
      * @param inputStream
-     *            the stream to read the jarfile from. The caller retains ownership of the stream, and this method
-     *            does not close it.
+     *            the stream containing the jarfile bytes.
      * @param name
-     *            a name for the jarfile, which is used in log messages and in the paths of its entries.
-     * @return the opened root.
+     *            the logical name for the jarfile, used in entry paths and log messages.
+     * @return the opened {@link VfsRoot}.
      * @throws IOException
-     *             if the jarfile could not be read, or if this {@link Vfs} has been closed.
+     *             if the jarfile cannot be read, or if this {@link Vfs} has been closed.
      */
     public VfsRoot open(final InputStream inputStream, final String name) throws IOException {
         Assert.notNull(inputStream, "inputStream");
@@ -990,20 +835,15 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Open a jarfile held in a byte array.
-     *
-     * <p>
-     * Unlike the other {@code open} methods, this one does not cache what it opens, since each call may be given
-     * different bytes.
+     * Open a jarfile from a byte array. The returned root is not cached, and {@code jarBytes} is not modified.
      *
      * @param jarBytes
-     *            the bytes of the jarfile. The caller retains ownership of the array, and this method does not
-     *            modify it.
+     *            the jarfile bytes.
      * @param name
-     *            a name for the jarfile, which is used in log messages and in the paths of its entries.
-     * @return the opened root.
+     *            the logical name for the jarfile, used in entry paths and log messages.
+     * @return the opened {@link VfsRoot}.
      * @throws IOException
-     *             if the jarfile could not be read, or if this {@link Vfs} has been closed.
+     *             if the jarfile cannot be read, or if this {@link Vfs} has been closed.
      */
     public VfsRoot open(final byte[] jarBytes, final String name) throws IOException {
         Assert.notNull(jarBytes, "jarBytes");
@@ -1018,28 +858,12 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns an iterator over the roots this {@link Vfs} has cached, so that the roots can be iterated directly,
-     * just as the entries of a root can:
+     * Return an iterator over a snapshot of the cached {@link VfsRoot} instances in this {@link Vfs}, sorted by
+     * their reported path. Roots opened from an {@link InputStream} or byte array are not cached and are not
+     * included; enclosing jarfiles opened while resolving nested jarfiles or package roots are included. Returns an
+     * empty iterator if this {@link Vfs} is closed.
      *
-     * <pre>
-     * for (VfsRoot root : vfs) {
-     *     System.out.println(root.getPath());
-     * }
-     * </pre>
-     *
-     * <p>
-     * The roots come back sorted by the path they report themselves at, and each root is reported once, however
-     * many paths it was opened by. A root read from an {@link InputStream} or from a byte array is not included,
-     * since there is no path that names it, so it is not cached: reading the same bytes again builds a new root. A
-     * jarfile that was only opened because a nested jarfile or a package root within it was asked for is included,
-     * since it is a root in its own right, cached under its own path.
-     *
-     * <p>
-     * The iterator is a snapshot taken when this method is called, so a root opened or evicted by another thread
-     * afterwards does not change what it reports. A root that another thread is still opening is not included,
-     * since it is not open yet. A closed {@link Vfs} has nothing cached, so iterating one reports nothing.
-     *
-     * @return an iterator over the roots this {@link Vfs} has cached.
+     * @return an unmodifiable iterator over the cached roots.
      */
     @Override
     public @Unmodifiable Iterator<VfsRoot> iterator() {
@@ -1057,23 +881,12 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Remove a root from the lookup cache of this {@link Vfs}, so that opening the same path again builds a new
-     * root. This is cache invalidation, not resource release or removal from this {@link Vfs}'s ownership.
-     *
-     * <p>
-     * This does not stop the root working. Anything still holding it -- another thread, or another part of the
-     * program that opened the same path and got the same root back -- goes on reading through it exactly as before,
-     * and this {@link Vfs} still tracks it for cleanup. Whatever the root itself owns is released when the root is
-     * closed, which {@link #close()} does to every root this {@link Vfs} has opened, evicted or not; to release a
-     * root's resources now rather than then, close the root instead of evicting it -- see {@link VfsRoot#close()}.
-     *
-     * <p>
-     * To stop retaining a root and release its resources, close it: closing removes both cache and ownership
-     * registrations. Evicting a root that this {@link Vfs} does not have cached, because it was already evicted or
-     * was opened from a stream or a byte array, has no effect.
+     * Remove {@code root} from this {@link Vfs}'s lookup caches so that subsequent {@code open} calls for the same
+     * path or module create a new root. This does not close {@code root}; it remains open and tracked by this
+     * {@link Vfs} until closed directly via {@link VfsRoot#close()} or when this {@link Vfs} is closed.
      *
      * @param root
-     *            the root to remove from the cache.
+     *            the root to evict from the cache.
      */
     public void evict(final VfsRoot root) {
         Assert.notNull(root, "root");
@@ -1089,10 +902,10 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Throw an {@link IOException} if this {@link Vfs} has been closed.
+     * Throw {@link IOException} if this {@link Vfs} has been closed.
      *
      * @param what
-     *            what was being read, for the error message.
+     *            description of the resource being read.
      * @throws IOException
      *             if this {@link Vfs} has been closed.
      */
@@ -1103,8 +916,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Throw an {@link IllegalStateException} if this {@link Vfs} has been closed. This is for the configuration
-     * methods, which cannot throw a checked exception.
+     * Throw {@link IllegalStateException} if this {@link Vfs} has been closed.
      *
      * @throws IllegalStateException
      *             if this {@link Vfs} has been closed.
@@ -1116,32 +928,25 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Returns whether this {@link Vfs} has been closed. Every root it opened is closed with it, so a root of a
-     * closed {@link Vfs} reports itself closed too -- see {@link VfsRoot#isClosed()}.
+     * Return whether this {@link Vfs} has been closed.
      *
-     * @return true if this {@link Vfs} has been closed.
+     * @return {@code true} if this {@link Vfs} has been closed.
      */
     public boolean isClosed() {
         return closed.get();
     }
 
     /**
-     * Returns the settings that govern how this {@link Vfs} reads storage: the {@link VfsSpec} it was constructed
-     * with, or the default settings if it was constructed without one. This is the copy the constructor took, not
-     * the object that was passed in, and its settings cannot be changed: each method that would change one throws
-     * {@link IllegalStateException}.
+     * Return the immutable {@link VfsSpec} configuration used by this {@link Vfs}.
      *
-     * @return the settings that govern how this {@link Vfs} reads storage.
+     * @return the immutable {@link VfsSpec}.
      */
     public VfsSpec getVfsSpec() {
         return vfsSpec;
     }
 
     /**
-     * Returns the interruption checker shared by every thread reading through this {@link Vfs}, so that a thread
-     * that is interrupted while reading stops all the others too, and so that a thread that is making progress
-     * reading, such as downloading a jarfile, can report it, to keep the threads waiting for it from timing out.
-     * Public only because the slice package reports progress through it, and not part of the API.
+     * Return the shared {@link InterruptionChecker} for this {@link Vfs}.
      *
      * @return the interruption checker.
      * @hidden
@@ -1152,10 +957,9 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Returns the pool of {@code Inflater} instances that deflated zip entries read through this {@link Vfs} are
-     * inflated with. Public only because the zip package reads through it, and not part of the API.
+     * Return the {@link Inflater} recycler for this {@link Vfs}.
      *
-     * @return the inflater pool.
+     * @return the inflater recycler.
      * @hidden
      */
     @SuppressWarnings("exports")
@@ -1164,9 +968,9 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Returns the log node.
+     * Return the verbose log node, or {@code null} if logging is not enabled.
      *
-     * @return the log node, or null if not logging.
+     * @return the log node, or {@code null}.
      */
     @Nullable
     LogNode log() {
@@ -1174,36 +978,10 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Release the file handles and memory mappings that back the roots opened by this {@link Vfs}, and delete any
-     * temporary files that were created. Every {@link VfsRoot} and {@link VfsEntry} that was handed out is
-     * invalidated: reading one of them, or an {@link InputStream} that was already open on one of them, throws
-     * {@link IOException}, and reading through a {@link java.nio.file.Path} of one of them throws
-     * {@link java.nio.file.ClosedFileSystemException}. A read that was in flight in another thread when this was
-     * called fails the same way, rather than returning content that was read from a file that has since been
-     * released -- except below JDK 22 on a file that was memory-mapped, which happens only on Windows: such a file
-     * can only be unmapped by freeing its address range, and a read already in progress on it can crash the JVM, so
-     * wait for every thread that reads through this {@link Vfs} to finish before closing it. On JDK 22 and later,
-     * if a read in flight in another thread is in the middle of copying from a file that is memory mapped, this
-     * waits for that copy to finish before it unmaps the file, so this can take as long as the copy does. A
-     * {@link java.nio.ByteBuffer} that {@link VfsEntry#read()} handed out must not be read after this either -- see
-     * {@link CloseableByteBuffer}.
-     *
-     * <p>
-     * Every file that was memory mapped is unmapped before this returns, including one that a
-     * {@link CloseableByteBuffer} or an open channel the caller has not closed is still a view of: each root closes
-     * every buffer it handed out, every stream from {@link VfsEntry#open()}, and every channel opened through its
-     * {@link VfsRoot#asFileSystem()} view, as the step before it releases what it owns, so nothing the caller left
-     * open can hold a mapping or a file handle open past this. That is what lets every temporary file be deleted
-     * here, since some versions of Windows refuse to delete a file while it is mapped (and Windows refuses to
-     * overwrite one). On JDK 22 and later, the one exception is a file whose mapping is still in use by an I/O
-     * operation in another thread as this runs, such as a channel write from a {@link java.nio.ByteBuffer} taken
-     * from a {@link CloseableByteBuffer}: the JDK does not unmap a file while such an operation is in progress, so
-     * that file stays mapped until the JVM exits, and if it is a temporary file, it is left behind. Closing a
-     * {@link Vfs} while a buffer from it is still in use is a bug in the calling code, as with the reads described
-     * above.
-     *
-     * <p>
-     * Closing an already-closed {@link Vfs} has no effect.
+     * Close this {@link Vfs} and all {@link VfsRoot} instances it opened, closing any open streams, channels,
+     * buffers, and filesystem views, releasing all file handles and memory mappings, and deleting any temporary
+     * files. Subsequent reads from any root, entry, stream, or filesystem view opened by this {@link Vfs} will
+     * fail. Calling this method on an already-closed {@link Vfs} has no effect.
      */
     @Override
     public void close() {
@@ -1213,29 +991,22 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Close this {@link Vfs}, logging to the given log node rather than to the one {@link #verbose()} turned on.
-     * This is for callers that write a log of their own, and want what the virtual filesystem logs nested under the
-     * part of it that it belongs to.
-     *
-     * <p>
-     * Unlike {@link #close()}, this does not flush the log node afterwards, since the caller owns the log tree that
-     * it belongs to and flushes it when the whole of it has been written.
+     * Close this {@link Vfs}, logging cleanup messages to {@code logNode} without flushing it.
      *
      * @param logNode
-     *            the log node, or null to not log.
+     *            the log node to log to, or {@code null}.
      */
     public void close(final @Nullable LogNode logNode) {
         doClose(logNode, /* flushLogAfterwards = */ false);
     }
 
     /**
-     * Close this {@link Vfs}, if it is not already closed.
+     * Close this {@link Vfs} if not already closed.
      *
      * @param logNode
-     *            the log node, or null to not log.
+     *            the log node to log to, or {@code null}.
      * @param flushLogAfterwards
-     *            true to flush the log node once the close is complete, which only the caller that owns the log
-     *            node does.
+     *            whether to flush {@code logNode} after closing.
      */
     private void doClose(final @Nullable LogNode logNode, final boolean flushLogAfterwards) {
         // Marked closed atomically, so that a second call (or a concurrent one) returns rather than releasing the

@@ -44,48 +44,43 @@ import io.github.classgraph.classpath.internal.ScanSourceSpec.NamedClasspathEntr
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
 
 /**
- * Finds the classpath elements and modules of the sources that the caller enabled, in the order classes are
- * resolved from them.
+ * Discovers classpath entries and modules from the configured {@link ScanSourceSpec} and {@link ClasspathSpec}.
  */
 public class ClassLoaderProbe {
-    /** The classpath order. */
+    /** The accumulated classpath entries in resolution order. */
     private final ClasspathOrderBuilder classpathOrder;
 
-    /** The {@link ModuleFinder}, if any module layer is being searched. */
+    /** The {@link ModuleFinder}, or null if no module layers are searched. */
     private final @Nullable ModuleFinder moduleFinder;
 
-    /**
-     * The first of the classloaders found in the environment, which is the classloader that is recorded for a
-     * classpath entry that no classloader declared, or null if no classloader was found.
-     */
+    /** The primary environment {@link ClassLoader}, or null if none was found. */
     private final @Nullable ClassLoader defaultClassLoader;
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the classpath order.
+     * Returns the {@link ClasspathOrderBuilder} containing the discovered raw classpath entries.
      *
-     * @return The order of the raw classpath elements, both the ones obtained from classloaders and the ones the
-     *         caller named directly.
+     * @return the {@link ClasspathOrderBuilder}.
      */
     public ClasspathOrderBuilder getClasspathOrder() {
         return classpathOrder;
     }
 
     /**
-     * Get the {@link ModuleFinder}.
+     * Returns the {@link ModuleFinder}, or null if no module layers were searched.
      *
-     * @return The {@link ModuleFinder}, or null if no module layer is being searched.
+     * @return the {@link ModuleFinder}, or null.
      */
     public @Nullable ModuleFinder getModuleFinder() {
         return moduleFinder;
     }
 
     /**
-     * Get the classloader to record for anything that no classloader declared, which is the first of the
-     * classloaders found in the environment: the context classloader of the calling thread, if it has one.
+     * Returns the primary environment {@link ClassLoader} (such as the thread context classloader), or null if none
+     * was found.
      *
-     * @return the classloader, or null if no classloader was found in the environment.
+     * @return the default {@link ClassLoader}, or null.
      */
     public @Nullable ClassLoader getDefaultClassLoader() {
         return defaultClassLoader;
@@ -94,22 +89,15 @@ public class ClassLoaderProbe {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Find the classpath elements and modules of the sources that the caller enabled, reading the call stack of the
-     * calling thread in order to find the classloaders and module layers that the caller can see.
-     *
-     * <p>
-     * Call this only from the thread that asked for the classpath. If the caller has already read its own call
-     * stack -- as ClassGraph has, since it checks the stack for a class loading lock before it starts a scan (#933)
-     * -- then pass that call stack to
-     * {@link #ClassLoaderProbe(CallStackInfo, ClasspathSpec, ScanSourceSpec, LogNode)} instead, rather than walking
-     * the stack a second time.
+     * Discovers classpath entries and modules for the configured sources, reading the call stack of the current
+     * thread.
      *
      * @param classpathSpec
-     *            The {@link ClasspathSpec}.
+     *            the {@link ClasspathSpec}.
      * @param scanSourceSpec
-     *            The places to look for classpath elements and modules.
+     *            the configured classpath and module layer sources.
      * @param log
-     *            The log.
+     *            the log node, or null to skip logging.
      */
     public ClassLoaderProbe(final ClasspathSpec classpathSpec, final ScanSourceSpec scanSourceSpec,
             final @Nullable LogNode log) {
@@ -117,18 +105,17 @@ public class ClassLoaderProbe {
     }
 
     /**
-     * Find the classpath elements and modules of the sources that the caller enabled, using a call stack that has
-     * already been read.
+     * Discovers classpath entries and modules for the configured sources using a pre-captured
+     * {@link CallStackInfo}.
      *
      * @param callStackInfo
-     *            The call stack of the thread that asked for the classpath, which names the classloaders and module
-     *            layers that the caller can see.
+     *            the call stack info of the calling thread.
      * @param classpathSpec
-     *            The {@link ClasspathSpec}.
+     *            the {@link ClasspathSpec}.
      * @param scanSourceSpec
-     *            The places to look for classpath elements and modules.
+     *            the configured classpath and module layer sources.
      * @param log
-     *            The log.
+     *            the log node, or null to skip logging.
      */
     public ClassLoaderProbe(final CallStackInfo callStackInfo, final ClasspathSpec classpathSpec,
             final ScanSourceSpec scanSourceSpec, final @Nullable LogNode log) {
@@ -214,12 +201,12 @@ public class ClassLoaderProbe {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Add the classpath entries that the caller named directly.
+     * Adds classpath entries supplied directly by the caller.
      *
      * @param classpathEntries
-     *            the classpath entries
+     *            the classpath entries.
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or null to skip logging.
      */
     private void addNamedClasspathEntries(final List<?> classpathEntries, final @Nullable LogNode log) {
         final var subLog = log == null ? null
@@ -235,15 +222,14 @@ public class ClassLoaderProbe {
     }
 
     /**
-     * Find the unique classloaders that the given classloaders delegate to, in delegation order. This appends to
-     * the shared classloader order, so a classloader an earlier source already reached is not listed again.
+     * Traverses {@code classLoaders} in delegation order and appends them to {@code classLoaderOrder}.
      *
      * @param classLoaders
-     *            the classloaders to search
+     *            the classloaders to traverse.
      * @param classLoaderOrder
-     *            the classloader order, which is shared by all the classloader sources
+     *            the shared classloader order builder.
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or null to skip logging.
      */
     private static void findClassLoaderOrder(final List<ClassLoader> classLoaders,
             final ClassLoaderOrderBuilder classLoaderOrder, final @Nullable LogNode log) {
@@ -255,18 +241,17 @@ public class ClassLoaderProbe {
     }
 
     /**
-     * Add the classpath entries that each of the given classloaders loads from, using the
-     * {@code ClassLoaderHandler} registered for the classloader.
+     * Extracts classpath entries from each classloader in {@code handledClassLoaders} using its selected
+     * {@link ClassLoaderHandler} instances.
      *
      * @param handledClassLoaders
-     *            the classloaders that one classloader source added to the classloader order, in delegation order,
-     *            with the handlers to run for each
+     *            the classloaders and their selected handlers.
      * @param classpathSpec
-     *            the {@link ClasspathSpec}
+     *            the {@link ClasspathSpec}.
      * @param allParentClassLoaders
-     *            every classloader that any classloader source reached as the parent of another
+     *            all classloaders reached as parent classloaders.
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or null to skip logging.
      */
     private void addClassLoaderClasspathEntries(
             final List<ClassLoaderOrderBuilder.HandledClassLoader> handledClassLoaders,

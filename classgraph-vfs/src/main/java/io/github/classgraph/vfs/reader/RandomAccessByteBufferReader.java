@@ -40,49 +40,35 @@ import org.jspecify.annotations.Nullable;
 import io.github.classgraph.base.internal.utils.StringUtils;
 
 /**
- * {@link RandomAccessReader} for a {@link ByteBuffer}. Reads in <b>little endian</b> order by default, as required
- * by the zipfile format, which is what this reader was written for; pass a {@link ByteOrder} to read content
- * written in the other order. The byte order of the buffer that is passed in is not consulted and is not changed --
- * this reader duplicates the buffer and sets the order on the duplicate -- since the order the bytes were written
- * in is a property of the content rather than of the buffer holding it. See {@link RandomAccessReader} for why that
- * is not the byte order of the machine either.
+ * {@link RandomAccessReader} backed by a slice of a {@link ByteBuffer}. Defaults to {@link ByteOrder#LITTLE_ENDIAN}
+ * (operating on a read-only duplicate without modifying the original buffer's position, limit, or byte order).
  *
  * <p>
- * The buffer may be a view of storage that can be released while this reader is in use, such as a memory mapping of
- * a file that is then released. Reading released storage fails with an {@link IOException}, the same documented way
- * as reading from a closed {@link java.nio.channels.FileChannel}, whichever way the JDK releases it: on JDK 22 and
- * later the storage belongs to an arena, and once the arena is closed, reading the buffer throws
- * {@link IllegalStateException}, which is translated here; below JDK 22 the address range is simply freed, and
- * reading the buffer afterwards would read memory that is no longer mapped. So a check passed to
- * {@link #RandomAccessByteBufferReader(ByteBuffer, long, long, ByteOrder, BooleanSupplier)} is asked before each
- * read of the buffer whether the storage has been released. (A bulk read of zero bytes, or into a full destination,
- * returns 0 without reading the buffer, so it does not ask.)
+ * If the buffer views memory that has been released (such as a closed {@code java.lang.foreign.Arena} or a buffer
+ * whose {@code isReleased} supplier returns {@code true}), reads throw {@link IOException}.
  */
 public final class RandomAccessByteBufferReader implements RandomAccessReader {
-    /** The byte buffer. */
+    /** Read-only duplicate of the backing byte buffer. */
     private final ByteBuffer byteBuffer;
 
-    /** The index within the buffer at which the content starts. */
+    /** The start index of the slice within the buffer. */
     private final int sliceStartPos;
 
-    /** The number of bytes of content. */
+    /** The length of the slice in bytes. */
     private final int sliceLength;
 
-    /**
-     * Whether the storage this reader's buffer is a view of has been released, or null if the buffer is not a view
-     * of anything that can be released while this reader is alive.
-     */
+    /** Optional supplier returning true if the underlying storage has been released. */
     private final @Nullable BooleanSupplier isReleased;
 
     /**
-     * Constructor for slicing a byte buffer, reading in little endian order, as the zipfile format requires.
+     * Construct a little-endian reader over a slice of a {@link ByteBuffer}.
      *
      * @param byteBuffer
-     *            the buffer to read. Its position, limit and byte order are ignored.
+     *            the buffer to read (its position, limit, and byte order are ignored).
      * @param sliceStartPos
-     *            the index within the buffer at which the content starts.
+     *            the start index of the slice within the buffer.
      * @param sliceLength
-     *            the number of bytes of content.
+     *            the length of the slice in bytes.
      * @throws IndexOutOfBoundsException
      *             if the slice is not within the buffer's capacity.
      */
@@ -92,17 +78,16 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
     }
 
     /**
-     * Constructor for slicing a byte buffer, reading in a given byte order.
+     * Construct a reader over a slice of a {@link ByteBuffer} with the specified byte order.
      *
      * @param byteBuffer
-     *            the buffer to read. Its position, limit and byte order are ignored.
+     *            the buffer to read (its position, limit, and byte order are ignored).
      * @param sliceStartPos
-     *            the index within the buffer at which the content starts.
+     *            the start index of the slice within the buffer.
      * @param sliceLength
-     *            the number of bytes of content.
+     *            the length of the slice in bytes.
      * @param byteOrder
-     *            the byte order to read multi-byte values in. Pass {@link ByteOrder#nativeOrder()} for content
-     *            written in the byte order of the machine this is running on.
+     *            the byte order for multi-byte values.
      * @throws IndexOutOfBoundsException
      *             if the slice is not within the buffer's capacity.
      */
@@ -112,22 +97,18 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
     }
 
     /**
-     * Constructor for slicing a byte buffer that is a view of storage that can be released, reading in a given byte
-     * order.
+     * Construct a reader over a slice of a {@link ByteBuffer} with the specified byte order and release check.
      *
      * @param byteBuffer
-     *            the buffer to read. Its position, limit and byte order are ignored.
+     *            the buffer to read (its position, limit, and byte order are ignored).
      * @param sliceStartPos
-     *            the index within the buffer at which the content starts.
+     *            the start index of the slice within the buffer.
      * @param sliceLength
-     *            the number of bytes of content.
+     *            the length of the slice in bytes.
      * @param byteOrder
-     *            the byte order to read multi-byte values in. Pass {@link ByteOrder#nativeOrder()} for content
-     *            written in the byte order of the machine this is running on.
+     *            the byte order for multi-byte values.
      * @param isReleased
-     *            whether the storage the buffer is a view of has been released, which is asked before each read of
-     *            the buffer, so that a read after the release throws {@link IOException}; or null if the storage
-     *            cannot be released while this reader is in use.
+     *            supplier returning true if the underlying storage has been released, or null if not applicable.
      * @throws IndexOutOfBoundsException
      *             if the slice is not within the buffer's capacity.
      */
@@ -160,16 +141,15 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
     }
 
     /**
-     * Check that the file can still be read, and that a read stays within the slice, so that it cannot read the
-     * bytes that surround the slice in the buffer. (A zipfile can ask for a read at any offset, since offsets are
-     * read from the zipfile itself.)
+     * Verify that the underlying storage is still open and that a read of {@code numBytes} at {@code offset} lies
+     * within the slice.
      *
      * @param offset
-     *            the offset to read from, relative to the start of the slice
+     *            the offset relative to the start of the slice.
      * @param numBytes
-     *            the number of bytes to read
+     *            the number of bytes to read.
      * @throws IOException
-     *             if the file has been released, or the read would run past either end of the slice
+     *             if the underlying storage has been released or the range is out of bounds.
      */
     private void checkReadable(final long offset, final int numBytes) throws IOException {
         // A reader is not closed by anything, so this check is what stops a reader that outlived the close of its
@@ -185,29 +165,28 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
     }
 
     /**
-     * Wrap the {@link IllegalStateException} thrown by reading a buffer that aliases a memory mapping whose arena
-     * has been closed.
+     * Wrap an {@link IllegalStateException} thrown when accessing a closed memory-mapped arena in an
+     * {@link IOException}.
      *
      * @param e
-     *            the exception thrown by the buffer access
-     * @return the {@link IOException} to throw in its place
+     *            the exception thrown by the buffer access.
+     * @return the wrapping {@link IOException}.
      */
     private static IOException unmapped(final IllegalStateException e) {
         return new IOException("Cannot read a file that has been unmapped by closing what it was read through", e);
     }
 
     /**
-     * The number of bytes a bulk read starting at the given offset can transfer, which is the number asked for, cut
-     * down to what is left of the slice.
+     * Returns the number of bytes available for a bulk read of up to {@code numBytes} starting at
+     * {@code srcOffset}.
      *
      * @param srcOffset
-     *            the offset to read from, relative to the start of the slice, which the caller has checked is not
-     *            negative.
+     *            the non-negative offset relative to the start of the slice.
      * @param numBytes
-     *            the number of bytes asked for, which the caller has checked is not negative.
-     * @return the number of bytes that can be read, which is zero at or past the end of the slice.
+     *            the non-negative number of bytes requested.
+     * @return the number of bytes available (0 if at or past the end of the slice).
      * @throws IOException
-     *             if the file has been released.
+     *             if the underlying storage has been released.
      */
     private int numBytesAvailable(final long srcOffset, final int numBytes) throws IOException {
         if (isReleased != null && isReleased.getAsBoolean()) {

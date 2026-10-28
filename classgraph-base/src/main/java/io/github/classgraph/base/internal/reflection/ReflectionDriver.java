@@ -49,35 +49,26 @@ import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A driver that performs the reflective operations ClassGraph needs, using whichever reflection mechanism is
- * available and least restricted in the current runtime.
+ * Base class for reflection drivers.
  */
 abstract class ReflectionDriver {
-    /**
-     * Caches the methods and fields of each class that has been reflected on and can never be unloaded, as decided
-     * by {@link #classMembers(Class)}. No driver's {@link #getDeclaredMethods(Class)} or
-     * {@link #getDeclaredFields(Class)} reflects on a class through this cache, so building an entry can never
-     * recursively update the map.
-     */
+    /** Cache of indexed methods and fields for classes that cannot be unloaded. */
     private final Map<Class<?>, ClassMembers> classToClassMembers = new ConcurrentHashMap<>();
 
-    /** Only the drivers in this package can extend this class. */
+    /** Constructor. */
     ReflectionDriver() {
         // Empty
     }
 
     /**
-     * Rethrow a {@link VirtualMachineError}, such as {@link OutOfMemoryError} or {@link StackOverflowError}, as
-     * itself, including one that a reflective call wrapped in an {@link InvocationTargetException}. Such an error
-     * says that the JVM is failing, not that a member could not be read or a class could not be loaded, so a caller
-     * that turns failures into null or into a skipped member must call this first: otherwise a classloader handler
-     * would take the null to mean that the classloader has no classpath, and the scan would silently miss its
-     * classpath entries.
+     * Rethrow {@code throwable} (or its root cause if wrapped in {@link InvocationTargetException}) if it is a
+     * {@link VirtualMachineError}.
      *
      * @param throwable
      *            the throwable that was caught.
      * @throws VirtualMachineError
-     *             if the throwable is one, or is a chain of {@link InvocationTargetException} that wraps one.
+     *             if the throwable is a {@link VirtualMachineError} or wraps one in
+     *             {@link InvocationTargetException}.
      */
     static void rethrowIfVirtualMachineError(final Throwable throwable) throws VirtualMachineError {
         @Nullable
@@ -138,11 +129,7 @@ abstract class ReflectionDriver {
         }
 
         /**
-         * Cache the declared methods and fields of a class or interface. Methods and fields are read separately, so
-         * that if one of the two cannot be read, the other is still cached. {@link LinkageError} is caught as well
-         * as {@link Exception}, since {@link Class#getDeclaredMethods()} throws {@link NoClassDefFoundError} if a
-         * method names a class that cannot be loaded. A {@link VirtualMachineError} is not skipped, including one
-         * that the Narcissus driver receives wrapped in an {@link InvocationTargetException}.
+         * Cache the declared methods and fields of a class or interface.
          *
          * @param cls
          *            the class or interface to cache the declared members of
@@ -167,7 +154,7 @@ abstract class ReflectionDriver {
         }
 
         /**
-         * Add a method to the cache. Methods are not masked by name, since methods can be overloaded.
+         * Add a method to the cache.
          *
          * @param method
          *            the method to cache
@@ -190,18 +177,8 @@ abstract class ReflectionDriver {
     }
 
     /**
-     * Get the methods and fields of a class, which are cached if the class can never be unloaded, and read again on
-     * each call otherwise.
-     *
-     * <p>
-     * A class can never be unloaded if it belongs to a named module of the boot layer -- one of the JDK's own
-     * modules, or a module on the application's module path -- and is not a hidden class. No other class may be
-     * cached: there is one driver for the whole JVM, so a cached class would stay reachable from a static field for
-     * as long as ClassGraph is loaded, and so would the classloader that defined it, with every class that
-     * classloader defined. A webapp's or a plugin's own classloader, which ClassGraph reads by reflection, would
-     * then never be unloaded when ClassGraph is loaded by one of its parents, as it is in an application server's
-     * shared lib directory. Reading the members of such a class again costs tens of microseconds per lookup, and
-     * only happens while a classloader is being read.
+     * Return the indexed methods and fields of {@code cls}, caching the result only if {@code cls} belongs to the
+     * boot module layer and is not hidden.
      *
      * @param cls
      *            the class
@@ -225,19 +202,12 @@ abstract class ReflectionDriver {
     abstract Class<?> findClass(final String className) throws Exception;
 
     /**
-     * Find a class by name in a given classloader, without initializing it.
-     *
-     * <p>
-     * Use this rather than {@link #findClass(String)} for a class that belongs to the environment being examined
-     * rather than to ClassGraph, such as a class of a servlet container: ClassGraph's own classloader is not
-     * necessarily one that the container's classes are visible to. The class is not initialized, since finding out
-     * what is on the classpath must not run the environment's code -- any later reflective call on the class
-     * initializes it at that point, as it would have to anyway.
+     * Find a class by name in {@code classLoader} without initializing it.
      *
      * @param className
      *            the class name
      * @param classLoader
-     *            the classloader to find the class in, or null to use the bootstrap classloader
+     *            the classloader to find the class in, or {@code null} to use the bootstrap classloader
      * @return the class reference
      * @throws Exception
      *             if the class could not be found or loaded
@@ -270,13 +240,12 @@ abstract class ReflectionDriver {
     abstract Field[] getDeclaredFields(Class<?> cls) throws Exception;
 
     /**
-     * Check that a field or method is not static, so that it can be passed to an operation that needs an object
-     * instance to act on.
+     * Check that a field or method is not static.
      *
      * @param member
      *            the field or method
      * @param alternative
-     *            the name of the operation the caller should have used instead
+     *            the name of the static operation to suggest in the exception message
      * @throws IllegalArgumentException
      *             if the member is static
      */
@@ -288,13 +257,12 @@ abstract class ReflectionDriver {
     }
 
     /**
-     * Check that a field or method is static, so that it can be passed to an operation that acts on a class rather
-     * than on an object instance.
+     * Check that a field or method is static.
      *
      * @param member
      *            the field or method
      * @param alternative
-     *            the name of the operation the caller should have used instead
+     *            the name of the non-static operation to suggest in the exception message
      * @throws IllegalArgumentException
      *             if the member is not static
      */
@@ -305,13 +273,7 @@ abstract class ReflectionDriver {
     }
 
     /**
-     * Get the value of a non-static field, boxing the value if necessary.
-     *
-     * <p>
-     * The six member-access operations are final, and check that the field or method they are passed is of the kind
-     * they act on before handing it to the driver, so that every driver rejects a mismatched member in the same
-     * way. Without the check the drivers disagree: JNI rejects a static member passed to a non-static operation,
-     * whereas {@link Method#invoke(Object, Object...)} silently ignores the receiver.
+     * Get the value of a non-static field, boxing primitive values if necessary.
      *
      * @param object
      *            the object instance to get the field value from
@@ -503,14 +465,13 @@ abstract class ReflectionDriver {
     abstract boolean makeAccessible(final @Nullable Object instance, final AccessibleObject fieldOrMethod);
 
     /**
-     * Get the instance to check accessibility against for a given field or method: the object instance for a
-     * non-static member, or null for a static member, since {@link AccessibleObject#canAccess(Object)} requires
-     * null for a static member and throws {@link IllegalArgumentException} if it is passed an object instance.
+     * Return {@code null} if {@code member} is static, or {@code obj} otherwise, as required by
+     * {@link AccessibleObject#canAccess(Object)}.
      *
      * @param member
      *            the field or method.
      * @param obj
-     *            the object instance, or null.
+     *            the object instance, or {@code null}.
      * @return the instance to check accessibility against.
      */
     private static @Nullable Object accessInstance(final Member member, final @Nullable Object obj) {
@@ -520,15 +481,12 @@ abstract class ReflectionDriver {
     /**
      * Check whether a field or method is accessible.
      *
-     * <p>
-     * N.B. this is overridden in Narcissus driver to just return true, since everything is accessible to JNI.
-     *
      * @param instance
-     *            the object instance, or null if static.
+     *            the object instance, or {@code null} if static.
      * @param fieldOrMethod
      *            the field or method.
      *
-     * @return true if accessible.
+     * @return {@code true} if accessible.
      */
     boolean isAccessible(final @Nullable Object instance, final AccessibleObject fieldOrMethod) {
         try {
@@ -540,18 +498,17 @@ abstract class ReflectionDriver {
     }
 
     /**
-     * Get the field of the class that has a given field name, whether static or not.
+     * Find a field by name in {@code cls} or its supertypes, making it accessible if necessary.
      *
      * @param cls
      *            the class.
      * @param obj
-     *            the object instance, or null if there is none. This is only used to check accessibility, and is
-     *            ignored if the field turns out to be static.
+     *            the target instance for accessibility checks, or {@code null} if none.
      * @param fieldName
      *            The name of the field.
-     * @return The {@link Field} object for the requested field name (never null).
+     * @return The {@link Field} object for the requested field name.
      * @throws Exception
-     *             if the field could not be found, or could not be made accessible
+     *             if the field could not be found or made accessible
      */
     Field findField(final Class<?> cls, final @Nullable Object obj, final String fieldName) throws Exception {
         final var field = classMembers(cls).fieldNameToField.get(fieldName);
@@ -567,13 +524,13 @@ abstract class ReflectionDriver {
     }
 
     /**
-     * Get the static field of the class that has a given field name.
+     * Find a static field by name in {@code cls} or its supertypes, making it accessible if necessary.
      *
      * @param cls
      *            the class.
      * @param fieldName
      *            The name of the field.
-     * @return The {@link Field} object for the requested field name (never null).
+     * @return The {@link Field} object for the requested field name.
      * @throws Exception
      *             if the field could not be found, could not be made accessible, or is not static
      */
@@ -586,20 +543,20 @@ abstract class ReflectionDriver {
     }
 
     /**
-     * Get a method by name and parameter types, whether static or not.
+     * Find a method by name and parameter types in {@code cls} or its supertypes, making it accessible if
+     * necessary.
      *
      * @param cls
      *            the class.
      * @param obj
-     *            the object instance, or null if there is none. This is only used to check accessibility, and is
-     *            ignored if the method turns out to be static.
+     *            the target instance for accessibility checks, or {@code null} if none.
      * @param methodName
      *            The name of the method.
      * @param paramTypes
-     *            The types of the parameters of the method. For primitive-typed parameters, use e.g. Integer.TYPE.
-     * @return The {@link Method} object for the matching method (never null).
+     *            The parameter types of the method.
+     * @return The {@link Method} object for the matching method.
      * @throws Exception
-     *             if the method could not be found, or could not be made accessible.
+     *             if the method could not be found or made accessible.
      */
     Method findMethod(final Class<?> cls, final @Nullable Object obj, final String methodName,
             final Class<?>... paramTypes) throws Exception {

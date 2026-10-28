@@ -98,20 +98,18 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     }
 
     /**
-     * Look up a type variable (e.g. "T") in the type parameters of the method whose signature it is part of, then
-     * in those of the class it is used in, then, if that class is an inner member class, in those of the classes it
-     * is nested in, and return the type parameter with the same name (e.g. "T extends com.xyz.Cls").
+     * Resolve this type variable (e.g. {@code "T"}) against the type parameters of the declaring method, the
+     * containing class, or its enclosing non-static member classes, and return the matching {@link TypeParameter}
+     * (e.g. {@code "T extends com.xyz.Cls"}).
      *
      * <p>
-     * The search stops at a local or anonymous class, so a type variable declared by the method or constructor that
-     * such a class is declared in, or by a class enclosing it, is not found. (The classfile records the name and
-     * descriptor of that method, but ClassGraph does not look up its type parameters, or whether it is static.)
+     * Resolution stops at local or anonymous classes, so type parameters declared by a method or constructor
+     * enclosing a local or anonymous class are not resolved.
      *
-     * @return the type parameter (e.g. "T extends com.xyz.Cls", or simply "T" if the type parameter does not have
-     *         any bounds). If no type parameter of the same name is found, an unbounded type parameter with just
-     *         the type variable's name is returned.
+     * @return the resolved {@link TypeParameter}, or an unbounded {@link TypeParameter} with this type variable's
+     *         name if no matching type parameter is found.
      * @throws IllegalStateException
-     *             if the class that the type variable is used in was not found during the scan.
+     *             if the containing class was not found in the scan result.
      */
     // #706
     public TypeParameter resolve() {
@@ -301,13 +299,10 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     }
 
     /**
-     * Get the class name of the erasure of this type variable, which is the erasure of its leftmost bound (JLS
-     * 4.6), e.g. "java.lang.Number" for {@code T extends Number}, and "java.lang.Comparable" for
-     * {@code U extends Comparable<U>}.
+     * Get the class name of the erasure of this type variable (the erasure of its leftmost bound, JLS 4.6).
      *
-     * @return the class name of the erasure of this type variable, or "java.lang.Object" if the type variable has
-     *         no bound, cannot be resolved, or has bounds that form a cycle, or if its leftmost bound is an array
-     *         type, which Java source cannot declare and only a hand-written classfile can contain.
+     * @return the erased class name, or {@code "java.lang.Object"} if the type variable is unbounded or cannot be
+     *         resolved to a class bound.
      */
     String getErasedClassName() {
         var typeVariableSignature = this;
@@ -369,11 +364,13 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     }
 
     /**
-     * Two type variables are equal if they have the same name and type annotations, are used in the same class, and
-     * are either both declared by the method whose signature they are part of, or both not. So the {@code T} of a
-     * method that declares {@code <T>} does not equal a {@code T} declared by the class, but the {@code T}s of two
-     * methods that each declare {@code <T>} are equal, as are the signatures of {@code <T> void a(T t)} and
-     * {@code <T> void b(T t)}, even though the two {@code T}s may have different bounds.
+     * Test whether this type variable is equal to another object. Two {@link TypeVariableSignature} instances are
+     * equal if they have the same name, type annotations, defining class name, and whether they are declared by a
+     * method rather than a class.
+     *
+     * @param obj
+     *            the object to compare with.
+     * @return true if the objects are equal.
      */
     @Override
     public boolean equals(final @Nullable Object obj) {
@@ -399,8 +396,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      * @param other
      *            the other type signature to compare to, or null.
      * @param visited
-     *            the names of the type variables whose bounds are already being compared, so that a chain of type
-     *            variable bounds that loops back on itself is not followed forever, or null if none are.
+     *            the names of type variables already visited while following bounds, or null.
      * @return true if the two type signatures are equal, ignoring type parameters.
      */
     private boolean equalsIgnoringTypeParams(final @Nullable TypeSignature other,

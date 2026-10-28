@@ -35,8 +35,8 @@ import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.classpath.ClassLoaderOrder;
 
 /**
- * Finds the classloader delegation order of the {@code ClassRealm} classloader of Plexus ClassWorlds, which Maven
- * uses to load plugins.
+ * Extracts the classloader delegation order and classpath entries from the Plexus ClassWorlds {@code ClassRealm}
+ * classloader.
  *
  * @author Luke Hutchison
  */
@@ -56,11 +56,12 @@ class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandle
     }
 
     /**
-     * Check whether a {@code ClassRealm} uses a parent-first strategy.
+     * Checks whether a {@code ClassRealm} uses a parent-first delegation strategy.
      *
      * @param classRealmInstance
-     *            the ClassRealm instance
-     * @return true if the ClassRealm uses a parent-first strategy, or if its strategy could not be read
+     *            the {@code ClassRealm} instance.
+     * @return {@code true} if the {@code ClassRealm} uses a parent-first strategy, or if its strategy could not be
+     *         read.
      */
     private boolean isParentFirstStrategy(final ClassLoader classRealmInstance) {
         final var strategy = ReflectionUtils.getFieldVal(false, classRealmInstance, "strategy");

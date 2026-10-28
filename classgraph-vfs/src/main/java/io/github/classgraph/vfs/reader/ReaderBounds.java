@@ -31,35 +31,26 @@ package io.github.classgraph.vfs.reader;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-/** Bounds checks that every {@link RandomAccessReader} does the same way. */
+/** Bounds checks shared by {@link RandomAccessReader} implementations. */
 final class ReaderBounds {
     /** Not instantiable. */
     private ReaderBounds() {
     }
 
     /**
-     * Check the arguments of a bulk read, and return the number of bytes it has room to write, given the size of
-     * the destination and the offset it was asked to start writing at. A bulk read calls this before anything else,
-     * including before it returns zero for a read of zero bytes or into a full destination, so that a bad argument
-     * is reported even when the read would copy nothing.
+     * Validate bulk read arguments and return the number of bytes available to write in the destination.
      *
      * @param srcOffset
-     *            the offset to start reading from.
+     *            the source offset to start reading from.
      * @param dstSize
-     *            the number of bytes the destination can be written to -- the length of an array, or the limit of a
-     *            buffer. The limit, not the capacity: an absolute {@link ByteBuffer} transfer is bounded by the
-     *            limit, and a caller that lowered it did so to say that the bytes past it are not to be written.
+     *            the writable size of the destination (array length or buffer limit).
      * @param dstStart
-     *            the offset within the destination to start writing at.
+     *            the destination start index.
      * @param numBytes
      *            the maximum number of bytes to read.
-     * @return the number of bytes free at that offset, which is zero if the destination is full there.
+     * @return the number of writable bytes remaining in the destination starting at {@code dstStart}.
      * @throws IOException
-     *             if the source offset or the number of bytes is negative, or if the destination offset is not
-     *             within the destination. A caller that passed a bad destination offset cannot be told how many
-     *             bytes are free at it, and a negative number of bytes is usually an overflow in the caller's
-     *             length arithmetic. Reporting zero for either would stop the caller's copy loop as if the
-     *             destination were merely full.
+     *             if {@code srcOffset} or {@code numBytes} is negative, or {@code dstStart} is out of bounds.
      */
     static int numBytesFree(final long srcOffset, final int dstSize, final int dstStart, final int numBytes)
             throws IOException {
@@ -70,20 +61,20 @@ final class ReaderBounds {
     }
 
     /**
-     * Check the arguments of a bulk read into a {@link ByteBuffer}, as {@link #numBytesFree(long, int, int, int)}
-     * does, and also check that the destination is not read-only.
+     * Validate bulk read arguments for a {@link ByteBuffer} destination and return the number of bytes available up
+     * to the buffer's limit.
      *
      * @param srcOffset
-     *            the offset to start reading from.
+     *            the source offset to start reading from.
      * @param dstBuf
-     *            the destination, whose limit bounds the room to write.
+     *            the destination buffer.
      * @param dstBufStart
-     *            the index within the destination to start writing at.
+     *            the destination start index.
      * @param numBytes
      *            the maximum number of bytes to read.
-     * @return the number of bytes free at that index, which is zero if the destination is full there.
+     * @return the number of writable bytes remaining up to {@code dstBuf.limit()} starting at {@code dstBufStart}.
      * @throws IOException
-     *             if the destination is read-only, or if any argument is out of bounds.
+     *             if {@code dstBuf} is read-only or any argument is out of bounds.
      */
     static int numBytesFree(final long srcOffset, final ByteBuffer dstBuf, final int dstBufStart,
             final int numBytes) throws IOException {

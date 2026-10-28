@@ -72,8 +72,7 @@ abstract sealed class AcceptReject {
     }
 
     /**
-     * Create a copy of another set of accept and reject criteria, which can then be changed without changing the
-     * original. The compiled patterns are shared, since a {@link Pattern} is immutable.
+     * Create a copy of another set of accept and reject criteria.
      *
      * @param other
      *            The criteria to copy.
@@ -89,34 +88,26 @@ abstract sealed class AcceptReject {
     /**
      * Copy these criteria.
      *
-     * @return a copy of these criteria, of the same class, which can be changed without changing this object.
+     * @return a copy of these criteria.
      */
     public abstract AcceptReject copy();
 
     /**
      * Convert a glob to a regexp {@link Pattern}, where {@code '*'} matches zero or more characters within a single
-     * package or path segment, i.e. does not span {@link #separatorChar}, {@code "**"} matches zero or more whole
-     * segments, and {@code '?'} matches exactly one character other than {@link #separatorChar}. Any number of
-     * wildcards may be used in a single glob, and any other character is matched literally.
-     *
-     * <p>
-     * As the final segment of an accept or reject criterion, {@code "**"} means "and everything below", which is
-     * already the default for {@code ClassGraph#acceptPackages(String...)} and friends, so it is stripped by the
-     * caller before the glob reaches this method. In any other position, {@code "**"} must form a complete segment,
-     * and matches zero or more whole segments, e.g. {@code "com.**.impl"} matches {@code com.impl},
-     * {@code com.a.impl} and {@code com.a.b.impl}.
+     * package or path segment (not spanning {@link #separatorChar}), {@code "**"} as a complete segment matches
+     * zero or more whole segments, and {@code '?'} matches one character other than {@link #separatorChar}.
      *
      * @param glob
      *            the glob
      * @param separatorChar
      *            the package or path separator character
      * @param prefixMatch
-     *            if true, the pattern matches any string <i>starting with</i> a string matching the glob, rather
-     *            than requiring a whole-string match
+     *            if true, match any string starting with a match for the glob rather than requiring a whole-string
+     *            match
      * @return the pattern
      * @throws IllegalArgumentException
-     *             if {@code "**"} is used without forming a complete package or path segment, e.g.
-     *             {@code "com.a**b.impl"}
+     *             if {@code "**"} is used without forming a complete package or path segment (e.g.
+     *             {@code "com.a**b.impl"})
      */
     // #643, #870, #940
     public static Pattern globToPattern(final String glob, final char separatorChar, final boolean prefixMatch) {
@@ -193,10 +184,7 @@ abstract sealed class AcceptReject {
     }
 
     /**
-     * Strip a trailing {@code "**"} segment from a normalized package name or path, if present. A trailing
-     * {@code "**"} means "and everything below", which is what the recursive accept/reject methods already do, so
-     * it can simply be removed. {@code "**"} in any other position matches zero or more whole segments (see
-     * {@link #globToPattern(String, char, boolean)}).
+     * Strip a trailing {@code "**"} segment from a normalized package name or path, if present.
      *
      * @param packageOrPath
      *            the normalized package name or path
@@ -428,19 +416,10 @@ abstract sealed class AcceptReject {
         /** The reject criteria that contain no wildcard. */
         private final Set<String> reject;
 
-        /**
-         * Each accepted string that contains no wildcard, and each of its ancestors, with a final separator, and
-         * the part of each accepted glob before the separator that precedes its first wildcard, and each of its
-         * ancestors. The empty string and the separator on its own, which both name the root, are added along with
-         * the first accept criterion. This is so that {@link #acceptHasPrefix(String)} can answer with one lookup,
-         * rather than by testing every accept criterion, since there may be a very large number of them (#338).
-         */
+        /** Ancestor prefixes of accepted literal strings and globs, ending with {@link #separatorChar}. */
         private final Set<String> acceptAncestors;
 
-        /**
-         * Patterns matching each ancestor of an accepted glob that itself contains a wildcard, which cannot be
-         * listed in {@link #acceptAncestors}. (#870, #643)
-         */
+        /** Patterns matching ancestor prefixes of accepted globs that contain wildcards. */
         private final List<Pattern> acceptAncestorPatterns = new ArrayList<>();
 
         /**
@@ -493,9 +472,7 @@ abstract sealed class AcceptReject {
         }
 
         /**
-         * Create a set to store literal (non-glob) criteria in, which ignores case if this criterion does. The
-         * criteria are stored with the spelling they were given, so that {@link #toString()} reports back what the
-         * caller asked for.
+         * Create a set for storing literal (non-glob) criteria.
          *
          * @return a new empty set.
          */
@@ -597,10 +574,7 @@ abstract sealed class AcceptReject {
     }
 
     /**
-     * Accept and reject criteria that match the leafname of a path, i.e. a filename. Criteria are matched ignoring
-     * case, since two filenames differing only in case name the same file on a filesystem that ignores case, and a
-     * criterion should not mean something different depending on the filesystem the classpath happens to be stored
-     * on.
+     * Accept and reject criteria that match path leafnames (case-insensitively).
      */
     public static final class AcceptRejectLeafname extends AcceptRejectWholeString {
         /**
@@ -644,9 +618,7 @@ abstract sealed class AcceptReject {
         }
 
         /**
-         * Check whether a directory may still lead to an accepted file. A leafname criterion matches a file in any
-         * directory, so any directory may hold an accepted file when there is at least one accept criterion, and
-         * none does when there is none.
+         * Check whether a directory may lead to an accepted file.
          *
          * @param str
          *            The string to test, ending in the separator character, or the empty string for the root.

@@ -47,21 +47,9 @@ import org.jspecify.annotations.Nullable;
 import io.github.classgraph.base.LogNode;
 
 /**
- * Helper methods for opening a {@link ModuleReference} and for calling {@link ModuleReader}, which convert its
- * {@link Optional} and {@link Stream} return values into plain values.
- *
- * <p>
- * A failure to open or read a module or resource is reported as an {@link IOException}: the {@link IOException}
- * thrown by the {@link ModuleReader} method itself, a resource that the module does not contain, a
- * {@code ModuleReader} implementation that returns null where its contract does not permit it, and a
- * {@link SecurityException}. The reader of a module in a signed jarfile throws a {@link SecurityException} for an
- * entry whose content does not match the digest it was signed with, from {@link ModuleReader#read(String)}, and
- * from the stream returned by {@link ModuleReader#open(String)} once the stream reaches its end. A third-party
- * {@code ModuleReader} may also throw one from any method. Two cases are not reported as failures.
- * {@link #list(ModuleReader, String, LogNode)} treats a null listing as an empty module, since some
- * {@code ModuleReader} implementations return one, and failing would abort the whole scan. And
- * {@link #contains(ModuleReader, String)} treats a null result as an absent resource, since that is the question it
- * answers.
+ * Helper methods for opening a {@link ModuleReference} and reading resources from a {@link ModuleReader},
+ * converting {@link Optional}, {@link Stream}, {@link UncheckedIOException}, and {@link SecurityException} into
+ * plain return values and {@link IOException}.
  */
 public final class ModuleReaderUtils {
     /** Not instantiable. */
@@ -70,22 +58,21 @@ public final class ModuleReaderUtils {
     }
 
     /**
-     * Get the value of an {@link Optional} returned by a {@link ModuleReader} method.
+     * Unwrap an {@link Optional} returned by a {@link ModuleReader} method.
      *
      * @param <T>
      *            the value type.
      * @param optional
-     *            the value returned by the method, which may be null if the {@code ModuleReader} does not honor its
-     *            contract.
+     *            the {@link Optional} returned by the method.
      * @param moduleReader
      *            the module reader, for error messages.
      * @param methodName
      *            the name of the method that was called, for error messages.
      * @param path
-     *            the path that was passed to the method, for error messages.
-     * @return the value.
+     *            the resource path passed to the method, for error messages.
+     * @return the unwrapped value.
      * @throws IOException
-     *             if the {@link Optional} is null or empty.
+     *             if {@code optional} is null or empty.
      */
     private static <T> T getValue(final @Nullable Optional<T> optional, final ModuleReader moduleReader,
             final String methodName, final String path) throws IOException {
@@ -99,7 +86,7 @@ public final class ModuleReaderUtils {
     }
 
     /**
-     * Open a module, returning a {@link ModuleReader} for reading its contents.
+     * Open a {@link ModuleReference}, returning a {@link ModuleReader} for reading its contents.
      *
      * @param moduleReference
      *            the module to open.
@@ -125,25 +112,18 @@ public final class ModuleReaderUtils {
     }
 
     /**
-     * Get the list of resources accessible to a {@link ModuleReader}, logging to the given {@link LogNode} if the
-     * {@code ModuleReader} does not honor its contract.
-     *
-     * <p>
-     * From the documentation for ModuleReader#list(): "Whether the stream of elements includes names corresponding
-     * to directories in the module is module reader specific. In lazy implementations then an IOException may be
-     * thrown when using the stream to list the module contents. If this occurs then the IOException will be wrapped
-     * in an java.io.UncheckedIOException and thrown from the method that caused the access to be attempted."
+     * List the resource paths in a {@link ModuleReader}.
      *
      * @param moduleReader
      *            the module reader.
      * @param moduleName
-     *            the name of the module being read, for error messages.
+     *            the module name, for error messages.
      * @param log
      *            the log, or null for no logging.
-     * @return A list of the paths of resources in the module. The list is mutable, since callers sort it in place,
-     *         and it is empty rather than null if the module reader listed its contents as null.
+     * @return a mutable list of resource paths in the module (or an empty list if {@link ModuleReader#list()}
+     *         violated its contract by returning null).
      * @throws IOException
-     *             If the contents of the module could not be listed.
+     *             if the module contents could not be listed.
      */
     public static List<String> list(final ModuleReader moduleReader, final String moduleName,
             final @Nullable LogNode log) throws IOException {
@@ -184,16 +164,16 @@ public final class ModuleReaderUtils {
     }
 
     /**
-     * Use a {@link ModuleReader} to open the named resource as an {@link InputStream}.
+     * Open the named resource in a {@link ModuleReader} as an {@link InputStream}.
      *
      * @param moduleReader
      *            the module reader.
      * @param path
-     *            The path to the resource to open.
-     * @return An {@link InputStream} for the content of the resource, which reports a {@link SecurityException}
-     *         thrown while reading it as an {@link IOException}.
+     *            the resource path to open.
+     * @return an {@link InputStream} for the resource that wraps any {@link SecurityException} thrown during
+     *         reading in an {@link IOException}.
      * @throws IOException
-     *             If the resource could not be opened.
+     *             if the resource could not be opened.
      */
     public static InputStream open(final ModuleReader moduleReader, final String path) throws IOException {
         final Optional<InputStream> optionalInputStream;
@@ -207,18 +187,15 @@ public final class ModuleReaderUtils {
     }
 
     /**
-     * An {@link InputStream} that reports a {@link SecurityException} thrown while reading the stream it wraps as
-     * an {@link IOException}. {@link FilterInputStream} reads the stream it wraps only through the three methods
-     * overridden here, and the methods that {@link InputStream} implements on top of them, such as
-     * {@link InputStream#readAllBytes()} and {@link InputStream#transferTo(java.io.OutputStream)}, read through
-     * them too.
+     * A {@link FilterInputStream} that wraps any {@link SecurityException} thrown while reading in an
+     * {@link IOException}.
      */
     private static final class SecurityExceptionWrappingInputStream extends FilterInputStream {
         /** The path of the resource, for error messages. */
         private final String path;
 
         /**
-         * Wrap a stream.
+         * Constructor.
          *
          * @param inputStream
          *            the stream to wrap.
@@ -259,18 +236,18 @@ public final class ModuleReaderUtils {
     }
 
     /**
-     * Use a {@link ModuleReader} to open the named resource as a {@link ByteBuffer}. Call
-     * {@link ModuleReader#release(ByteBuffer)} when you have finished with the {@link ByteBuffer}.
+     * Read the named resource from a {@link ModuleReader} as a {@link ByteBuffer}. The caller must release the
+     * buffer with {@link ModuleReader#release(ByteBuffer)} when finished.
      *
      * @param moduleReader
      *            the module reader.
      * @param path
-     *            The path to the resource to open.
-     * @return A {@link ByteBuffer} for the content of the resource.
+     *            the resource path to read.
+     * @return a {@link ByteBuffer} containing the resource.
      * @throws IOException
-     *             If the resource could not be read.
+     *             if the resource could not be read.
      * @throws OutOfMemoryError
-     *             if the resource is larger than 2GB, the maximum capacity of a byte buffer.
+     *             if the resource is larger than 2GB, the maximum capacity of a {@link ByteBuffer}.
      */
     public static ByteBuffer read(final ModuleReader moduleReader, final String path)
             throws IOException, OutOfMemoryError {
@@ -284,18 +261,16 @@ public final class ModuleReaderUtils {
     }
 
     /**
-     * Use a {@link ModuleReader} to test whether the module contains the named resource, without listing the
-     * contents of the module. A directory is not a resource, so the module does not contain one, although the
-     * readers of modular jarfiles and of exploded modules find it, by a {@link URI} that ends in '/'.
+     * Check whether a module contains a non-directory resource at the given path without listing the module's
+     * contents.
      *
      * @param moduleReader
      *            the module reader.
      * @param path
-     *            The path to the resource to look for.
-     * @return true if the module contains the named resource, and false if it does not, or if the path names a
-     *         directory.
+     *            the resource path to look for.
+     * @return true if the module contains a non-directory resource at {@code path}.
      * @throws IOException
-     *             If the module could not be searched for the resource.
+     *             if the module could not be searched.
      */
     public static boolean contains(final ModuleReader moduleReader, final String path) throws IOException {
         final Optional<URI> optionalURI;
@@ -308,15 +283,15 @@ public final class ModuleReaderUtils {
     }
 
     /**
-     * Use a {@link ModuleReader} to find the named resource as a {@link URI}.
+     * Locate the named resource in a {@link ModuleReader} as a {@link URI}.
      *
      * @param moduleReader
      *            the module reader.
      * @param path
-     *            The path to the resource to open.
-     * @return A {@link URI} for the resource.
+     *            the resource path to locate.
+     * @return a {@link URI} for the resource.
      * @throws IOException
-     *             If the resource could not be located.
+     *             if the resource could not be located.
      */
     public static URI find(final ModuleReader moduleReader, final String path) throws IOException {
         final Optional<URI> optionalURI;

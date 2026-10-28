@@ -40,29 +40,19 @@ import io.github.classgraph.base.LogNode;
 import io.github.classgraph.vfs.Vfs;
 
 /**
- * Opens toplevel jarfiles, however they are named -- by a canonical {@link File}, by a URL, by a {@link Path} in a
- * non-default filesystem, or from an {@link InputStream} -- and hands back the {@link LogicalZipFile} for each.
- * This is the doorway between the root layer, which caches and owns the opened roots, and the zipfile layer, whose
- * constructors are not visible outside this package. A jarfile nested within an opened jarfile is opened by
- * {@link LogicalZipFile#openNestedJar(FastZipEntry, LogNode)} on the jarfile that holds it.
- *
- * <p>
- * Nothing here is cached: a jarfile is opened once per call, and the caller decides what is shared. Each open hands
- * back an {@link OpenedJar}: the {@link LogicalZipFile} to read, and the {@link PhysicalZipFile} that was opened to
- * read it, if one was, which the caller now owns and must close. If opening fails, nothing is handed back, so
- * whatever was opened before the failure is released here.
+ * Opens toplevel jarfiles from a {@link File}, URL, {@link Path}, or {@link InputStream} (nested jarfiles are
+ * opened via {@link LogicalZipFile#openNestedJar(FastZipEntry, LogNode)}).
  */
 public final class JarOpener {
     /**
-     * A jarfile that was just opened, and the resource that was opened to read it, if any.
+     * An opened jarfile and the backing {@link PhysicalZipFile} owned by the caller, if any.
      *
      * @param zipFile
-     *            the jarfile to read.
+     *            the opened {@link LogicalZipFile}.
      * @param ownedPhysicalZipFile
-     *            the physical zipfile that was opened, downloaded, extracted or inflated to read the jarfile, which
-     *            the caller now owns, and must {@linkplain PhysicalZipFile#close() close} when it is done with the
-     *            jarfile -- or null if nothing was opened, because the jarfile is read in place through a physical
-     *            zipfile that something else owns.
+     *            the {@link PhysicalZipFile} owned by the caller (which the caller must
+     *            {@linkplain PhysicalZipFile#close() close} when done), or null if the jarfile is a stored nested
+     *            entry sharing an enclosing {@link PhysicalZipFile}.
      */
     public record OpenedJar(LogicalZipFile zipFile, @Nullable PhysicalZipFile ownedPhysicalZipFile) {
     }
@@ -76,13 +66,12 @@ public final class JarOpener {
      * Open a jarfile on disk.
      *
      * @param canonicalFile
-     *            the jarfile, as a canonical {@link File}, so that the path of the opened zipfile names the file
-     *            the same way however the caller reached it.
+     *            the canonical {@link File} for the jarfile.
      * @param vfs
-     *            the {@link Vfs} that is opening this jarfile.
+     *            the {@link Vfs} opening this jarfile.
      * @param log
      *            the log node, or null to skip logging.
-     * @return the jarfile, with the physical zipfile that was opened to read it, which the caller owns.
+     * @return the opened jarfile and its backing {@link PhysicalZipFile}.
      * @throws IOException
      *             if the jarfile could not be opened or read.
      */
@@ -92,17 +81,18 @@ public final class JarOpener {
     }
 
     /**
-     * Open a jarfile named by a URL, downloading it to a buffer in RAM, or to a temporary file if it is too large.
+     * Open a jarfile from a URL, downloading it to RAM or spilling to a temporary file if it exceeds the configured
+     * buffer limit.
      *
      * @param url
-     *            the URL of the jarfile, with any {@code "jar:"} prefix already stripped.
+     *            the jarfile URL, with any {@code "jar:"} prefix stripped.
      * @param vfs
-     *            the {@link Vfs} that is opening this jarfile.
+     *            the {@link Vfs} opening this jarfile.
      * @param log
      *            the log node, or null to skip logging.
-     * @return the jarfile, with the physical zipfile it was downloaded to, which the caller owns.
+     * @return the opened jarfile and its backing {@link PhysicalZipFile}.
      * @throws IOException
-     *             if the URL's scheme has been denied, or the jarfile could not be downloaded or read.
+     *             if the URL's scheme is denied or the jarfile could not be downloaded or read.
      */
     public static OpenedJar openJarFromURL(final String url, final Vfs vfs, final @Nullable LogNode log)
             throws IOException {
@@ -117,32 +107,32 @@ public final class JarOpener {
     }
 
     /**
-     * Refuse a URL whose scheme {@link io.github.classgraph.vfs.VfsSpec#denyURLScheme(String)} denied, whether it
-     * names a jarfile or a directory.
+     * Throw {@link IOException} if the scheme of {@code url} has been denied via
+     * {@link io.github.classgraph.vfs.VfsSpec#denyURLScheme(String)}.
      *
      * @param url
-     *            the URL, with any {@code "jar:"} prefix already stripped, which has a URL scheme.
+     *            the URL (with any {@code "jar:"} prefix stripped).
      * @param vfs
-     *            the {@link Vfs} that is opening the URL, whose denied URL schemes are checked.
+     *            the {@link Vfs} whose denied URL schemes are checked.
      * @throws IOException
-     *             if the URL's scheme has been denied.
+     *             if the URL's scheme is denied.
      */
     public static void checkURLSchemeNotDenied(final String url, final Vfs vfs) throws IOException {
         checkURLSchemeNotDenied(url.substring(0, url.indexOf(':')), url, vfs);
     }
 
     /**
-     * Refuse a URL scheme that {@link io.github.classgraph.vfs.VfsSpec#denyURLScheme(String)} denied. Every check
-     * of a denied scheme goes through here, so that the refusal reads the same however the scheme was found.
+     * Throw {@link IOException} if {@code scheme} has been denied via
+     * {@link io.github.classgraph.vfs.VfsSpec#denyURLScheme(String)}.
      *
      * @param scheme
-     *            the URL scheme, in any case, without the trailing {@code ':'}.
+     *            the URL scheme (case-insensitive, without trailing {@code ':'}).
      * @param location
-     *            the URL or other text that names what was being opened, for the exception message.
+     *            the URL or location string for the exception message.
      * @param vfs
-     *            the {@link Vfs} that is opening the URL, whose denied URL schemes are checked.
+     *            the {@link Vfs} whose denied URL schemes are checked.
      * @throws IOException
-     *             if the scheme has been denied.
+     *             if the scheme is denied.
      */
     static void checkURLSchemeNotDenied(final String scheme, final String location, final Vfs vfs)
             throws IOException {
@@ -155,17 +145,15 @@ public final class JarOpener {
     }
 
     /**
-     * Open a jarfile named by a {@link Path}. Use this only for a {@link Path} that is not in the default
-     * filesystem, such as a zipfile mounted as a filesystem, since a path in the default filesystem can name a
-     * jarfile nested within another jarfile, which only the string form of the path can express.
+     * Open a jarfile from a {@link Path}.
      *
      * @param path
      *            the path of the jarfile.
      * @param vfs
-     *            the {@link Vfs} that is opening this jarfile.
+     *            the {@link Vfs} opening this jarfile.
      * @param log
      *            the log node, or null to skip logging.
-     * @return the jarfile, with the physical zipfile that was opened to read it, which the caller owns.
+     * @return the opened jarfile and its backing {@link PhysicalZipFile}.
      * @throws IOException
      *             if the jarfile could not be opened or read.
      */
@@ -175,22 +163,20 @@ public final class JarOpener {
     }
 
     /**
-     * Open a jarfile read from an {@link InputStream}. The stream is read to an array in RAM, or spilled to a
-     * temporary file if it is longer than the configured maximum, since a zipfile's central directory is at the end
-     * of the file and so cannot be reached by reading forwards.
+     * Open a jarfile from an {@link InputStream}, buffering it in RAM or spilling to a temporary file if it exceeds
+     * the configured buffer limit.
      *
      * @param inputStream
-     *            the stream to read the jarfile from. The caller retains ownership of the stream, and this method
-     *            does not close it.
+     *            the stream to read the jarfile from (not closed by this method).
      * @param inputStreamLengthHint
-     *            the number of bytes to read from {@code inputStream}, or -1 if unknown.
+     *            the expected stream length in bytes, or -1 if unknown.
      * @param name
-     *            a name for the jarfile, used in log messages and in the paths of its entries.
+     *            the display name for the jarfile, used in log messages and entry paths.
      * @param vfs
-     *            the {@link Vfs} that is opening this jarfile.
+     *            the {@link Vfs} opening this jarfile.
      * @param log
      *            the log node, or null to skip logging.
-     * @return the jarfile, with the physical zipfile it was read to, which the caller owns.
+     * @return the opened jarfile and its backing {@link PhysicalZipFile}.
      * @throws IOException
      *             if the jarfile could not be read.
      */
@@ -204,18 +190,18 @@ public final class JarOpener {
     }
 
     /**
-     * Read the central directory of a physical zipfile that was just opened, downloaded or read.
+     * Read the central directory of a newly opened {@link PhysicalZipFile}, releasing {@code physicalZipFile} if an
+     * exception is thrown.
      *
      * @param physicalZipFile
-     *            the physical zipfile, which passes to the caller if this returns, and is released here if it
-     *            throws.
+     *            the newly opened physical zipfile.
      * @param vfs
-     *            the {@link Vfs} that is opening this jarfile.
+     *            the {@link Vfs} opening this jarfile.
      * @param log
      *            the log node, or null to skip logging.
-     * @return the jarfile, with the physical zipfile, which the caller owns.
+     * @return the opened jarfile and {@code physicalZipFile}.
      * @throws IOException
-     *             if the central directory could not be read, or the {@link Vfs} has been closed.
+     *             if the central directory could not be read or the {@link Vfs} is closed.
      */
     private static OpenedJar readCentralDirectory(final PhysicalZipFile physicalZipFile, final Vfs vfs,
             final @Nullable LogNode log) throws IOException {

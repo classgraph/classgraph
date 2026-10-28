@@ -36,9 +36,7 @@ import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
 
-/**
- * ClassLoaderHandler that is able to extract the URLs from a CxfContainerClassLoader.
- */
+/** Extracts the classloader delegation order from Apache OpenEJB's {@code CxfContainerClassLoader}. */
 class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
     /** Constructor. */
     CxfContainerClassLoaderHandler() {

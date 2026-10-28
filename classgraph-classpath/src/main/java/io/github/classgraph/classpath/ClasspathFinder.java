@@ -42,8 +42,7 @@ import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsSpec;
 
 /**
- * Finds the classpath and the module path of the running JVM: where its classes and resources would be loaded from,
- * including the locations that a container's custom classloaders load from.
+ * Configures and runs classpath and module path discovery for the running JVM.
  *
  * <pre>
  * Classpath classpath = new ClasspathFinder().enableSystemModules().enableNonSystemModules().enableClasspath()
@@ -51,64 +50,47 @@ import io.github.classgraph.vfs.VfsSpec;
  * </pre>
  *
  * <p>
- * Nothing is searched until it is enabled, so at least one of the {@code enable} methods has to be called for
- * anything to be found. {@link #enableClasspath()} searches the environment's classpath sources;
- * {@link #enableClassLoaders(ClassLoader...)} and {@link #enableClasspathEntries(Object...)} name sources
- * explicitly. Calling both searches both kinds of source. {@link #enableSystemModules()} and
- * {@link #enableNonSystemModules()} enable module kinds independently of layer selection:
- * {@link #enableModuleLayers(ModuleLayer...)} replaces the caller's layers with named layers, but still requires a
- * module-kind method. Add {@link #enableDetectedModuleLayers()} to search the caller's layers as well as the named
- * ones.
+ * At least one {@code enable*} method must be called before {@link #find()}:
+ * <ul>
+ * <li>{@link #enableClasspath()} searches classloaders discovered in the runtime environment.</li>
+ * <li>{@link #enableClassLoaders(ClassLoader...)} and {@link #enableClasspathEntries(Object...)} search explicit
+ * classloaders or classpath entries.</li>
+ * <li>{@link #enableSystemModules()} and {@link #enableNonSystemModules()} search modules in the caller's visible
+ * module layers (or in layers specified via {@link #enableModuleLayers(ModuleLayer...)}).</li>
+ * </ul>
  *
  * <p>
- * The classpath sources are searched in the order they were enabled in, and the modules are searched before all of
- * them, since that is the order in which the JVM resolves a class.
+ * Options that refine another setting (such as {@link #enableRealtimeLogging()} without {@link #verbose()}, or
+ * {@link #enableModuleLayers(ModuleLayer...)} without {@link #enableSystemModules()} or
+ * {@link #enableNonSystemModules()}) require their companion option to be enabled as well; otherwise
+ * {@link #find()} throws {@link IllegalArgumentException}.
  *
  * <p>
- * All configuration is explicit: no config method calls another config method for you. An option that is only read
- * by another option therefore does nothing unless that other option is asked for too, so rather than silently
- * ignoring it, {@link #find()} is refused with an {@link IllegalArgumentException} naming the method that is
- * missing -- for example {@link #enableDetectedModuleLayers()} without {@link #enableSystemModules()} or
- * {@link #enableNonSystemModules()}. The Javadoc of each such method says what it has to be called alongside.
- *
- * <p>
- * An instance is not thread-safe while it is being configured, but {@link #find()} may be called any number of
- * times, and returns a new {@link Classpath} each time.
+ * Instances are not thread-safe during configuration, but {@link #find()} may be called repeatedly to produce new
+ * {@link Classpath} instances.
  */
 public final class ClasspathFinder {
-    /** Everything except the places that classpath elements and modules are looked for. */
+    /** Classpath and module discovery configuration. */
     private final ClasspathSpec classpathSpec = new ClasspathSpec();
 
-    /**
-     * How the jarfiles on the classpath are read, both in order to find the classpath elements they declare and
-     * through the {@link Vfs} that the result hands out.
-     */
+    /** Virtual filesystem configuration for reading jarfiles. */
     private final VfsSpec vfsSpec = new VfsSpec();
 
-    /**
-     * The places that classpath elements and modules are looked for. These are held separately from the
-     * {@link ClasspathSpec} so that they can be dropped as soon as the classpath has been found, rather than being
-     * kept alive by the {@link Classpath}.
-     */
+    /** Configured classloader, classpath entry, and module layer sources. */
     private final ScanSourceSpec scanSourceSpec = new ScanSourceSpec();
 
-    /** If true, log what is found to the {@code io.github.classgraph.ClassGraph} logger, at {@code INFO} level. */
+    /** Whether verbose logging to {@code io.github.classgraph.ClassGraph} at {@code INFO} level is enabled. */
     private boolean verbose;
 
-    /** If true, write out each log entry as soon as it is made. */
+    /** Whether log entries are emitted immediately as they are recorded. */
     private boolean realtimeLoggingEnabled;
 
-    /** The filters added by {@link #filterClasspathEntries(Predicate)}, in the order they were added. */
+    /** Filters added via {@link #filterClasspathEntries(Predicate)}, in registration order. */
     private final List<Predicate<? super ClasspathEntry>> entryFilters = new ArrayList<>();
 
     /**
-     * Constructor.
-     *
-     * <p>
-     * A classpath is not always something the caller wrote, so the URL schemes whose handlers in every JVM connect
-     * over a network are denied to begin with: no connection is opened for an {@code http:}, {@code https:},
-     * {@code ftp:} or {@code mailto:} URL unless {@link #allowURLScheme(String)} asks for it. Every other scheme is
-     * read as found.
+     * Constructs a {@link ClasspathFinder} with network URL schemes ({@code http}, {@code https}, {@code ftp}, and
+     * {@code mailto}) denied by default unless explicitly permitted via {@link #allowURLScheme(String)}.
      */
     public ClasspathFinder() {
         for (final String scheme : ClasspathSpec.NETWORK_URL_SCHEMES) {
@@ -119,8 +101,7 @@ public final class ClasspathFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Log what is found to the {@code io.github.classgraph.ClassGraph} logger, at {@code INFO} level. This is
-     * intended for working out why a classpath element is or is not being found, and is not a stable output format.
+     * Enables verbose logging to the {@code io.github.classgraph.ClassGraph} logger at {@code INFO} level.
      *
      * @return this (for method chaining).
      */
@@ -130,12 +111,8 @@ public final class ClasspathFinder {
     }
 
     /**
-     * Write each log entry to the logger as soon as it is made, rather than only once the classpath has been found.
-     * Can help to identify where finding the classpath gets stuck.
-     *
-     * <p>
-     * This says when the log is written, not whether there is a log, so {@link #verbose()} has to be called too, or
-     * {@link #find()} throws {@link IllegalArgumentException}.
+     * Emits log entries immediately as they are recorded rather than flushing them at the end of {@link #find()}.
+     * Requires {@link #verbose()} to be enabled as well.
      *
      * @return this (for method chaining).
      */
@@ -145,27 +122,19 @@ public final class ClasspathFinder {
     }
 
     /**
-     * Allow a classpath element named by a URL with the given scheme, e.g. {@code "http"}, to be read.
+     * Permits classpath elements with the given URL scheme (such as {@code "http"}) to be opened and read, and
+     * recognizes the scheme when splitting {@code ':'}-delimited classpath strings.
      *
      * <p>
-     * Only {@code http}, {@code https}, {@code ftp} and {@code mailto} have to be allowed this way -- see
-     * {@link #ClasspathFinder()}. A scheme that the JVM can open only because an application registered a
-     * {@link java.net.URLStreamHandler} or a {@link java.nio.file.spi.FileSystemProvider} for it is already read as
-     * found. Naming one here is still worth doing if classpath elements with that scheme arrive in a
-     * {@code ':'}-separated classpath string such as {@code java.class.path}, since the scheme's own {@code ':'}
-     * would otherwise be read as a separator and split the path element in two.
-     *
-     * <p>
-     * This does not apply to the entries of a jarfile's {@code Class-Path} manifest attribute. As for the JVM's own
-     * classloader, a jarfile in the filesystem can name a URL there only with the {@code file:} scheme, and any
-     * other jarfile cannot name a URL there at all, whatever schemes are allowed.
+     * By default, {@code http}, {@code https}, {@code ftp}, and {@code mailto} are denied, while all other schemes
+     * supported by an installed {@link java.net.URLStreamHandler} or {@link java.nio.file.spi.FileSystemProvider}
+     * are allowed.
      *
      * @param scheme
-     *            the URL scheme, without the {@code ':'}, e.g. {@code "http"}.
+     *            the URL scheme without {@code ':'} (e.g. {@code "http"}).
      * @return this (for method chaining).
      * @throws IllegalArgumentException
-     *             if the scheme is shorter than two characters (a one-character scheme cannot be told apart from a
-     *             Windows drive letter), or is not a valid URL scheme.
+     *             if {@code scheme} is shorter than two characters or is not a valid URL scheme.
      */
     public ClasspathFinder allowURLScheme(final String scheme) {
         classpathSpec.allowURLScheme(scheme);
@@ -174,21 +143,15 @@ public final class ClasspathFinder {
     }
 
     /**
-     * Refuse to read a classpath element named by a URL or URI with the given scheme, or given as a
-     * {@link java.nio.file.Path} whose URI has that scheme. The classpath element is still reported, but the
-     * jarfile or directory it names is not read, so the classpath elements that it declares are not found. This
-     * holds even if a {@link java.nio.file.spi.FileSystemProvider} is installed for the scheme.
-     *
-     * <p>
-     * {@code http}, {@code https}, {@code ftp} and {@code mailto} are refused already -- see
-     * {@link #ClasspathFinder()}. This adds a scheme to those.
+     * Prevents classpath elements with the given URL or URI scheme from being opened or expanded, even if a
+     * {@link java.net.URLStreamHandler} or {@link java.nio.file.spi.FileSystemProvider} is installed for the
+     * scheme.
      *
      * @param scheme
-     *            the URL scheme, without the {@code ':'}, e.g. {@code "s3"}.
+     *            the URL scheme without {@code ':'} (e.g. {@code "s3"}).
      * @return this (for method chaining).
      * @throws IllegalArgumentException
-     *             if the scheme is shorter than two characters (a one-character scheme cannot be told apart from a
-     *             Windows drive letter), or is not a valid URL scheme.
+     *             if {@code scheme} is shorter than two characters or is not a valid URL scheme.
      */
     public ClasspathFinder denyURLScheme(final String scheme) {
         vfsSpec.denyURLScheme(scheme);
@@ -196,13 +159,8 @@ public final class ClasspathFinder {
     }
 
     /**
-     * Do not open jarfiles nested within other jarfiles. The jarfiles in the lib dirs of a jarfile (for example
-     * {@code BOOT-INF/lib/} in a Spring Boot jar, or {@code WEB-INF/lib/} in a war file) are then left out of the
-     * result, while the jarfiles in the lib dirs of a directory are still found.
-     *
-     * <p>
-     * Unlike {@link #disableMultiReleaseVersions()} and {@link #setMaxBufferedJarRAMSize(int)}, this changes which
-     * classpath elements {@link #find()} returns.
+     * Disables opening jarfiles nested within other jarfiles (such as jarfiles inside {@code BOOT-INF/lib/} or
+     * {@code WEB-INF/lib/}).
      *
      * @return this (for method chaining).
      */
@@ -212,13 +170,8 @@ public final class ClasspathFinder {
     }
 
     /**
-     * Do not honor the multi-release versioning of a jarfile: the {@link Vfs} that the result hands out through
-     * {@link Classpath#getVfs()} reports every version of a multi-release resource under the literal
-     * {@code META-INF/versions/<N>/} path it is stored under, rather than serving just the one version the running
-     * JVM would use, which is the default.
-     *
-     * <p>
-     * This changes only how the jarfiles are read, not which classpath elements {@link #find()} returns.
+     * Disables multi-release jarfile version resolution on {@link Classpath#getVfs()}, exposing resources under
+     * their raw {@code META-INF/versions/<N>/} paths instead of resolving them for the running JVM version.
      *
      * @return this (for method chaining).
      */
@@ -228,19 +181,11 @@ public final class ClasspathFinder {
     }
 
     /**
-     * Set the maximum number of bytes of a jarfile that is held in RAM, before the rest is spilled to a temporary
-     * file on disk. This only applies to jarfiles that cannot be read in place: a nested jarfile that is stored
-     * deflated (i.e. compressed) within its enclosing jarfile, a jarfile downloaded from a URL, and a jarfile read
-     * from an {@link java.io.InputStream} through {@link Classpath#getVfs()}. It applies both to the jarfiles that
-     * {@link #find()} opens and to those opened through {@link Classpath#getVfs()}.
-     *
-     * <p>
-     * Default: 64MB, i.e. writing to disk is avoided wherever possible. This changes only how the jarfiles are
-     * read, not which classpath elements {@link #find()} returns.
+     * Sets the maximum in-memory buffer size in bytes per jarfile (default 64MB) before deflated nested jarfiles,
+     * downloaded jarfiles, or stream-backed jarfiles are spilled to temporary files on disk.
      *
      * @param maxBufferedJarRAMSize
-     *            the maximum number of bytes to hold in RAM per jarfile. This is the limit per jarfile, not for the
-     *            whole classpath.
+     *            the maximum number of bytes to buffer in RAM per jarfile.
      * @return this (for method chaining).
      * @throws IllegalArgumentException
      *             if {@code maxBufferedJarRAMSize} is negative.
@@ -253,65 +198,17 @@ public final class ClasspathFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Find every classpath element of every classloader that can be found in the current runtime environment.
+     * Enables discovery of classpath elements from classloaders in the current runtime environment: the calling
+     * thread's context classloader, the classloader that loaded ClassGraph,
+     * {@link ClassLoader#getSystemClassLoader()}, classloaders of classes on the call stack, and their parent
+     * classloaders.
      *
      * <p>
-     * A classloader is found if it is any of the following:
-     *
-     * <ul>
-     * <li>the context classloader of the calling thread, as returned by {@link Thread#getContextClassLoader()
-     * Thread.currentThread().getContextClassLoader()};</li>
-     * <li>the classloader that loaded ClassGraph itself;</li>
-     * <li>the system classloader, as returned by {@link ClassLoader#getSystemClassLoader()} -- this is the
-     * application classloader, unless the JVM was launched with {@code -Djava.system.class.loader};</li>
-     * <li>the classloader of the class in any frame of the current call stack, so that the classloader of the code
-     * that called ClassGraph is searched even when it is none of the above; or</li>
-     * <li>an ancestor of any of those, reached through {@link ClassLoader#getParent()}.</li>
-     * </ul>
-     *
-     * <p>
-     * Every classpath element that every one of those classloaders loads classes from is found, whether or not the
-     * classloader exposes it publicly -- see
-     * <a href="https://github.com/classgraph/classgraph/wiki/Classpath-Specification-Mechanisms">Classpath
-     * specification mechanisms</a> for how each supported classloader is read. Classpath elements are returned in
-     * the order in which the classloaders that declared them would be asked to load a class, so a classpath element
-     * that appears more than once is reported at the position the JVM would actually load it from, and each
-     * classpath element is reported only once, however many of the classloaders declare it.
-     *
-     * <p>
-     * The application classloader is normally one of them, so its own classpath entries -- the ones that the
-     * {@code java.class.path} system property lists -- are found too, at the position the application classloader
-     * takes in that order.
-     *
-     * <p>
-     * The application classloader is one of the JPMS builtin classloaders, and none of those exposes the locations
-     * it loads from through any public API, so its classpath entries are read from its private
-     * {@code jdk.internal.loader.URLClassPath ucp} field where that is possible, and from the
-     * {@code java.class.path} system property otherwise. The {@code jdk.internal.loader} package is exported to
-     * only three modules and is never opened, so the field can be read only if
-     * <a href="https://github.com/toolfactory/narcissus">Narcissus</a> is on the classpath or is a resolved module,
-     * or the JVM was launched with {@code --add-opens java.base/jdk.internal.loader=ALL-UNNAMED} (when ClassGraph
-     * is on the classpath) or {@code --add-opens java.base/jdk.internal.loader=io.github.classgraph.base} (when
-     * ClassGraph is on the module path). Two kinds of classpath entry are therefore missed when the field cannot be
-     * read, since neither is listed in any system property the application can read:
-     * <ul>
-     * <li>the jars a Java agent appended by calling
-     * {@code Instrumentation.appendToSystemClassLoaderSearch(JarFile)}, which is specified not to change the value
-     * of {@code java.class.path}; and</li>
-     * <li>the entries appended to the boot classpath with {@code -Xbootclasspath/a}, or with the
-     * {@code Boot-Class-Path} attribute of a Java agent's manifest, which the bootstrap classloader holds in a
-     * {@code URLClassPath} of its own.</li>
-     * </ul>
-     *
-     * <p>
-     * This method takes no arguments, because it searches what is in the environment. To search specific
-     * classloaders or specific classpath elements instead, call {@link #enableClassLoaders(ClassLoader...)} or
-     * {@link #enableClasspathEntries(Object...)} and do not call this method. Calling both searches the environment
-     * as well as what you named.
-     *
-     * <p>
-     * This method does not enable the module path. Modules are found by {@link #enableSystemModules()} or
-     * {@link #enableNonSystemModules()}, and modules always precede the classpath.
+     * Reading private {@code jdk.internal.loader.URLClassPath} fields on JPMS built-in classloaders (required to
+     * discover entries added via {@code Instrumentation.appendToSystemClassLoaderSearch} or
+     * {@code -Xbootclasspath/a}) requires either <a href="https://github.com/toolfactory/narcissus">Narcissus</a>
+     * or {@code --add-opens java.base/jdk.internal.loader=ALL-UNNAMED} (or {@code =io.github.classgraph.base} on
+     * the module path); otherwise {@code java.class.path} is used as a fallback.
      *
      * @return this (for method chaining).
      */
@@ -321,14 +218,14 @@ public final class ClasspathFinder {
     }
 
     /**
-     * Search the given classloaders for classpath elements, and their parents, rather than the classloaders found
-     * in the environment. Call {@link #enableClasspath()} as well to search both.
+     * Enables discovery of classpath elements from the specified classloaders (and their parent classloaders,
+     * unless {@link #ignoreParentClassLoaders()} is called).
      *
      * @param classLoaders
      *            the classloaders to search.
      * @return this (for method chaining).
      * @throws IllegalArgumentException
-     *             if no classloader is given.
+     *             if {@code classLoaders} is empty.
      */
     public ClasspathFinder enableClassLoaders(final ClassLoader... classLoaders) {
         scanSourceSpec.enableClassLoaders(classLoaders);
@@ -336,21 +233,13 @@ public final class ClasspathFinder {
     }
 
     /**
-     * Search the given classpath, with the elements separated by {@link java.io.File#pathSeparatorChar}. No
-     * classloader is asked for it, so nothing else is searched unless it is enabled as well.
-     *
-     * <p>
-     * This is the only overload that splits a classpath string. To search a classpath string together with other
-     * classpath elements, chain the calls, e.g.
-     * {@code enableClasspathEntries(System.getProperty("java.class.path")).enableClasspathEntries(extraJar)}.
-     * Passing both in one call, as {@code enableClasspathEntries(classpath, extraJar)}, calls
-     * {@link #enableClasspathEntries(Object...)} instead, which takes the whole string as one classpath element.
+     * Adds classpath elements from a path string delimited by {@link java.io.File#pathSeparatorChar}.
      *
      * @param classpath
-     *            the classpath to search, with elements separated by {@link java.io.File#pathSeparatorChar}.
+     *            the {@link java.io.File#pathSeparatorChar}-delimited classpath string.
      * @return this (for method chaining).
      * @throws IllegalArgumentException
-     *             if {@code classpath} holds no classpath element, e.g. if it is empty.
+     *             if {@code classpath} contains no classpath elements.
      */
     public ClasspathFinder enableClasspathEntries(final String classpath) {
         Assert.notNull(classpath, "classpath");
@@ -359,33 +248,17 @@ public final class ClasspathFinder {
     }
 
     /**
-     * Search the given classpath elements. No classloader is asked for them, so nothing else is searched unless it
-     * is enabled as well.
-     *
-     * <p>
-     * Each element that is a {@link String}, {@link java.io.File}, {@link Path}, {@link java.net.URL} or
-     * {@link java.net.URI} is one classpath element, and a {@link String} is not split on
-     * {@link java.io.File#pathSeparatorChar}. An element that is any other {@link Iterable}, or an array of
-     * objects, is replaced by its own elements, to any depth, except that an {@link Iterable} that is not a
-     * {@link java.util.Collection} and yields only itself, as an Ant {@code Resource} does, is one classpath
-     * element, read by its {@link Object#toString()}. An element of any other type is read by its
-     * {@link Object#toString()}.
-     *
-     * <p>
-     * So {@code enableClasspathEntries(classpath, extraJar)} takes the whole classpath string as one classpath
-     * element. To search a classpath string together with other classpath elements, pass the string to
-     * {@link #enableClasspathEntries(String)}, which splits it, and chain the calls, e.g.
-     * {@code enableClasspathEntries(System.getProperty("java.class.path")).enableClasspathEntries(extraJar)}.
+     * Adds explicit classpath elements. Each element may be a {@link String} (treated as a single path, not split
+     * on {@link java.io.File#pathSeparatorChar}), {@link java.io.File}, {@link Path}, {@link java.net.URL},
+     * {@link java.net.URI}, or a nested array or {@link Iterable} of elements.
      *
      * @param classpathElements
      *            the classpath elements to search.
      * @return this (for method chaining).
      * @throws IllegalArgumentException
-     *             if {@code classpathElements} holds no classpath element, or holds a {@link ClassLoader} (pass
-     *             those to {@link #enableClassLoaders(ClassLoader...)} instead), or holds a
-     *             {@link java.util.stream.BaseStream} (any {@code Stream}, {@code IntStream}, {@code LongStream} or
-     *             {@code DoubleStream}), {@link java.util.Iterator} or {@link java.util.Enumeration} that is not an
-     *             {@link Iterable} (collect it into a collection first).
+     *             if {@code classpathElements} is empty or contains a {@link ClassLoader},
+     *             {@link java.util.stream.BaseStream}, {@link java.util.Iterator}, or
+     *             {@link java.util.Enumeration}.
      */
     public ClasspathFinder enableClasspathEntries(final Object... classpathElements) {
         Assert.notNullElements(classpathElements, "classpathElements");
@@ -394,30 +267,18 @@ public final class ClasspathFinder {
     }
 
     /**
-     * Search the given classpath elements. No classloader is asked for them, so nothing else is searched unless it
-     * is enabled as well.
-     *
-     * <p>
-     * Each element that is a {@link String}, {@link java.io.File}, {@link Path}, {@link java.net.URL} or
-     * {@link java.net.URI} is one classpath element, and a {@link String} is not split on
-     * {@link java.io.File#pathSeparatorChar} (pass a classpath string to {@link #enableClasspathEntries(String)}).
-     * An element that is any other {@link Iterable}, or an array of objects, is replaced by its own elements, to
-     * any depth, except that an {@link Iterable} that is not a {@link java.util.Collection} and yields only itself,
-     * as an Ant {@code Resource} does, is one classpath element, read by its {@link Object#toString()}. An element
-     * of any other type is read by its {@link Object#toString()}.
-     *
-     * <p>
-     * A single {@link Path} is treated as one classpath element, not as a sequence of its name elements.
+     * Adds explicit classpath elements from an {@link Iterable} (or a single {@link Path}). Each element may be a
+     * {@link String} (treated as a single path, not split on {@link java.io.File#pathSeparatorChar}),
+     * {@link java.io.File}, {@link Path}, {@link java.net.URL}, {@link java.net.URI}, or a nested array or
+     * {@link Iterable} of elements.
      *
      * @param classpathElements
      *            the classpath elements to search.
      * @return this (for method chaining).
      * @throws IllegalArgumentException
-     *             if {@code classpathElements} holds no classpath element, or holds a {@link ClassLoader} (pass
-     *             those to {@link #enableClassLoaders(ClassLoader...)} instead), or holds a
-     *             {@link java.util.stream.BaseStream} (any {@code Stream}, {@code IntStream}, {@code LongStream} or
-     *             {@code DoubleStream}), {@link java.util.Iterator} or {@link java.util.Enumeration} that is not an
-     *             {@link Iterable} (collect it into a collection first).
+     *             if {@code classpathElements} is empty or contains a {@link ClassLoader},
+     *             {@link java.util.stream.BaseStream}, {@link java.util.Iterator}, or
+     *             {@link java.util.Enumeration}.
      */
     public ClasspathFinder enableClasspathEntries(final Iterable<?> classpathElements) {
         Assert.notNull(classpathElements, "classpathElements");
@@ -429,13 +290,8 @@ public final class ClasspathFinder {
     }
 
     /**
-     * Do not search the parents of the classloaders that are searched. The classpath elements that only a parent
-     * classloader declares are left out of the result.
-     *
-     * <p>
-     * This says which classloaders are searched, so {@link #enableClasspath()} or
-     * {@link #enableClassLoaders(ClassLoader...)} has to be called too, or {@link #find()} throws
-     * {@link IllegalArgumentException}.
+     * Excludes parent classloaders of searched classloaders. Requires {@link #enableClasspath()} or
+     * {@link #enableClassLoaders(ClassLoader...)}.
      *
      * @return this (for method chaining).
      */
@@ -445,23 +301,8 @@ public final class ClasspathFinder {
     }
 
     /**
-     * Register a {@link ClassLoaderHandler}, which teaches this library how to read the classpath out of a
-     * {@link ClassLoader} that it does not already know about.
-     *
-     * <p>
-     * There are built-in handlers for the classloaders of the common application servers, build tools and
-     * frameworks, so this is only needed for a classloader that none of those handle. Registered handlers are
-     * offered each classloader before the built-in handlers are, in the order they were registered, and are never
-     * dropped, so a registered handler can also override a built-in one. Of the built-in handlers, only those that
-     * name the most specific classloader class are used, so a handler for a subclass of
-     * {@link java.net.URLClassLoader} takes the place of the built-in {@code URLClassLoader} handler rather than
-     * running alongside it, and has to add the classloader's own URLs itself. A classloader or classpath entry that
-     * has already been placed keeps the position the first handler to place it gave it.
-     *
-     * <p>
-     * A handler is only offered the classloaders that are searched, so {@link #enableClasspath()} or
-     * {@link #enableClassLoaders(ClassLoader...)} has to be called too, or {@link #find()} throws
-     * {@link IllegalArgumentException}.
+     * Registers a custom {@link ClassLoaderHandler} to extract classpath entries from a custom {@link ClassLoader}.
+     * Requires {@link #enableClasspath()} or {@link #enableClassLoaders(ClassLoader...)}.
      *
      * @param classLoaderHandler
      *            the {@link ClassLoaderHandler} to register.
@@ -473,25 +314,13 @@ public final class ClasspathFinder {
     }
 
     /**
-     * Keep only the classpath elements that a filter accepts. The filter is given every classpath element that is
-     * found: those that the classloaders or the classpath entries name, the jarfiles that a wildcarded directory is
-     * expanded into, and those that another classpath element declares through its manifest's {@code Class-Path} or
-     * {@code Bundle-ClassPath} attribute or its lib dirs.
-     *
-     * <p>
-     * A classpath element that the filter rejects is left out of the result and is not opened, so the classpath
-     * elements that it declares are found only if an accepted classpath element declares them too. The filter may
-     * be called more than once for a classpath element that is reached by more than one route. If this is called
-     * more than once, a classpath element is kept only if every filter accepts it. An exception thrown by a filter
-     * is thrown out of {@link #find()}.
-     *
-     * <p>
-     * The filter is applied to the classpath elements, so {@link #enableClasspath()},
-     * {@link #enableClassLoaders(ClassLoader...)} or {@link #enableClasspathEntries(Object...)} has to be called
-     * too, or {@link #find()} throws {@link IllegalArgumentException}.
+     * Retains only classpath entries accepted by {@code filter}. Rejected entries are excluded from the result and
+     * are not opened to expand their transitive manifest or lib directory entries. If called multiple times, all
+     * filters must match. Requires {@link #enableClasspath()}, {@link #enableClassLoaders(ClassLoader...)}, or
+     * {@link #enableClasspathEntries(Object...)}.
      *
      * @param filter
-     *            returns true for a classpath element that should be kept.
+     *            predicate returning true for classpath entries to keep.
      * @return this (for method chaining).
      */
     public ClasspathFinder filterClasspathEntries(final Predicate<? super ClasspathEntry> filter) {
@@ -503,12 +332,9 @@ public final class ClasspathFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Search for the JDK's own modules in the module layers that are visible from the caller: the layers of the
-     * classes on the call stack, and the boot layer. If {@link #enableModuleLayers(ModuleLayer...)} named the
-     * layers to search, the system modules of those layers are searched instead. A system module is a module whose
-     * name starts with {@code java.}, {@code jdk.}, {@code javafx.} or {@code oracle.}, and which
-     * {@link java.lang.module.ModuleFinder#ofSystem()} finds at the same location. The application's own modules
-     * are non-system modules, even when jlink or jpackage has linked them into the runtime image.
+     * Enables discovery of system modules ({@code java.*}, {@code jdk.*}, {@code javafx.*}, and {@code oracle.*}
+     * modules present at the same location in {@link java.lang.module.ModuleFinder#ofSystem()}) in the searched
+     * module layers.
      *
      * @return this (for method chaining).
      */
@@ -518,11 +344,7 @@ public final class ClasspathFinder {
     }
 
     /**
-     * Search for the non-system modules of the module layers that are visible from the caller: the layers of the
-     * classes on the call stack, and the boot layer. If {@link #enableModuleLayers(ModuleLayer...)} named the
-     * layers to search, the non-system modules of those layers are searched instead. A class on the classpath is in
-     * an unnamed module, which belongs to no layer, so the classpath is searched only if {@link #enableClasspath()}
-     * is also called.
+     * Enables discovery of non-system modules in the searched module layers.
      *
      * @return this (for method chaining).
      */
@@ -532,24 +354,16 @@ public final class ClasspathFinder {
     }
 
     /**
-     * Search the given module layers, and their parent layers, for modules, rather than the module layers that are
-     * visible from the caller. Use this if the code calling this library does not itself run within the module
-     * layer whose modules are wanted.
-     *
-     * <p>
-     * The given layers replace the ones that are visible from the caller, rather than adding to them, so
-     * {@link #enableSystemModules()} and {@link #enableNonSystemModules()} apply to the given layers. Call
-     * {@link #enableDetectedModuleLayers()} as well to search both.
-     *
-     * <p>
-     * This says which layers the modules are looked for in; it does not enable a kind of module, so it has no
-     * effect unless {@link #enableSystemModules()} or {@link #enableNonSystemModules()} is also called.
+     * Searches the specified {@link ModuleLayer} instances (and their parent layers, unless
+     * {@link #ignoreParentModuleLayers()} is called) instead of the module layers visible from the call stack. Call
+     * {@link #enableDetectedModuleLayers()} to include visible call-stack layers as well. Requires
+     * {@link #enableSystemModules()} or {@link #enableNonSystemModules()}.
      *
      * @param moduleLayers
      *            the module layers to search.
      * @return this (for method chaining).
      * @throws IllegalArgumentException
-     *             if no module layer is given.
+     *             if {@code moduleLayers} is empty.
      */
     public ClasspathFinder enableModuleLayers(final ModuleLayer... moduleLayers) {
         scanSourceSpec.enableModuleLayers(moduleLayers);
@@ -557,17 +371,9 @@ public final class ClasspathFinder {
     }
 
     /**
-     * Search the module layers that are visible from the caller -- the layers of the classes on the call stack, and
-     * the boot layer -- as well as any layers named by {@link #enableModuleLayers(ModuleLayer...)}.
-     *
-     * <p>
-     * These layers are searched anyway when a kind of module is enabled and no layer is named, so this is only
-     * needed alongside {@link #enableModuleLayers(ModuleLayer...)}, to search a layer of your own without giving up
-     * the layers you can already see.
-     *
-     * <p>
-     * This says which layers the modules are looked for in; it does not enable a kind of module, so it has no
-     * effect unless {@link #enableSystemModules()} or {@link #enableNonSystemModules()} is also called.
+     * Includes module layers visible from the call stack and boot layer in addition to layers passed to
+     * {@link #enableModuleLayers(ModuleLayer...)}. Requires {@link #enableSystemModules()} or
+     * {@link #enableNonSystemModules()}.
      *
      * @return this (for method chaining).
      */
@@ -577,13 +383,8 @@ public final class ClasspathFinder {
     }
 
     /**
-     * Do not search a module layer that is the parent of another module layer that is searched, so that only the
-     * modules of the innermost layers are found.
-     *
-     * <p>
-     * This says which layers the modules are looked for in; it does not enable a kind of module, so
-     * {@link #enableSystemModules()} or {@link #enableNonSystemModules()} has to be called too, or {@link #find()}
-     * throws {@link IllegalArgumentException}.
+     * Excludes parent module layers of searched module layers. Requires {@link #enableSystemModules()} or
+     * {@link #enableNonSystemModules()}.
      *
      * @return this (for method chaining).
      */
@@ -595,25 +396,14 @@ public final class ClasspathFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Find the classpath elements and the modules.
+     * Discovers and returns the configured {@link Classpath}, recursively expanding jarfiles with entries from
+     * their automatic lib directories and manifest {@code Class-Path} and {@code Bundle-ClassPath} attributes.
      *
-     * <p>
-     * The jarfiles on the classpath are opened, so that the classpath elements they declare can be added to the
-     * result: the jarfiles in their automatic lib dirs, and the entries of their manifests' {@code Class-Path} and
-     * {@code Bundle-ClassPath} attributes. Each of those can declare more of them, so this is recursive. Close the
-     * returned {@link Classpath} to close the jarfiles again.
-     *
-     * <p>
-     * A classpath element that is there but could not be opened, or that is not a jarfile, is still reported: it
-     * simply declares no classpath elements of its own. A classpath element that the filesystem says is not there,
-     * or that cannot be read, is left out, since it cannot contribute a class to anything -- a classloader may name
-     * a jarfile or directory that was never installed.
-     *
-     * @return the classpath.
+     * @return the discovered {@link Classpath}.
      * @throws IllegalArgumentException
-     *             if a config option was enabled without the option that reads it.
+     *             if no source was enabled, or if a dependent option was enabled without its companion option.
      * @throws IllegalStateException
-     *             if the thread was interrupted while the jarfiles were being read.
+     *             if the thread was interrupted while reading jarfiles.
      */
     public Classpath find() {
         checkConfigIsExplicit();
@@ -653,12 +443,10 @@ public final class ClasspathFinder {
     }
 
     /**
-     * Check that every config option that is only read by another config option was asked for alongside that other
-     * option. No config method turns on another config method for you, so an option whose companion was not enabled
-     * would otherwise be silently ignored.
+     * Verifies that all configured options have their required companion options enabled.
      *
      * @throws IllegalArgumentException
-     *             if a config option was enabled without the option that reads it.
+     *             if a config option was enabled without its required companion option.
      */
     private void checkConfigIsExplicit() {
         Assert.companionIsCalled(realtimeLoggingEnabled, "ClasspathFinder", "enableRealtimeLogging", verbose,

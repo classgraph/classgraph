@@ -28,16 +28,13 @@
  */
 
 /**
- * The types that every ClassGraph library shares with the code that calls it.
+ * Logging types shared across all ClassGraph modules: {@link io.github.classgraph.base.LogNode} and
+ * {@link io.github.classgraph.base.ClassGraphLog}.
  *
  * <p>
- * There are currently two: {@link io.github.classgraph.base.LogNode}, the verbose log that ClassGraph writes what
- * it is doing to, and {@link io.github.classgraph.base.ClassGraphLog}, the narrower view of that log which is
- * handed to code ClassGraph calls out to, such as a {@code io.github.classgraph.classpath.ClassLoaderHandler}.
- *
- * <p>
- * This package is {@link org.jspecify.annotations.NullMarked}: unless a type is annotated
- * {@link org.jspecify.annotations.Nullable}, it is never null.
+ * This package is {@link org.jspecify.annotations.NullMarked}: parameters and return values are non-null unless
+ * annotated with {@link org.jspecify.annotations.Nullable}, and passing {@code null} for a non-null parameter
+ * throws {@link java.lang.NullPointerException}.
  *
  * @author Luke Hutchison
  */

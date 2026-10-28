@@ -38,48 +38,41 @@ import java.util.zip.Inflater;
 import java.util.zip.ZipException;
 
 /**
- * An {@link InputStream} that inflates a stream of deflated zip entry data, using an {@link Inflater} borrowed from
- * a {@link Recycler} and handed back to it when this stream is closed.
+ * An {@link InputStream} that inflates deflated zip entry data using an {@link Inflater} acquired from a
+ * {@link Recycler} and returned when this stream is closed.
  */
 public final class RecycledInflaterInputStream extends InputStream {
     /** The stream of deflated bytes. */
     private final InputStream rawInputStream;
 
-    /** The recycler to hand the {@link Inflater} back to when this stream is closed. */
+    /** The recycler to which the {@link Inflater} is returned on close. */
     private final Recycler<Inflater, RuntimeException> inflaterRecycler;
 
-    /** The borrowed {@link Inflater}, created with nowrap set to true (needed by zip entries). */
+    /** The acquired {@link Inflater} (configured with {@code nowrap = true} for zip entries). */
     private final Inflater inflater;
 
     /** True once this stream has been closed. */
     private final AtomicBoolean closed = new AtomicBoolean();
 
-    /**
-     * Held while the inflater is in use, by every read method, and by {@link #close()} while it hands the inflater
-     * back to the recycler. A close from another thread therefore waits for a read in progress to return, rather
-     * than handing back an inflater that the read is still using, which the recycler could then give to another
-     * stream.
-     */
+    /** Lock synchronizing read operations and {@link #close()} access to {@link #inflater}. */
     private final Object lock = new Object();
 
     /**
-     * True once the end of rawInputStream has been reached, and the dummy byte required by the "nowrap" option has
-     * been handed to the inflater.
+     * True once the end of {@link #rawInputStream} has been reached and the trailing dummy byte required by
+     * {@code nowrap = true} has been supplied to the inflater.
      */
     private boolean suppliedDummyByte;
 
     /**
-     * The staging buffer that deflated bytes are read into from rawInputStream, and then handed to the inflater as
-     * its input. This must never be used as the destination of an inflate() call: the inflater keeps a reference to
-     * its input array, so inflating into this array would overwrite deflated bytes that the inflater has not
-     * consumed yet.
+     * Staging buffer for reading deflated input bytes from {@link #rawInputStream}. Must not be used as an inflate
+     * output buffer while the inflater still references it as input.
      */
     private final byte[] buf = new byte[INFLATE_BUF_SIZE];
 
-    /** A separate destination buffer for the single-byte read() method. */
+    /** Destination buffer for {@link #read()}. */
     private final byte[] singleByteBuf = new byte[1];
 
-    /** The size of the staging buffer. */
+    /** The size of {@link #buf}. */
     private static final int INFLATE_BUF_SIZE = 8192;
 
     /**
@@ -88,8 +81,8 @@ public final class RecycledInflaterInputStream extends InputStream {
      * @param rawInputStream
      *            the stream of deflated bytes
      * @param inflaterRecycler
-     *            the recycler to borrow an {@link Inflater} from, and to hand it back to on close, which must be
-     *            one returned by {@link #newInflaterRecycler()}
+     *            the recycler from which to acquire and return the {@link Inflater}, created via
+     *            {@link #newInflaterRecycler()}
      */
     public RecycledInflaterInputStream(final InputStream rawInputStream,
             final Recycler<Inflater, RuntimeException> inflaterRecycler) {
@@ -99,11 +92,10 @@ public final class RecycledInflaterInputStream extends InputStream {
     }
 
     /**
-     * Create a pool of {@link Inflater} instances for this stream to borrow from. Each inflater is created with the
-     * "nowrap" option, which zip entry data needs, and is reset when it is handed back, and ended when it is
-     * discarded.
+     * Create a {@link Recycler} of {@link Inflater} instances configured with {@code nowrap = true} for zip entry
+     * data.
      *
-     * @return the new pool.
+     * @return the new {@link Inflater} recycler.
      */
     public static Recycler<Inflater, RuntimeException> newInflaterRecycler() {
         return new Recycler<>() {
@@ -277,8 +269,7 @@ public final class RecycledInflaterInputStream extends InputStream {
     }
 
     /**
-     * Mark is not supported by this stream, so this is a no-op, as required by the {@link InputStream} contract
-     * when {@link #markSupported()} returns false.
+     * Mark is not supported by this stream (no-op).
      */
     @Override
     public synchronized void mark(final int readlimit) {

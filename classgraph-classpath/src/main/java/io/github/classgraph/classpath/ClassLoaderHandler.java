@@ -36,103 +36,66 @@ import org.jspecify.annotations.Nullable;
 import io.github.classgraph.base.ClassGraphLog;
 
 /**
- * Teaches ClassGraph how to read the classpath out of a {@link ClassLoader} that it does not already know about.
+ * Extracts classpath entries and delegation order from a custom {@link ClassLoader}.
  *
  * <p>
- * ClassGraph ships with handlers for the classloaders of the common application servers, build tools and
- * frameworks. Write one of these only for a classloader that none of those handle, then register it with
- * {@code ClassGraph#registerClassLoaderHandler(ClassLoaderHandler)} before scanning. A registered handler is
- * offered every classloader before the built-in handlers are, and is never dropped, so it can also override a
- * built-in handler.
+ * ClassGraph includes built-in handlers for common application servers, build tools, and frameworks. Custom
+ * handlers can be registered via {@link ClasspathFinder#registerClassLoaderHandler(ClassLoaderHandler)} and are
+ * evaluated before built-in handlers. Among built-in handlers, only those matching the most specific classloader
+ * class in the hierarchy are used; a handler for a subclass of {@link java.net.URLClassLoader} replaces the
+ * built-in {@code URLClassLoader} handler and must add any {@code URLClassLoader} URLs itself.
  *
  * <p>
- * When more than one handler can handle the same classloader, a built-in handler is used only if no other handler
- * names a more specific classloader class, so a handler written for a subclass of {@link java.net.URLClassLoader}
- * takes the place of the built-in {@code URLClassLoader} handler rather than running alongside it, and has to add
- * the classloader's own URLs itself. The handlers that are kept run in turn, the registered ones first, and a
- * classloader or classpath entry that has already been placed keeps the position the first handler to place it gave
- * it.
+ * Implementations must be stateless and thread-safe, as a single instance may be shared across concurrent scans.
+ * Per-scan state can be tracked using {@link ClasspathOrder#claimOncePerScan(String)}.
  *
  * <p>
- * Implementations must be stateless: a single instance handles every classloader in every scan, and scans can run
- * concurrently. State that belongs to one scan goes in the {@link ClasspathOrder} that is passed in; see
- * {@link ClasspathOrder#claimOncePerScan(String)}.
- *
- * <p>
- * If a method of a handler throws a {@link RuntimeException} or a {@link LinkageError}, the exception is logged and
- * the scan goes on without that handler's help for that classloader, so a handler that fails does not stop the
- * other classloaders from being read. A handler whose {@link #canHandle(Class, ClassGraphLog)} throws is taken not
- * to handle the class. If {@link #findClassLoaderOrder(ClassLoader, ClassLoaderOrder, ClassGraphLog)} throws, the
- * classloader is placed after the classloaders the handler had already delegated to, unless it was already placed.
- * If {@link #getPackageRootPrefixes()}, {@link #getLibDirPrefixes()} or
- * {@link #findClasspathOrder(ClassLoader, ClasspathOrder, ClassGraphLog)} throws, the classpath entries the handler
- * added for the classloader before the exception are kept.
- *
- * <p>
- * If you write a handler for a classloader that others are likely to hit, please consider contributing it to the
- * ClassGraph project.
+ * Uncaught {@link RuntimeException} and {@link LinkageError} exceptions thrown by handler methods are logged and
+ * ignored so that scanning can proceed with remaining classloaders and entries.
  */
 public interface ClassLoaderHandler {
-    /** The package root prefixes for classpath elements that have no automatic package roots at all. */
+    /** Empty package root prefix list for classpath elements without automatic package roots. */
     @Unmodifiable
     List<String> NO_PACKAGE_ROOT_PREFIXES = List.of();
 
-    /** The lib dirs for classpath elements that have no automatic lib dirs at all. */
+    /** Empty lib directory prefix list for classpath elements without automatic lib directories. */
     @Unmodifiable
     List<String> NO_LIB_DIR_PREFIXES = List.of();
 
     /**
-     * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
+     * Checks whether this handler supports the given {@link ClassLoader} class.
      *
      * @param classLoaderClass
      *            the {@link ClassLoader} class or one of its superclasses.
      * @param log
-     *            the log node, or null to skip logging
-     * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
+     *            the log node, or null to skip logging.
+     * @return true if this handler can handle the {@link ClassLoader}.
      */
     boolean canHandle(Class<?> classLoaderClass, @Nullable ClassGraphLog log);
 
     /**
-     * Return true if the class is, extends, or implements a given named class or interface. Used by
-     * {@link #canHandle(Class, ClassGraphLog)} implementations to recognize a {@link ClassLoader} by name without
-     * loading its class.
+     * Checks whether {@code cls} is, extends, or implements the class or interface with the given name.
      *
      * @param cls
      *            the class to test, or null.
      * @param className
-     *            the name of the class or interface to look for.
-     * @return true if cls is, extends, or implements the named class or interface.
+     *            the fully-qualified name of the class or interface to match.
+     * @return true if {@code cls} is, extends, or implements {@code className}.
      */
     default boolean classIsOrExtendsOrImplements(final @Nullable Class<?> cls, final String className) {
         return findMatchingClassName(cls, className) != null;
     }
 
     /**
-     * Return the first of the given class or interface names that the class is, extends or implements, or null if
-     * it is none of them.
-     *
-     * <p>
-     * Use this rather than a chain of {@link #classIsOrExtendsOrImplements(Class, String)} calls in a handler that
-     * recognizes more than one {@link ClassLoader} class and then has to know which of them it was given, so that
-     * the handler decides what a classloader is in the same way that {@link #canHandle(Class, ClassGraphLog)}
-     * decided that it could handle it. Comparing {@code classLoader.getClass().getName()} against each name instead
-     * misses a subclass of a classloader that {@code canHandle} accepted, and a handler that is chosen but then
-     * handles nothing leaves the classloader's classpath entries out of the scan entirely, since no other handler
-     * is offered the classloader.
-     *
-     * <p>
-     * The class hierarchy is walked once, with every name tested at each class, rather than once per name. The walk
-     * visits the class itself, then its superclass and everything above it, and only then the interfaces the class
-     * implements directly, so a class is always reached before its own supertypes, and the more specific of a class
-     * and one of its supertypes is the one that is returned. Two interfaces that the class inherits from different
-     * places are reached superclass-first, though, so a name that is only reachable through an interface of a
-     * superclass is returned ahead of one reachable through an interface of the class itself.
+     * Returns the first class or interface name in {@code classNames} that {@code cls} is, extends, or implements,
+     * searching the class hierarchy from {@code cls} upward through superclasses before interfaces, or null if none
+     * match.
      *
      * @param cls
      *            the class to test, or null.
      * @param classNames
-     *            the names of the classes or interfaces to look for.
-     * @return the first matching name, or null if the class is, extends or implements none of them.
+     *            the fully-qualified names of the classes or interfaces to match.
+     * @return the first matching class or interface name, or null if none match.
      */
     default @Nullable String findMatchingClassName(final @Nullable Class<?> cls, final String... classNames) {
         if (cls == null) {
@@ -158,95 +121,57 @@ public interface ClassLoaderHandler {
     }
 
     /**
-     * Find the {@link ClassLoader} delegation order for a {@link ClassLoader}.
+     * Records the delegation order for {@code classLoader} in {@code classLoaderOrder}.
      *
      * <p>
-     * The handler places the classloader with {@link ClassLoaderOrder#add(ClassLoader, ClassGraphLog)} at the point
-     * where the classloader searches its own classpath: after
-     * {@link ClassLoaderOrder#delegateToParent(ClassLoader, ClassGraphLog)} for its parent if the classloader is
-     * parent-first, or before it if the classloader is parent-last. If no handler places the classloader, it is
-     * placed after every classloader its handlers delegated to.
+     * Call {@link ClassLoaderOrder#add(ClassLoader, ClassGraphLog)} after
+     * {@link ClassLoaderOrder#delegateToParent(ClassLoader, ClassGraphLog)} for parent-first resolution, or before
+     * it for parent-last resolution. If the handler does not call {@code add}, the classloader is placed after all
+     * classloaders it delegated to.
      *
      * @param classLoader
-     *            the {@link ClassLoader} to find the order for.
+     *            the {@link ClassLoader} to record the delegation order for.
      * @param classLoaderOrder
-     *            the {@link ClassLoaderOrder} to place the classloader and the classloaders it delegates to in.
+     *            the {@link ClassLoaderOrder} to update.
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or null to skip logging.
      */
     void findClassLoaderOrder(ClassLoader classLoader, ClassLoaderOrder classLoaderOrder,
             @Nullable ClassGraphLog log);
 
     /**
-     * Find the classpath entries for the associated {@link ClassLoader}.
+     * Extracts classpath entries from {@code classLoader} and adds them to {@code classpathOrder}.
      *
      * <p>
-     * The {@link ClasspathOrder} is valid only during this call. Do not keep a reference to it: an entry added
-     * after this call returns is not recorded with this handler's {@link #getPackageRootPrefixes()} and
-     * {@link #getLibDirPrefixes()}, and may not be seen by the scan.
+     * Do not retain a reference to {@code classpathOrder} after this method returns.
      *
      * @param classLoader
-     *            the {@link ClassLoader} to find the classpath entries order for.
+     *            the {@link ClassLoader} to extract classpath entries from.
      * @param classpathOrder
-     *            a {@link ClasspathOrder} object to update.
+     *            the {@link ClasspathOrder} to update.
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or null to skip logging.
      */
     void findClasspathOrder(ClassLoader classLoader, ClasspathOrder classpathOrder, @Nullable ClassGraphLog log);
 
     /**
-     * The dirs within a classpath element (e.g. {@code "WEB-INF/classes/"}, for a classloader that loads a webapp
-     * straight from its WAR file) that this classloader loads classes from without listing them as classpath
-     * elements of their own. Each of these dirs found within a classpath element obtained from this classloader is
-     * scanned as a package root, i.e. the prefix is stripped from the paths of the classfiles beneath it.
+     * Returns relative directory prefixes within a classpath element (such as {@code "WEB-INF/classes/"}) that this
+     * classloader treats as package roots without listing them as separate classpath entries. When present within a
+     * classpath element contributed by this handler, these prefixes are stripped from class and resource paths.
      *
-     * <p>
-     * The default is {@link #NO_PACKAGE_ROOT_PREFIXES}, since a classloader normally loads classes only from the
-     * classpath elements it was given -- {@link java.net.URLClassLoader} has no automatic package roots at all.
-     * Override this only for a classloader whose own code goes looking for classes in a dir with a fixed name, and
-     * declare exactly the dirs that code looks in. The declaration is taken at face value: a prefix that is also a
-     * legal package name (e.g. {@code "classes/"}) is stripped from any classpath element this classloader yields
-     * that has a dir of that name, so declaring one that the classloader does not really look in makes a real
-     * package of that name be read as a package root.
-     *
-     * <p>
-     * This is called just before each call to
-     * {@link #findClasspathOrder(ClassLoader, ClasspathOrder, ClassGraphLog)}, and the list is copied then, so a
-     * change made to it afterward has no effect.
-     *
-     * @return the package root prefixes, each a relative path ending in a slash, such as
-     *         {@code "WEB-INF/classes/"}. ClassGraph normalizes each prefix to that form, reading a backslash as a
-     *         slash, removing leading slashes, and resolving {@code "."}, {@code ".."} and empty segments without
-     *         going above the root of the classpath element. It drops a null prefix, a prefix that names no dir,
-     *         such as {@code ""} or {@code "../"}, and a prefix that repeats an earlier one.
+     * @return the relative package root directory prefixes (normalized with trailing {@code '/'}).
      */
     default List<String> getPackageRootPrefixes() {
         return NO_PACKAGE_ROOT_PREFIXES;
     }
 
     /**
-     * The dirs within a classpath element (e.g. {@code "WEB-INF/lib/"}, for a classloader that loads a webapp
-     * straight from its WAR file) whose jarfiles this classloader adds to the classpath without listing them as
-     * classpath elements of their own. The jarfiles found in these dirs within a classpath element obtained from
-     * this classloader are added to the classpath after the classpath element that contains them.
+     * Returns relative directory prefixes within a classpath element (such as {@code "WEB-INF/lib/"}) whose
+     * jarfiles this classloader automatically adds to the classpath. Jarfiles found in these directories within a
+     * classpath element contributed by this handler are added to the classpath immediately after the enclosing
+     * element.
      *
-     * <p>
-     * The default is {@link #NO_LIB_DIR_PREFIXES}, since a classloader normally loads from the jarfiles it was
-     * given -- {@link java.net.URLClassLoader} has no automatic lib dirs at all. Override this only for a
-     * classloader whose own code goes looking for jarfiles in a dir with a fixed name, and declare exactly the dirs
-     * that code looks in: a lib dir prefix that is also a legal package name (e.g. {@code "lib/"}) otherwise causes
-     * the jarfiles of a package of that name to be added to the classpath of every application that has one.
-     *
-     * <p>
-     * This is called just before each call to
-     * {@link #findClasspathOrder(ClassLoader, ClasspathOrder, ClassGraphLog)}, and the list is copied then, so a
-     * change made to it afterward has no effect.
-     *
-     * @return the lib dir prefixes, each a relative path ending in a slash, such as {@code "WEB-INF/lib/"}.
-     *         ClassGraph normalizes each prefix to that form, reading a backslash as a slash, removing leading
-     *         slashes, and resolving {@code "."}, {@code ".."} and empty segments without going above the root of
-     *         the classpath element. It drops a null prefix, a prefix that names no dir, such as {@code ""} or
-     *         {@code "../"}, and a prefix that repeats an earlier one.
+     * @return the relative lib directory prefixes (normalized with trailing {@code '/'}).
      */
     default List<String> getLibDirPrefixes() {
         return NO_LIB_DIR_PREFIXES;

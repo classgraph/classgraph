@@ -143,12 +143,10 @@ public final class TypeArgument extends HierarchicalTypeSignature {
     }
 
     /**
-     * Make a copy of this type argument that has the given type annotations on the type argument as a whole, before
-     * any type annotations of its own: on the wildcard, if this type argument is a wildcard, otherwise on its type
-     * signature.
+     * Return a copy of this type argument with the given type annotations prepended.
      *
      * @param annotations
-     *            the type annotations to put first.
+     *            the type annotations to prepend.
      * @return the copy.
      */
     private TypeArgument withTypeAnnotationsPrepended(final List<AnnotationInfo> annotations) {
@@ -188,15 +186,15 @@ public final class TypeArgument extends HierarchicalTypeSignature {
     }
 
     /**
-     * Add a type annotation to this type argument, or to the type within it that the type path leads to.
+     * Add a type annotation to this type argument, or to the nested type indicated by {@code typePath}.
      *
      * @param typePath
      *            The type path, relative to this type argument.
      * @param annotationInfo
      *            The annotation to add.
      * @param unlinkedInnerClasses
-     *            The {@code InnerClasses} entries for inner classes that the classfile the annotation was read from
-     *            did not link (see {@link ClassInfo#getUnlinkedInnerClasses()}).
+     *            Unlinked {@code InnerClasses} entries from the classfile (see
+     *            {@link ClassInfo#getUnlinkedInnerClasses()}).
      */
     void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo,
             final List<ClassContainment> unlinkedInnerClasses) {

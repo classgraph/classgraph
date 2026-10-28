@@ -28,16 +28,15 @@
  */
 
 /**
- * Readers that read binary content a value at a time, in a byte order fixed by the content.
+ * Binary readers for random-access ({@link io.github.classgraph.vfs.reader.RandomAccessReader}) and sequential
+ * ({@link io.github.classgraph.vfs.reader.SequentialReader}) reading over byte arrays,
+ * {@link java.nio.ByteBuffer}s, {@link java.nio.channels.FileChannel}s, and streams
+ * ({@link io.github.classgraph.vfs.reader.RandomAccessOrSequentialReader}).
  *
  * <p>
- * {@link io.github.classgraph.vfs.reader.RandomAccessReader} reads a value at any offset, and
- * {@link io.github.classgraph.vfs.reader.SequentialReader} reads values one after another from a position that
- * advances. There are readers over a byte array, a {@link java.nio.ByteBuffer} and a
- * {@link java.nio.channels.FileChannel}, and {@link io.github.classgraph.vfs.reader.RandomAccessOrSequentialReader}
- * reads a stream, such as a {@link io.github.classgraph.vfs.VfsEntry}, buffering it as it goes so that it can be
- * read either way. {@link io.github.classgraph.vfs.reader.RandomAccessReader} describes the rules they all follow:
- * byte order, the end of the content, and threads.
+ * This package is {@link org.jspecify.annotations.NullMarked}: parameters and return values are non-null unless
+ * annotated with {@link org.jspecify.annotations.Nullable}, and passing {@code null} for a non-null parameter
+ * throws {@link java.lang.NullPointerException}.
  */
 @NullMarked
 package io.github.classgraph.vfs.reader;

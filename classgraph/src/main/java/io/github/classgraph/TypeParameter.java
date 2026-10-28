@@ -50,10 +50,10 @@ public final class TypeParameter extends HierarchicalTypeSignature {
     /** The type parameter identifier. */
     final String name;
 
-    /** Class bound -- may be null. */
+    /** Class bound, or null if none. */
     final @Nullable ReferenceTypeSignature classBound;
 
-    /** Interface bounds -- may be empty. */
+    /** Interface bounds (may be empty). */
     final List<ReferenceTypeSignature> interfaceBounds;
 
     // -------------------------------------------------------------------------------------------------------------
@@ -97,23 +97,21 @@ public final class TypeParameter extends HierarchicalTypeSignature {
     /**
      * Get the type parameter interface bound(s).
      *
-     * @return Get the type parameter interface bound(s), which may be the empty list.
+     * @return The type parameter interface bound(s), which may be the empty list.
      */
     public @Unmodifiable List<ReferenceTypeSignature> getInterfaceBounds() {
         return Collections.unmodifiableList(interfaceBounds);
     }
 
     /**
-     * Add a type annotation to this type parameter. (A type annotation on one of its bounds is added to that bound
-     * instead.)
+     * Add a type annotation to this type parameter.
      *
      * @param typePath
      *            The type path, which must be empty.
      * @param annotationInfo
      *            The annotation to add.
      * @param unlinkedInnerClasses
-     *            The {@code InnerClasses} entries for inner classes that the classfile the annotation was read from
-     *            did not link (unused, since the type path must be empty).
+     *            Unlinked {@code InnerClasses} entries from the classfile (unused).
      * @throws IllegalArgumentException
      *             if the type path is not empty.
      */

@@ -46,13 +46,12 @@ import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsRoot;
 
 /**
- * One element of the classpath: a directory or a jarfile that classes and resources are loaded from.
+ * A single element of the classpath (a directory or jarfile from which classes and resources are loaded).
  *
  * <p>
- * A classloader names its classpath elements in whichever form it happens to store them -- a path string, a
- * {@link File}, a {@link Path}, a {@link URL} or a {@link URI} -- and each is kept in the form it was found in,
- * rather than being flattened to a string and parsed again. {@link #open(Vfs)} opens the element in whichever of
- * those forms it has, so code that reads the classpath does not have to know which one it is:
+ * Each entry preserves the representation in which it was provided by its classloader or caller (path string,
+ * {@link File}, {@link Path}, {@link URL}, or {@link URI}). Call {@link #open(Vfs)} to open the entry in its
+ * underlying representation:
  *
  * <pre>
  * try (Classpath classpath = new ClasspathFinder().enableClasspath().find()) {
@@ -67,10 +66,8 @@ import io.github.classgraph.vfs.VfsRoot;
  * </pre>
  *
  * <p>
- * For the code that does need to know, this is a sealed type with one subclass per form -- {@link OfPathString},
- * {@link OfFile}, {@link OfPath}, {@link OfURL} and {@link OfURI} -- and each subclass hands the element back in
- * that form. Because the type is sealed, those five are the only possibilities, so a {@code switch} over them on
- * Java 21 or later is checked for exhaustiveness:
+ * This is a sealed class with five permitted subclasses corresponding to each entry representation:
+ * {@link OfPathString}, {@link OfFile}, {@link OfPath}, {@link OfURL}, and {@link OfURI}.
  *
  * <pre>
  * if (entry instanceof ClasspathEntry.OfURL urlEntry) {
@@ -79,29 +76,29 @@ import io.github.classgraph.vfs.VfsRoot;
  * </pre>
  */
 public abstract sealed class ClasspathEntry {
-    /** The location of the classpath element. */
+    /** The normalized location of the classpath element. */
     private final String location;
 
-    /** The string form of the classloader this classpath element was obtained from, or null if unknown. */
+    /** The {@link Object#toString()} of the classloader this element was obtained from, or null if none. */
     private final @Nullable String classLoaderName;
 
-    /** The directory prefixes that should be looked for within this classpath element. */
+    /** The package root directory prefixes within this classpath element. */
     private final List<String> packageRootPrefixes;
 
-    /** The lib dirs whose jarfiles should be added to the classpath, within this classpath element. */
+    /** The automatic lib directory prefixes within this classpath element. */
     private final List<String> libDirPrefixes;
 
     /**
      * Constructor.
      *
      * @param location
-     *            the location of the classpath element.
+     *            the normalized location of the classpath element.
      * @param classLoaderName
-     *            the string form of the classloader this classpath element was obtained from, or null if unknown.
+     *            the string representation of the originating classloader, or null if none.
      * @param packageRootPrefixes
-     *            the directory prefixes that should be looked for within this classpath element.
+     *            the package root directory prefixes within this classpath element.
      * @param libDirPrefixes
-     *            the lib dirs whose jarfiles should be added to the classpath, within this classpath element.
+     *            the automatic lib directory prefixes within this classpath element.
      */
     private ClasspathEntry(final String location, final @Nullable String classLoaderName,
             final List<String> packageRootPrefixes, final List<String> libDirPrefixes) {
@@ -116,19 +113,19 @@ public abstract sealed class ClasspathEntry {
     }
 
     /**
-     * Wrap a classpath element in the subclass that matches the form it was found in.
+     * Creates a {@link ClasspathEntry} subclass matching the runtime type of {@code classpathEntryObj}.
      *
      * @param classpathEntryObj
-     *            the object the classpath element was found as.
+     *            the raw classpath entry object.
      * @param location
-     *            the location of the classpath element.
+     *            the normalized location of the classpath element.
      * @param classLoaderName
-     *            the string form of the classloader this classpath element was obtained from, or null if unknown.
+     *            the string representation of the originating classloader, or null if none.
      * @param packageRootPrefixes
-     *            the directory prefixes that should be looked for within this classpath element.
+     *            the package root directory prefixes within this classpath element.
      * @param libDirPrefixes
-     *            the lib dirs whose jarfiles should be added to the classpath, within this classpath element.
-     * @return the classpath element.
+     *            the automatic lib directory prefixes within this classpath element.
+     * @return the created {@link ClasspathEntry}.
      */
     static ClasspathEntry of(final Object classpathEntryObj, final String location,
             final @Nullable String classLoaderName, final List<String> packageRootPrefixes,
@@ -151,17 +148,14 @@ public abstract sealed class ClasspathEntry {
     }
 
     /**
-     * Respell a {@link Path} in the default filesystem with the location of the classpath element, so that a
-     * classpath element that a classloader named with a relative path is opened under the same name that it is
-     * reported by, rather than being opened a second time under the name it was found as. A {@link Path} in any
-     * other filesystem is left alone: only the {@link Path} itself reaches such a filesystem, and the location
-     * merely names it.
+     * Resolves a default-filesystem {@link Path} to {@code location}, or returns {@code path} unchanged if it
+     * belongs to a non-default filesystem.
      *
      * @param path
-     *            the path the classpath element was found as.
+     *            the original path.
      * @param location
-     *            the location of the classpath element.
-     * @return the path to open the classpath element with.
+     *            the normalized location string.
+     * @return the resolved {@link Path}.
      */
     private static Path localPath(final Path path, final String location) {
         if (path.getFileSystem() != FileSystems.getDefault()) {
@@ -179,16 +173,9 @@ public abstract sealed class ClasspathEntry {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns the location of the classpath element. This is an absolute path for a local directory or jarfile,
-     * with {@code '/'} as the separator on every platform. A jarfile nested inside another jarfile is written in
-     * the Java {@code outer.jar!/inner.jar} form. Anything that is not a local file, for example a classpath
-     * element served over HTTP by a container, is the URL or URI it was found as. A local path is canonical, and
-     * the file or directory it names was there when the classpath was found, but neither a URL nor a path within a
-     * jarfile has been checked, so either may name something that does not exist.
-     *
-     * <p>
-     * This is a name to report the classpath element by. To read it, call {@link #open(Vfs)}, which opens it in the
-     * form it was found in rather than by parsing this string again.
+     * Returns the normalized location of the classpath element: a canonical path with {@code '/'} separators for
+     * local files and directories, {@code outer.jar!/inner.jar} syntax for nested jars, or a URL/URI string for
+     * non-local resources.
      *
      * @return the location of the classpath element.
      */
@@ -197,26 +184,18 @@ public abstract sealed class ClasspathEntry {
     }
 
     /**
-     * Returns the {@link Object#toString()} of the classloader this classpath element was obtained from, or null if
-     * it did not come from a classloader: an element passed to {@link ClasspathFinder#enableClasspathEntries}, or
-     * one that the manifest or a lib dir of such an element declared. Only the string is kept, so that finding the
-     * classpath does not keep a classloader alive.
+     * Returns the {@link Object#toString()} of the {@link ClassLoader} from which this element was obtained, or
+     * null if the element was supplied directly via {@link ClasspathFinder#enableClasspathEntries}.
      *
-     * @return the string form of the classloader, or null if this element did not come from one.
+     * @return the string representation of the originating classloader, or null if none.
      */
     public @Nullable String getClassLoaderName() {
         return classLoaderName;
     }
 
     /**
-     * Returns the directory prefixes that should be looked for within this classpath element and stripped if
-     * present, because a classloader of this type can place the root of the package hierarchy below them, as
-     * declared by its {@link ClassLoaderHandler#getPackageRootPrefixes()}, for example {@code "WEB-INF/classes/"}
-     * for a classloader that loads a webapp straight from its WAR file. These are the layouts that the classloader
-     * could have used, not the ones this classpath element actually uses, so a prefix is listed whether or not the
-     * element contains a directory with that name. The list is empty for a classloader whose classpath elements
-     * always have their classes at the root, which is every classloader that ClassGraph has a built-in handler for,
-     * and never contains the empty string.
+     * Returns the relative directory prefixes (such as {@code "WEB-INF/classes/"}) declared by the originating
+     * {@link ClassLoaderHandler#getPackageRootPrefixes()} as potential package roots within this element.
      *
      * @return the package root prefixes, as an unmodifiable list.
      */
@@ -225,15 +204,10 @@ public abstract sealed class ClasspathEntry {
     }
 
     /**
-     * Returns the lib dirs whose jarfiles are added to the classpath if they are present within this classpath
-     * element, because a classloader of this type loads from them without listing them as classpath elements, as
-     * declared by its {@link ClassLoaderHandler#getLibDirPrefixes()}, for example {@code "lib/"} and
-     * {@code "main/"} for the classloader of a One-JAR executable jarfile. These are the lib dirs the classloader
-     * could load from, not the ones this classpath element actually has, so a lib dir is listed whether or not the
-     * element contains a directory with that name. The list is empty for a classloader that lists every jarfile it
-     * loads from, and never contains the empty string.
+     * Returns the relative directory prefixes (such as {@code "WEB-INF/lib/"}) declared by the originating
+     * {@link ClassLoaderHandler#getLibDirPrefixes()} as potential automatic lib directories within this element.
      *
-     * @return the lib dir prefixes, as an unmodifiable list.
+     * @return the lib directory prefixes, as an unmodifiable list.
      */
     public @Unmodifiable List<String> getLibDirPrefixes() {
         return libDirPrefixes;
@@ -242,27 +216,17 @@ public abstract sealed class ClasspathEntry {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Open this classpath element for reading, through the given virtual filesystem. A directory, a jarfile, and a
-     * jarfile nested inside another jarfile are all opened the same way, and are read through the same
-     * {@link VfsRoot} methods afterwards.
+     * Opens this classpath element as a {@link VfsRoot} using the given {@link Vfs}.
      *
      * <p>
-     * The element is opened in the form the classloader named it with, so a {@link Path} is opened through its own
-     * {@link java.nio.file.FileSystem}, rather than being written out as a string and parsed back.
-     *
-     * <p>
-     * Pass {@link Classpath#getVfs()}, to read a jarfile that was already opened to read its manifest without
-     * opening it a second time. The returned root owns nothing that has to be released, and is not closed: what it
-     * reads through belongs to the {@link Vfs}, and stops working when that is closed, so do not let the root
-     * outlive the {@link Vfs} it was opened through.
+     * Pass {@link Classpath#getVfs()} to reuse jarfiles that were already opened during classpath discovery. The
+     * returned {@link VfsRoot} is owned by {@code vfs} and remains valid until {@code vfs} is closed.
      *
      * @param vfs
-     *            the virtual filesystem to open the classpath element through.
-     * @return the opened root.
+     *            the virtual filesystem used to open the classpath element.
+     * @return the opened {@link VfsRoot}.
      * @throws IOException
-     *             if the classpath element could not be opened or read, or if the {@link Vfs} has been closed. A
-     *             classloader may name a jarfile or directory that is not there, so this is an expected outcome
-     *             rather than a sign that something is wrong.
+     *             if the classpath element cannot be opened or read, or if {@code vfs} is closed.
      */
     public final VfsRoot open(final Vfs vfs) throws IOException {
         Assert.notNull(vfs, "vfs");
@@ -270,22 +234,21 @@ public abstract sealed class ClasspathEntry {
     }
 
     /**
-     * Open this classpath element, in the form it was found in.
+     * Opens this classpath element in its underlying representation using {@code vfs}.
      *
      * @param vfs
-     *            the virtual filesystem to open the classpath element through.
-     * @return the opened root.
+     *            the virtual filesystem used to open the classpath element.
+     * @return the opened {@link VfsRoot}.
      * @throws IOException
-     *             if the classpath element could not be opened or read, or if the {@link Vfs} has been closed.
+     *             if the classpath element cannot be opened or read, or if {@code vfs} is closed.
      */
     abstract VfsRoot openImpl(Vfs vfs) throws IOException;
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Two classpath elements are equal if they were found in the same form, at the same {@link #getLocation()},
-     * through the same classloader, with the same {@link #getPackageRootPrefixes()} and
-     * {@link #getLibDirPrefixes()}.
+     * Checks whether this entry is equal to another object (same subclass, location, classloader name, package root
+     * prefixes, and lib directory prefixes).
      *
      * @param obj
      *            the object to compare with.
@@ -305,10 +268,10 @@ public abstract sealed class ClasspathEntry {
     }
 
     /**
-     * Returns the {@link #getLocation()}, followed by the classloader it was obtained from in square brackets if it
-     * came from one.
+     * Returns {@link #getLocation()}, followed by {@code " [" + getClassLoaderName() + "]"} if associated with a
+     * classloader.
      *
-     * @return the classpath element, as a string.
+     * @return a string representation of this classpath element.
      */
     @Override
     public final String toString() {
@@ -318,23 +281,20 @@ public abstract sealed class ClasspathEntry {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * A classpath element that a classloader named with a string: a path, or a URL written as a string. This is the
-     * usual case: the entries of the {@code java.class.path} system property, and of a jarfile manifest's
-     * {@code Class-Path} attribute, are strings. The string is resolved to the {@link #getLocation()}, and opened
-     * by it, so there is no separate accessor for it.
+     * A classpath element represented by a path or URL string.
      */
     public static final class OfPathString extends ClasspathEntry {
         /**
          * Constructor.
          *
          * @param location
-         *            the path of the classpath element, which is also its location.
+         *            the normalized location of the classpath element.
          * @param classLoaderName
-         *            the string form of the classloader this classpath element was obtained from, or null.
+         *            the string representation of the originating classloader, or null.
          * @param packageRootPrefixes
-         *            the directory prefixes that should be looked for within this classpath element.
+         *            the package root directory prefixes within this element.
          * @param libDirPrefixes
-         *            the lib dirs whose jarfiles should be added to the classpath, within this element.
+         *            the automatic lib directory prefixes within this element.
          */
         OfPathString(final String location, final @Nullable String classLoaderName,
                 final List<String> packageRootPrefixes, final List<String> libDirPrefixes) {
@@ -348,7 +308,7 @@ public abstract sealed class ClasspathEntry {
     }
 
     /**
-     * A classpath element that a classloader named with a {@link File}.
+     * A classpath element represented by a {@link File}.
      */
     public static final class OfFile extends ClasspathEntry {
         /** The file. */
@@ -358,15 +318,15 @@ public abstract sealed class ClasspathEntry {
          * Constructor.
          *
          * @param file
-         *            the file the classpath element was found as.
+         *            the file representing the classpath element.
          * @param location
-         *            the location of the classpath element.
+         *            the normalized location of the classpath element.
          * @param classLoaderName
-         *            the string form of the classloader this classpath element was obtained from, or null.
+         *            the string representation of the originating classloader, or null.
          * @param packageRootPrefixes
-         *            the directory prefixes that should be looked for within this classpath element.
+         *            the package root directory prefixes within this element.
          * @param libDirPrefixes
-         *            the lib dirs whose jarfiles should be added to the classpath, within this element.
+         *            the automatic lib directory prefixes within this element.
          */
         OfFile(final File file, final String location, final @Nullable String classLoaderName,
                 final List<String> packageRootPrefixes, final List<String> libDirPrefixes) {
@@ -375,8 +335,7 @@ public abstract sealed class ClasspathEntry {
         }
 
         /**
-         * Returns this classpath element as a {@link File}, spelled with its {@link #getLocation()}, which on
-         * Windows means {@link File#getPath()} comes back with backslashes.
+         * Returns the {@link File} for this classpath element.
          *
          * @return the file.
          */
@@ -391,7 +350,7 @@ public abstract sealed class ClasspathEntry {
     }
 
     /**
-     * A classpath element that a classloader named with a {@link Path}.
+     * A classpath element represented by a {@link Path}.
      */
     public static final class OfPath extends ClasspathEntry {
         /** The path. */
@@ -401,15 +360,15 @@ public abstract sealed class ClasspathEntry {
          * Constructor.
          *
          * @param path
-         *            the path the classpath element was found as.
+         *            the path representing the classpath element.
          * @param location
-         *            the location of the classpath element.
+         *            the normalized location of the classpath element.
          * @param classLoaderName
-         *            the string form of the classloader this classpath element was obtained from, or null.
+         *            the string representation of the originating classloader, or null.
          * @param packageRootPrefixes
-         *            the directory prefixes that should be looked for within this classpath element.
+         *            the package root directory prefixes within this element.
          * @param libDirPrefixes
-         *            the lib dirs whose jarfiles should be added to the classpath, within this element.
+         *            the automatic lib directory prefixes within this element.
          */
         OfPath(final Path path, final String location, final @Nullable String classLoaderName,
                 final List<String> packageRootPrefixes, final List<String> libDirPrefixes) {
@@ -418,11 +377,8 @@ public abstract sealed class ClasspathEntry {
         }
 
         /**
-         * Returns this classpath element as a {@link Path}. It may be in a filesystem other than the default one,
-         * in which case opening the {@link Path} is what reaches it, and the {@link #getLocation()} of the element
-         * only names it: a path in a zip filesystem is named in the {@code outer.zip!/dir} form, and a path in any
-         * other filesystem by a URI string. Neither is necessarily equal to the {@link Path#toUri()} form of the
-         * path.
+         * Returns the {@link Path} for this classpath element (which may belong to a custom
+         * {@link java.nio.file.FileSystem}).
          *
          * @return the path.
          */
@@ -437,9 +393,7 @@ public abstract sealed class ClasspathEntry {
     }
 
     /**
-     * A classpath element that a classloader named with a {@link URL}. A {@code "jar:"} or {@code "file:"} URL
-     * names something in the local filesystem; with any other scheme, {@link #open(Vfs)} reads it if the JVM has a
-     * handler for that scheme and the {@link Vfs} has not denied it.
+     * A classpath element represented by a {@link URL}.
      */
     public static final class OfURL extends ClasspathEntry {
         /** The URL. */
@@ -449,15 +403,15 @@ public abstract sealed class ClasspathEntry {
          * Constructor.
          *
          * @param url
-         *            the URL the classpath element was found as.
+         *            the URL representing the classpath element.
          * @param location
-         *            the location of the classpath element.
+         *            the normalized location of the classpath element.
          * @param classLoaderName
-         *            the string form of the classloader this classpath element was obtained from, or null.
+         *            the string representation of the originating classloader, or null.
          * @param packageRootPrefixes
-         *            the directory prefixes that should be looked for within this classpath element.
+         *            the package root directory prefixes within this element.
          * @param libDirPrefixes
-         *            the lib dirs whose jarfiles should be added to the classpath, within this element.
+         *            the automatic lib directory prefixes within this element.
          */
         OfURL(final URL url, final String location, final @Nullable String classLoaderName,
                 final List<String> packageRootPrefixes, final List<String> libDirPrefixes) {
@@ -466,7 +420,7 @@ public abstract sealed class ClasspathEntry {
         }
 
         /**
-         * Returns the {@link URL} the classloader named this classpath element with.
+         * Returns the {@link URL} for this classpath element.
          *
          * @return the URL.
          */
@@ -481,9 +435,7 @@ public abstract sealed class ClasspathEntry {
     }
 
     /**
-     * A classpath element that a classloader named with a {@link URI}. A {@code "jar:"} or {@code "file:"} URI
-     * names something in the local filesystem; with any other scheme, {@link #open(Vfs)} reads it if the JVM has a
-     * URL stream handler or a filesystem provider for that scheme and the {@link Vfs} has not denied it.
+     * A classpath element represented by a {@link URI}.
      */
     public static final class OfURI extends ClasspathEntry {
         /** The URI. */
@@ -493,15 +445,15 @@ public abstract sealed class ClasspathEntry {
          * Constructor.
          *
          * @param uri
-         *            the URI the classpath element was found as.
+         *            the URI representing the classpath element.
          * @param location
-         *            the location of the classpath element.
+         *            the normalized location of the classpath element.
          * @param classLoaderName
-         *            the string form of the classloader this classpath element was obtained from, or null.
+         *            the string representation of the originating classloader, or null.
          * @param packageRootPrefixes
-         *            the directory prefixes that should be looked for within this classpath element.
+         *            the package root directory prefixes within this element.
          * @param libDirPrefixes
-         *            the lib dirs whose jarfiles should be added to the classpath, within this element.
+         *            the automatic lib directory prefixes within this element.
          */
         OfURI(final URI uri, final String location, final @Nullable String classLoaderName,
                 final List<String> packageRootPrefixes, final List<String> libDirPrefixes) {
@@ -510,7 +462,7 @@ public abstract sealed class ClasspathEntry {
         }
 
         /**
-         * Returns the {@link URI} the classloader named this classpath element with.
+         * Returns the {@link URI} for this classpath element.
          *
          * @return the URI.
          */

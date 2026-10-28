@@ -38,32 +38,17 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A set that compares its elements by reference rather than by {@code equals()}, and that iterates them in the
- * order they were added: a {@link java.util.LinkedHashSet} with the comparison semantics of an
- * {@link IdentityHashMap}.
- *
- * <p>
- * This is for deduplicating objects whose {@code equals()} method cannot be trusted to mean "the same object". Two
- * {@link ClassLoader} instances are two classloaders, and each of them can load a different set of classes,
- * whatever either of them says about being equal to the other -- TomEE makes an instance of
- * {@code CxfContainerClassLoader} equal to the instance of {@code TomEEWebappClassLoader} that it delegates to
- * (#515), so an equals-based set drops whichever of the two it sees second, and the classpath entries of the
- * dropped one are never scanned.
- *
- * <p>
- * Like {@link Collections#newSetFromMap(Map)} over an {@link IdentityHashMap}, this deliberately breaks the general
- * contract of {@link java.util.Set}, which is defined in terms of {@code equals()}. Elements cannot be removed:
- * every removal method throws {@link UnsupportedOperationException}, rather than fall back on the equals-based
- * implementation it inherits and remove an element that was never asked for.
+ * An insertion-ordered set that compares elements by reference identity ({@code ==}) rather than
+ * {@link Object#equals(Object)}. Removal operations are not supported.
  *
  * @param <E>
  *            the element type.
  */
 final class LinkedIdentitySet<E> extends AbstractSet<E> {
-    /** The elements, for reference-equality lookup. */
+    /** Identity map backing membership checks. */
     private final Map<E, Boolean> elements = new IdentityHashMap<>();
 
-    /** The elements, in the order they were added. */
+    /** Elements in insertion order. */
     private final List<E> elementsInOrder = new ArrayList<>();
 
     /** Constructor. */
@@ -71,11 +56,11 @@ final class LinkedIdentitySet<E> extends AbstractSet<E> {
     }
 
     /**
-     * Add an element, if the same object is not already in the set.
+     * Adds {@code element} if an identical reference is not already present.
      *
      * @param element
      *            the element to add.
-     * @return true if the element was added, or false if the very same object was already in the set.
+     * @return true if the element was added, or false if the reference was already present.
      */
     @Override
     public boolean add(final E element) {
@@ -87,11 +72,11 @@ final class LinkedIdentitySet<E> extends AbstractSet<E> {
     }
 
     /**
-     * Determine whether the very same object is in the set.
+     * Checks whether the given object reference is present in this set.
      *
      * @param element
-     *            the element to look for.
-     * @return true if the very same object is in the set.
+     *            the object reference to look up.
+     * @return true if the reference is in the set.
      */
     @Override
     public boolean contains(final Object element) {
@@ -99,9 +84,9 @@ final class LinkedIdentitySet<E> extends AbstractSet<E> {
     }
 
     /**
-     * Iterate the elements in the order they were added. The iterator does not support removal.
+     * Returns an unmodifiable iterator over the elements in insertion order.
      *
-     * @return the iterator.
+     * @return an iterator over the elements.
      */
     @Override
     public Iterator<E> iterator() {
@@ -109,7 +94,7 @@ final class LinkedIdentitySet<E> extends AbstractSet<E> {
     }
 
     /**
-     * The number of elements in the set.
+     * Returns the number of elements in the set.
      *
      * @return the number of elements.
      */
@@ -118,11 +103,11 @@ final class LinkedIdentitySet<E> extends AbstractSet<E> {
         return elementsInOrder.size();
     }
 
-    /** The message of the {@link UnsupportedOperationException} that every removal method throws. */
+    /** Exception message for unsupported removal operations. */
     private static final String CANNOT_REMOVE = "Elements cannot be removed from a LinkedIdentitySet";
 
     /**
-     * Not supported: elements cannot be removed.
+     * Unsupported operation.
      *
      * @param element
      *            ignored.
@@ -139,7 +124,7 @@ final class LinkedIdentitySet<E> extends AbstractSet<E> {
     }
 
     /**
-     * Not supported: elements cannot be removed.
+     * Unsupported operation.
      *
      * @param elements
      *            ignored.
@@ -153,7 +138,7 @@ final class LinkedIdentitySet<E> extends AbstractSet<E> {
     }
 
     /**
-     * Not supported: elements cannot be removed.
+     * Unsupported operation.
      *
      * @param elements
      *            ignored.
@@ -167,7 +152,7 @@ final class LinkedIdentitySet<E> extends AbstractSet<E> {
     }
 
     /**
-     * Not supported: elements cannot be removed.
+     * Unsupported operation.
      *
      * @throws UnsupportedOperationException
      *             always.

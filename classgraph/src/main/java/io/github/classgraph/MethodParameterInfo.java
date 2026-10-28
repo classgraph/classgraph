@@ -119,29 +119,29 @@ public final class MethodParameterInfo implements HasAnnotations {
     }
 
     /**
-     * Returns true if this is the variadic parameter of a variadic method, i.e. the parameter declared as
-     * {@code T...}. The type of a variadic parameter is the array type {@code T[]}, so this is the only way to tell
-     * a variadic parameter apart from a parameter that was declared as an array.
+     * Returns true if this is the variadic parameter ({@code T...}) of a varargs method. Because the bytecode type
+     * of a variadic parameter is {@code T[]}, this method distinguishes a variadic parameter from an ordinary array
+     * parameter.
      *
-     * @return True if this is the variadic parameter of a variadic method.
+     * @return True if this is the variadic parameter of a varargs method.
      */
     public boolean isVarArgs() {
         return methodInfo.getVarArgsParamIndex() == index;
     }
 
     /**
-     * Method parameter name. May be null, for unnamed parameters (e.g. synthetic parameters), or if compiled for
-     * JDK version lower than 8, or if compiled for JDK version 8+ but without the commandline switch `-parameters`.
+     * Get the method parameter name, or null if the parameter is unnamed (e.g. synthetic parameters, or if the
+     * class was compiled without the {@code -parameters} compiler switch).
      *
-     * @return The method parameter name.
+     * @return The method parameter name, or null if unavailable.
      */
     public @Nullable String getName() {
         return name;
     }
 
     /**
-     * Method parameter modifiers. May be zero, if no modifier bits set, or if compiled for JDK version lower than
-     * 8, or if compiled for JDK version 8+ but without the commandline switch `-parameters`.
+     * Get the method parameter modifier bits, or zero if no modifier bits are set or if the class was compiled
+     * without the {@code -parameters} compiler switch.
      *
      * @return The method parameter modifiers.
      */

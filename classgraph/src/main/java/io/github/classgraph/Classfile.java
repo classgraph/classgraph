@@ -235,29 +235,13 @@ class Classfile {
     /** An empty array for the case where there are no annotations. */
     private static final AnnotationInfo[] NO_ANNOTATIONS = {};
 
-    /**
-     * The largest number of bytes of a classfile that are read. A classfile is buffered up to the furthest point
-     * that has been read or skipped to, and the lengths of the parts that are skipped are read out of the classfile
-     * itself, so without a limit one attribute that declares a length of almost 2GB makes the scanner inflate and
-     * buffer that much, from a deflated jar entry of a few megabytes. The largest classfile among the 1.28 million
-     * in a large Maven repository is 1.1MB, so a classfile that would need more than this is treated as corrupt.
-     */
+    /** Maximum classfile length in bytes (64 MB). */
     private static final int MAX_CLASSFILE_LENGTH = 64 * 1024 * 1024;
 
-    /**
-     * The bits of a class's {@code access_flags} that JVMS 4.1 defines: {@code ACC_PUBLIC}, {@code ACC_FINAL},
-     * {@code ACC_SUPER}, {@code ACC_INTERFACE}, {@code ACC_ABSTRACT}, {@code ACC_SYNTHETIC},
-     * {@code ACC_ANNOTATION}, {@code ACC_ENUM} and {@code ACC_MODULE}. The other bits are reserved, and the JVM
-     * ignores them.
-     */
+    /** Class {@code access_flags} mask defined by JVMS 4.1. */
     private static final int CLASS_ACCESS_FLAGS = 0xF631;
 
-    /**
-     * The bits of an {@code InnerClasses} entry's {@code inner_class_access_flags} that JVMS 4.7.6 defines:
-     * {@code ACC_PUBLIC}, {@code ACC_PRIVATE}, {@code ACC_PROTECTED}, {@code ACC_STATIC}, {@code ACC_FINAL},
-     * {@code ACC_INTERFACE}, {@code ACC_ABSTRACT}, {@code ACC_SYNTHETIC}, {@code ACC_ANNOTATION} and
-     * {@code ACC_ENUM}. The other bits are reserved, and the JVM ignores them.
-     */
+    /** {@code InnerClasses} entry {@code inner_class_access_flags} mask defined by JVMS 4.7.6. */
     private static final int INNER_CLASS_ACCESS_FLAGS = 0x761F;
 
     // -------------------------------------------------------------------------------------------------------------
@@ -778,28 +762,8 @@ class Classfile {
     }
 
     /**
-     * Link the class containment entries of this classfile that describe this class, the classes nested in it, and
-     * the classes that this classfile brought into the class graph for another reason.
-     *
-     * <p>
-     * A compiler writes an {@code InnerClasses} entry for every nested class that a classfile names anywhere, even
-     * only in a descriptor or a signature, so linking every entry would create a {@link ClassInfo} for each such
-     * class and for its enclosing classes, such as {@code java.util.Map$Entry} and {@code java.util.Map} for a
-     * field of type {@code Map.Entry}. A class named only in a descriptor or a signature gets no {@link ClassInfo}
-     * otherwise. So an entry is linked only if its inner class is this class, or a class that this classfile
-     * brought into the class graph (a superclass, an implemented interface, the class of an annotation on the class
-     * or on one of its fields, methods or method parameters, or, if
-     * {@link ClassGraph#enableInterClassDependencies()} was called, a class named in the constant pool), or an
-     * enclosing class of one of these, found by following the entries outward (for a local or anonymous class,
-     * through the entry made from its {@code EnclosingMethod} attribute); or if its outer class is this class or a
-     * class nested in it, found by following the entries inward. Only the entries of this classfile are used, so
-     * the result does not depend on the order in which classfiles are linked.
-     *
-     * <p>
-     * Where a type annotation goes in a nested type such as {@code Outer.Inner} depends on which of the nested
-     * classes are inner classes (JLS 9.7.4). {@link ClassRefTypeSignature} decides this from the {@link ClassInfo}
-     * objects of the classes, so if this class has type annotations, the entries that are not linked and that name
-     * a non-static member class are kept in its {@link ClassInfo}, for the classes that have no {@link ClassInfo}.
+     * Link the class containment entries of this classfile that describe this class, classes nested within it, and
+     * classes brought into the class graph by this classfile.
      *
      * @param classInfo
      *            the {@link ClassInfo} of this class
@@ -989,15 +953,13 @@ class Classfile {
     }
 
     /**
-     * Check that a string read from the constant pool is non-null. The constant pool string accessors return null
-     * only for a null string reference (a zero index), which cannot occur in a valid classfile in the positions
-     * this method is used to check.
+     * Check that a string read from the constant pool is non-null.
      *
      * @param str
      *            the string that was read from the constant pool
      * @param description
      *            a description of what the string represents, for the exception message
-     * @return {@code str}, which is known to be non-null
+     * @return {@code str}
      * @throws ClassfileFormatException
      *             If the string is null.
      */
@@ -1028,9 +990,7 @@ class Classfile {
 
     /**
      * Check that a class name does not name an array type with more than {@link ArrayTypeSignature#MAX_DIMENSIONS}
-     * dimensions, counting both a leading '[' (e.g. "[[I") and a trailing "[]" (e.g. "int[][]") as a dimension,
-     * since {@link ClassInfo#getOrCreateClassInfo(String, Map)} counts both. The JVM never creates such an array
-     * class, but it does not check a class name that it does not resolve.
+     * dimensions.
      *
      * @param className
      *            the class name, or null
@@ -1059,11 +1019,7 @@ class Classfile {
     }
 
     /**
-     * Check that a class name that this classfile refers to, and that a {@link ClassInfo} is to be created for, is
-     * legal (see {@link ClassNames#isLegalClassName(String)}). The JVM refuses to load a classfile whose constant
-     * pool has a {@code CONSTANT_Class} entry with an illegal name, though it does not check the name of the type
-     * of an annotation. Without this check, a name such as {@code "p.S;"} would make the scan fail when the
-     * {@link ClassInfo} is created, and an empty name would give a class with no name.
+     * Check that a referenced class name is legal (see {@link ClassNames#isLegalClassName(String)}).
      *
      * @param name
      *            the class name, with {@code '.'} as the separator.
@@ -1265,19 +1221,12 @@ class Classfile {
     }
 
     /**
-     * Returned by {@link #readAnnotationElementValue()} in place of a nested annotation whose class name is
-     * illegal, or of an array that holds one.
+     * Sentinel returned by {@link #readAnnotationElementValue()} for a nested annotation with an illegal class
+     * name, or an array containing one.
      */
     private static final Object ILLEGAL_ANNOTATION = new Object();
 
-    /**
-     * The deepest that annotation element values may be nested, counting each array element value and each nested
-     * annotation element value as one level. The reader recurses once per level, so without a limit, a crafted or
-     * corrupt classfile that nests them a few thousand deep would overflow the stack, and the
-     * {@link StackOverflowError} would make the whole scan fail rather than only this annotation attribute being
-     * skipped. javac cannot nest arrays in an annotation, and annotation types cannot contain themselves, so real
-     * annotations nest only a few levels deep.
-     */
+    /** Maximum nesting depth of annotation element values. */
     private static final int MAX_ANNOTATION_NESTING_DEPTH = 255;
 
     /** How deeply the annotation element value that is being read is nested. */
@@ -1593,13 +1542,10 @@ class Classfile {
 
     /**
      * Read the annotations of a {@code RuntimeVisibleAnnotations} or {@code RuntimeInvisibleAnnotations} attribute
-     * into an annotation list. The two attributes are read into the same list, so the list of the other attribute,
-     * if it was read first, is passed in. That list is not modified, so that it is still intact if this attribute
-     * turns out to be malformed.
+     * into an annotation list.
      *
      * @param annotationInfoList
-     *            the annotations read from the other attribute, or null if this is the first of the two attributes
-     *            to be encountered
+     *            the annotations read from the other attribute, or null if none
      * @return a new list holding the annotations of {@code annotationInfoList} followed by those of this attribute,
      *         or {@code annotationInfoList} itself if this attribute holds no annotations
      * @throws IOException
@@ -1622,9 +1568,8 @@ class Classfile {
     }
 
     /**
-     * Create a list holding the elements of a list read from an earlier attribute, with room for the elements of
-     * the attribute being read. A new list is created, rather than the earlier list being added to, so that the
-     * earlier list is still intact if the attribute being read turns out to be malformed.
+     * Create a new list holding the elements of {@code earlierElements}, with additional capacity for
+     * {@code numNewElements}.
      *
      * @param <E>
      *            the element type
@@ -1645,8 +1590,7 @@ class Classfile {
     }
 
     /**
-     * Reads the contents of an annotation attribute, given what was read from the attributes of the same kind
-     * before it.
+     * Reads the contents of an annotation attribute, given what was read from earlier attributes of the same kind.
      *
      * @param <T>
      *            the type of what is read from the attribute
@@ -1654,11 +1598,10 @@ class Classfile {
     @FunctionalInterface
     private interface AnnotationAttributeReader<T extends @Nullable Object> {
         /**
-         * Read the contents of the attribute. The reader is positioned at the start of the attribute's contents.
+         * Read the contents of the attribute.
          *
          * @param earlier
-         *            what was read from the attributes of the same kind before this one. This must not be modified,
-         *            since it is kept if this attribute turns out to be malformed.
+         *            what was read from earlier attributes of the same kind (must not be modified).
          * @return {@code earlier} combined with what was read from this attribute
          * @throws IOException
          *             if the classfile could not be read, or the attribute is malformed.
@@ -1667,24 +1610,8 @@ class Classfile {
     }
 
     /**
-     * Read an attribute that holds annotations or an annotation default value: a
-     * {@code Runtime(In)VisibleAnnotations}, {@code Runtime(In)VisibleParameterAnnotations},
-     * {@code Runtime(In)VisibleTypeAnnotations} or {@code AnnotationDefault} attribute.
-     *
-     * <p>
-     * The JVM does not parse the contents of these attributes when it loads a class. It steps over each one using
-     * its {@code attribute_length}, and never reads the runtime invisible ones, so a class whose annotation
-     * attribute is malformed loads and runs normally. Such an attribute is therefore skipped, and the rest of the
-     * class is still read from where the attribute's length says the next attribute starts, rather than the whole
-     * class being dropped from the scan. An attribute is malformed if its contents cannot be read, or if they run
-     * past its {@code attribute_length}, such as when the number of annotations is larger than the attribute holds.
-     * The class is rejected only if the attribute's {@code attribute_length} runs past the end of the classfile,
-     * since the JVM rejects it too.
-     *
-     * <p>
-     * The names of the record components are read from the {@code Record} attribute in the same way. The JVM does
-     * check that attribute, but only the order of the components is read from it, so a malformed one loses only
-     * that order, and the class is still scanned.
+     * Read an annotation attribute or {@code Record} attribute, skipping the attribute if its contents are
+     * malformed.
      *
      * @param <T>
      *            the type of what is read from the attribute
@@ -1695,8 +1622,8 @@ class Classfile {
      * @param location
      *            where the attribute is, such as "method foo", for the log
      * @param earlier
-     *            what was read from the attributes of the same kind before this one, which is returned unchanged if
-     *            this attribute is malformed
+     *            what was read from earlier attributes of the same kind, returned unchanged if this attribute is
+     *            malformed
      * @param attributeReader
      *            reads the contents of the attribute
      * @return what {@code attributeReader} returned, or {@code earlier} if the attribute is malformed.
@@ -2172,13 +2099,10 @@ class Classfile {
 
     /**
      * Read a field's {@code RuntimeVisibleTypeAnnotations} or {@code RuntimeInvisibleTypeAnnotations} attribute
-     * into a list of type annotations. The two attributes are read into the same list, so the list of the other
-     * attribute, if it was read first, is passed in. That list is not modified, so that it is still intact if this
-     * attribute turns out to be malformed.
+     * into a list of type annotations.
      *
      * @param typeAnnotationList
-     *            the type annotations read from the other attribute, or null if this is the first of the two
-     *            attributes to be encountered
+     *            the type annotations read from the other attribute, or null if none
      * @return a new list holding the type annotations of {@code typeAnnotationList} followed by those of this
      *         attribute, or {@code typeAnnotationList} itself if this attribute holds no annotations
      * @throws IOException
@@ -2350,20 +2274,11 @@ class Classfile {
 
     /**
      * Read a method's {@code RuntimeVisibleParameterAnnotations} or {@code RuntimeInvisibleParameterAnnotations}
-     * attribute. Runtime visible and runtime invisible parameter annotations are given in separate attributes, but
-     * are merged into a single array of annotations for each method parameter, so if both attributes are present,
-     * the parameter annotation arrays have to be enlarged when the second attribute is encountered.
-     *
-     * <p>
-     * Each attribute gives its own parameter count (JVMS 4.7.18 and 4.7.19), and the two counts may differ, for
-     * example when javac leaves the implicit outer instance parameter of an inner class constructor out of one
-     * attribute and a bytecode tool writes the other attribute with a count taken from the method descriptor. Both
-     * attributes are therefore aligned with the last parameter, as {@link MethodInfo} aligns all other parameter
-     * metadata, and the merged array has the length of the longer attribute.
+     * attribute, merging with any parameter annotations read from the other attribute (aligned from the last
+     * parameter).
      *
      * @param parameterAnnotations
-     *            the parameter annotations read from the other attribute, or null if this is the first of the two
-     *            attributes to be encountered. They are not modified.
+     *            the parameter annotations read from the other attribute, or null if none
      * @return new merged parameter annotations, with an array (possibly {@link #NO_ANNOTATIONS}) for every
      *         parameter
      * @throws IOException
@@ -2419,13 +2334,10 @@ class Classfile {
 
     /**
      * Read a method's {@code RuntimeVisibleTypeAnnotations} or {@code RuntimeInvisibleTypeAnnotations} attribute
-     * into a list of type annotations. The two attributes are read into the same list, so the list of the other
-     * attribute, if it was read first, is passed in. That list is not modified, so that it is still intact if this
-     * attribute turns out to be malformed.
+     * into a list of type annotations.
      *
      * @param typeAnnotationList
-     *            the type annotations read from the other attribute, or null if this is the first of the two
-     *            attributes to be encountered
+     *            the type annotations read from the other attribute, or null if none
      * @return a new list holding the type annotations of {@code typeAnnotationList} followed by those of this
      *         attribute, or {@code typeAnnotationList} itself if this attribute holds no annotations
      * @throws IOException
@@ -2701,13 +2613,10 @@ class Classfile {
 
     /**
      * Read the class' {@code RuntimeVisibleTypeAnnotations} or {@code RuntimeInvisibleTypeAnnotations} attribute
-     * into a list of type annotations. The two attributes are read into the same list, so the list of the other
-     * attribute, if it was read first, is passed in. That list is not modified, so that it is still intact if this
-     * attribute turns out to be malformed.
+     * into a list of type annotations.
      *
      * @param typeAnnotationList
-     *            the type annotations read from the other attribute, or null if this is the first of the two
-     *            attributes to be encountered
+     *            the type annotations read from the other attribute, or null if none
      * @return a new list holding the type annotations of {@code typeAnnotationList} followed by those of this
      *         attribute, or {@code typeAnnotationList} itself if this attribute holds no annotations
      * @throws IOException

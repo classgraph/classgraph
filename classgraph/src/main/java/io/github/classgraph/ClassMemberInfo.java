@@ -330,19 +330,18 @@ public abstract sealed class ClassMemberInfo extends ScanResultObject implements
 
     /**
      * Get the classes referenced by this class member: the classes named in its type descriptor and type signature,
-     * the classes of the annotations on it, and, for a method, the classes of the annotations on its parameters and
-     * the exception types in its {@code throws} clause.
+     * the classes of its annotations, and, for a method, the classes of its parameter annotations and thrown
+     * exception types.
      *
      * <p>
      * Unlike {@link ClassInfo#getClassDependencies()}, this does not require
-     * {@link ClassGraph#enableInterClassDependencies()} to have been called before scanning -- the dependencies are
-     * read from the type signature and annotations of this member, which are always available once
-     * {@link ClassGraph#enableFieldInfo()} or {@link ClassGraph#enableMethodInfo()} has been called.
+     * {@link ClassGraph#enableInterClassDependencies()} to be called before scanning; only
+     * {@link ClassGraph#enableFieldInfo()} or {@link ClassGraph#enableMethodInfo()} is needed.
      *
      * <p>
-     * As with {@link ClassInfo#getClassDependencies()}, {@code java.lang.Object} is left out, and so are classes
-     * outside the accepted packages unless {@link ClassGraph#enableExternalClasses()} was called before scanning,
-     * and rejected classes. The declaring class is included if the member refers to it.
+     * Excludes {@code java.lang.Object}, rejected classes, and classes outside accepted packages (unless
+     * {@link ClassGraph#enableExternalClasses()} was called before scanning). The declaring class is included if
+     * referenced by this member.
      *
      * @return A {@link ClassInfoList} of the classes referenced by this class member, or the empty list if none.
      */

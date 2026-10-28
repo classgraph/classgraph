@@ -150,9 +150,7 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
     }
 
     /**
-     * Add the field's type annotations to the given parsed field type. Any individual type annotation that cannot
-     * be matched to the type (e.g. an unresolvable nested type, or a compiler bug) is skipped rather than being
-     * allowed to abort parsing of the whole field type.
+     * Add the field's type annotations to the given parsed field type.
      *
      * @param fieldType
      *            the parsed field type signature or descriptor to add the type annotations to.
@@ -323,8 +321,7 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Use class name, field name and type descriptor for equals(). A classfile may declare two fields with the same
-     * name if their types differ (javac never does this, but obfuscators do), and those are two different fields.
+     * Compare two {@link FieldInfo} objects by declaring class name, field name, and type descriptor.
      *
      * @param obj
      *            the object to compare to
@@ -375,9 +372,7 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Append a string representation of the field to a buffer. The modifiers can be omitted, so that the same code
-     * can render a record component, which has the same shape as a field but no modifiers of its own. If the type
-     * descriptor is needed but cannot be parsed, the raw type descriptor is shown in place of the type.
+     * Append a string representation of the field to a buffer.
      *
      * @param includeModifiers
      *            if true, include the field's modifiers

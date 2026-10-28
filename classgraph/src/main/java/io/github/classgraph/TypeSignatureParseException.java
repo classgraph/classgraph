@@ -33,8 +33,7 @@ import java.io.Serial;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Thrown when a JVM type signature cannot be parsed. The message names the position within the signature at which
- * parsing failed, and shows the characters around it.
+ * Thrown when a JVM type descriptor or type signature cannot be parsed.
  */
 class TypeSignatureParseException extends Exception {
     /** serialVersionUID. */

@@ -59,10 +59,7 @@ final class ClasspathElementDir extends ClasspathElement {
     /** The virtual filesystem that the directory is enumerated and read through. */
     private final Vfs vfs;
 
-    /**
-     * Whether each directory that {@link #getResourceDuringScan(String)} has looked in exists, keyed by its path
-     * relative to the classpath element root. It is cleared by {@link #classfileScanFinished()}.
-     */
+    /** Cache of parent directory existence checks during scanning, cleared by {@link #classfileScanFinished()}. */
     private final Map<String, Boolean> parentDirExistsDuringScan = new ConcurrentHashMap<>();
 
     /**
@@ -198,9 +195,7 @@ final class ClasspathElementDir extends ClasspathElement {
     }
 
     /**
-     * Get the {@link Resource} for a given relative path while the scan is running. A file can only exist if its
-     * parent directory does, so whether each parent directory exists is looked up once per scan, rather than
-     * looking up every file in a package that this directory does not hold.
+     * Get the {@link Resource} for a given relative path during a scan, caching parent directory existence checks.
      *
      * @param relativePath
      *            The relative path of the {@link Resource} to return.
@@ -287,8 +282,7 @@ final class ClasspathElementDir extends ClasspathElement {
     }
 
     /**
-     * Record the last modified time of a directory, so that
-     * {@link ScanResult#isClasspathContentsModifiedSinceScan()} can detect changes to it.
+     * Record the last modified timestamp of a directory.
      *
      * @param dir
      *            the {@link Path} of the directory
@@ -303,8 +297,7 @@ final class ClasspathElementDir extends ClasspathElement {
     }
 
     /**
-     * Record the last modified time of a file, so that {@link ScanResult#isClasspathContentsModifiedSinceScan()}
-     * can detect changes to it.
+     * Record the last modified timestamp of a file.
      *
      * @param entry
      *            the file, as an entry in the virtual filesystem
@@ -321,12 +314,7 @@ final class ClasspathElementDir extends ClasspathElement {
         }
     }
 
-    /**
-     * The {@link VfsVisitor} that applies the scan spec to the directory tree as the virtual filesystem walks it.
-     * The walk visits the files of a directory before recursing into its subdirectories, and calls
-     * {@link #enterDirectory(String)} for a directory before listing it, so the match status of the directory that
-     * contains a file is always known by the time the file is visited.
-     */
+    /** {@link VfsVisitor} that walks the directory tree and records accepted resources and classfiles. */
     private final class DirScanVisitor implements VfsVisitor {
         /** The log node for the classpath element, or null to skip logging. */
         private final @Nullable LogNode subLog;
@@ -425,15 +413,8 @@ final class ClasspathElementDir extends ClasspathElement {
     }
 
     /**
-     * Get the module name declared by the directory, either by its {@code module-info.class} module descriptor, or
-     * by the {@code Automatic-Module-Name} attribute of its manifest file, so that a jarfile exploded into a
-     * directory is named the same way the jarfile it was exploded from is.
-     *
-     * <p>
-     * Unlike {@link ClasspathElementZip#getModuleName()}, no name is derived from the name of the directory when it
-     * declares none: the module system derives an automatic module name from the filename of a <i>jarfile</i>, and
-     * a directory placed on the module path without a module descriptor is not a module at all, so there is no name
-     * that a directory would be given if it were placed on the module path.
+     * Get the module name declared by the directory's {@code module-info.class} descriptor or
+     * {@code Automatic-Module-Name} manifest attribute.
      *
      * @return the module name, or null if the directory declares none.
      */
@@ -443,10 +424,8 @@ final class ClasspathElementDir extends ClasspathElement {
     }
 
     /**
-     * Read the automatic module name that the manifest describing this classpath element declares, if any. This is
-     * read for a directory as well as for a jarfile, so that a jarfile exploded into a directory declares the same
-     * module name that the jarfile it was exploded from declares. A manifest that cannot be read is logged, and the
-     * directory is still scanned.
+     * Read the {@code Automatic-Module-Name} attribute from the manifest of this directory (or its enclosing
+     * container directory if this is a package root).
      *
      * @param root
      *            the directory, as a root of the virtual filesystem.
@@ -467,10 +446,8 @@ final class ClasspathElementDir extends ClasspathElement {
     }
 
     /**
-     * Open the root whose manifest describes this classpath element: the directory itself, or, if this classpath
-     * element is a package root within a directory, the directory that the package root lies within. A directory
-     * opened at a package root is opened as the subdirectory it is, with nothing linking it back to the directory
-     * it lies within, so the container is reached by climbing back out of it.
+     * Open the root directory whose manifest describes this classpath element (climbing out of any package root
+     * prefix).
      *
      * @param root
      *            the directory, as a root of the virtual filesystem.

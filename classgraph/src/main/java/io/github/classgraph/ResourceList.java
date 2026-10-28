@@ -84,9 +84,7 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
     }
 
     /**
-     * Constructor. This list claims the given list rather than copying it, so the caller must not use the list
-     * again after handing it over. Resources are listed in the order they were found on the classpath and module
-     * path, so unlike an {@link InfoList}, a {@link ResourceList} is never sorted.
+     * Construct a {@link ResourceList} backed by the given list.
      *
      * @param resources
      *            the elements of the list
@@ -96,11 +94,7 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
     }
 
     /**
-     * Normalize a resource path given to a lookup method, so that it can be compared with
-     * {@link Resource#getPath()}: any leading or trailing '/' is removed, empty and "." segments are removed, and
-     * each ".." segment removes the segment before it, without going above the package root. A '!' is an ordinary
-     * character, and the filesystem is not read. Every method that looks up a resource by path calls this, so that
-     * they all accept the same spellings of a path.
+     * Normalize a resource path for comparison with {@link Resource#getPath()}.
      *
      * @param resourcePath
      *            the path to normalize.
@@ -325,11 +319,7 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
     /**
      * Fetch the content of each {@link Resource} in this {@link ResourceList} as a byte array by calling
      * {@link Resource#load()}, which closes the resource before it returns, then pass the byte array to the given
-     * {@link ByteArrayConsumer}.
-     *
-     * <p>
-     * A resource that is already open cannot be loaded, so this method throws {@link IllegalStateException} when it
-     * reaches one. That resource is left open, so whatever opened it can still use it.
+     * {@link ByteArrayConsumer}. Throws {@link IllegalStateException} if any resource in the list is already open.
      *
      * @param byteArrayConsumer
      *            The {@link ByteArrayConsumer}.
@@ -391,11 +381,8 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
     /**
      * Fetch an {@link InputStream} for each {@link Resource} in this {@link ResourceList}, pass the
      * {@link InputStream} to the given {@link InputStreamConsumer}, then close the {@link InputStream} after the
-     * {@link InputStreamConsumer} returns, by calling {@link Resource#close()}.
-     *
-     * <p>
-     * A resource that is already open cannot be opened again, so this method throws {@link IllegalStateException}
-     * when it reaches one. That resource is left open, so whatever opened it can still use it.
+     * {@link InputStreamConsumer} returns, by calling {@link Resource#close()}. Throws
+     * {@link IllegalStateException} if any resource in the list is already open.
      *
      * @param inputStreamConsumer
      *            The {@link InputStreamConsumer}.
@@ -462,11 +449,8 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
     /**
      * Read each {@link Resource} in this {@link ResourceList} as a {@link ByteBuffer}, pass the {@link ByteBuffer}
      * to the given {@link ByteBufferConsumer}, then release the {@link ByteBuffer} after the
-     * {@link ByteBufferConsumer} returns, by calling {@link Resource#close()}.
-     *
-     * <p>
-     * A resource that is already open cannot be read, so this method throws {@link IllegalStateException} when it
-     * reaches one. That resource is left open, so whatever opened it can still use it.
+     * {@link ByteBufferConsumer} returns, by calling {@link Resource#close()}. Throws {@link IllegalStateException}
+     * if any resource in the list is already open.
      *
      * @param byteBufferConsumer
      *            The {@link ByteBufferConsumer}.

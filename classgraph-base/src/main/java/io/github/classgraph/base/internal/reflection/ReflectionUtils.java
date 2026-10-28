@@ -35,19 +35,16 @@ import java.lang.reflect.Modifier;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Reflection utility methods that can be used by ClassLoaderHandlers.
+ * Reflection utility methods used by {@code ClassLoaderHandler} implementations.
  *
  * <p>
- * Every public method here turns a failure into null or an {@link IllegalArgumentException}, except a
- * {@link VirtualMachineError} such as {@link OutOfMemoryError} or {@link StackOverflowError}, which is rethrown as
- * itself even if the member that was invoked threw it: it says that the JVM is failing, not that a classloader has
- * no classpath to report.
+ * Methods in this class return {@code null} or throw {@link IllegalArgumentException} on reflection failure, except
+ * that any {@link VirtualMachineError} is always rethrown directly.
  */
 public final class ReflectionUtils {
     /**
-     * The reflection driver, chosen once per JVM: the Narcissus driver if the Narcissus library is on the classpath
-     * or is a module that was resolved at startup, and its native library loaded, otherwise the standard reflection
-     * driver.
+     * The active reflection driver ({@link NarcissusReflectionDriver} if available, otherwise
+     * {@link StandardReflectionDriver}).
      */
     private static final ReflectionDriver REFLECTION_DRIVER = findReflectionDriver();
 
@@ -57,14 +54,8 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Find the reflection driver to use.
-     *
-     * <p>
-     * On JDK 16+, the JDK enforces strong encapsulation, so the standard reflection driver may be unable to read
-     * the classpath from a classloader that does not expose it via a public method or field. Adding the
-     * <a href="https://github.com/toolfactory/narcissus">Narcissus</a> library to the project works around this:
-     * Narcissus reads fields and invokes methods through JNI, which is not subject to Java's access controls.
-     * Narcissus is looked up reflectively, so ClassGraph has no compile-time or runtime dependency on it.
+     * Instantiate {@link NarcissusReflectionDriver} if Narcissus is available, falling back to
+     * {@link StandardReflectionDriver}.
      *
      * @return the reflection driver.
      */
@@ -85,13 +76,7 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Read a field, whether static or not.
-     *
-     * <p>
-     * The methods that take an object rather than a class are deliberately indifferent to whether the member they
-     * find is static: {@code FallbackClassLoaderHandler} probes an unrecognized classloader for around forty
-     * speculative field and method names, and cannot know which of them a given classloader implements as a static
-     * member.
+     * Read a static or non-static field.
      *
      * @param obj
      *            the object to read the field from, if the field is not static.
@@ -107,8 +92,7 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Invoke a method, whether static or not. See {@link #read(Object, Field)} for why this is indifferent to
-     * whether the method is static.
+     * Invoke a static or non-static method.
      *
      * @param obj
      *            the object to invoke the method on, if the method is not static.
@@ -127,19 +111,18 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Report a failure, either by throwing or by returning null. A cause that is a {@link VirtualMachineError}, or
-     * an {@link java.lang.reflect.InvocationTargetException} wrapping one, is rethrown as that error instead,
-     * whatever the value of throwException.
+     * Handle a reflection failure by rethrowing any {@link VirtualMachineError}, throwing
+     * {@link IllegalArgumentException} if {@code throwException} is {@code true}, or returning {@code null}.
      *
      * @param throwException
-     *            If true, throw an {@link IllegalArgumentException}; otherwise return null.
+     *            If {@code true}, throw an {@link IllegalArgumentException}; otherwise return {@code null}.
      * @param message
      *            The exception message.
      * @param cause
-     *            The cause of the failure, or null if there is none.
-     * @return null, if throwException is false.
+     *            The cause of the failure, or {@code null} if none.
+     * @return {@code null}, if {@code throwException} is {@code false}.
      * @throws IllegalArgumentException
-     *             if throwException is true.
+     *             if {@code throwException} is {@code true}.
      */
     private static @Nullable Object fail(final boolean throwException, final String message,
             final @Nullable Throwable cause) throws IllegalArgumentException {
@@ -153,21 +136,18 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Get the value of the given field in the given object. If an exception is thrown while trying to read the
-     * field, and throwException is true, then IllegalArgumentException is thrown wrapping the cause, otherwise this
-     * will return null. If passed a null object, returns null unless throwException is true, then throws
-     * IllegalArgumentException.
+     * Get the value of a field on an object.
      *
      * @param throwException
-     *            If true, throw an exception if the field value could not be read.
+     *            If {@code true}, throw {@link IllegalArgumentException} on failure instead of returning
+     *            {@code null}.
      * @param obj
      *            The object.
      * @param field
      *            The field.
-     *
-     * @return The field value.
+     * @return The field value, or {@code null}.
      * @throws IllegalArgumentException
-     *             If the field value could not be read.
+     *             If the field value could not be read and {@code throwException} is {@code true}.
      */
     public static @Nullable Object getFieldVal(final boolean throwException, final @Nullable Object obj,
             final @Nullable Field field) throws IllegalArgumentException {
@@ -182,21 +162,18 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Get the value of the named field in the class of the given object or any of its superclasses. If an exception
-     * is thrown while trying to read the field, and throwException is true, then IllegalArgumentException is thrown
-     * wrapping the cause, otherwise this will return null. If passed a null object, returns null unless
-     * throwException is true, then throws IllegalArgumentException.
+     * Get the value of a named field in the class of {@code obj} or any of its supertypes.
      *
      * @param throwException
-     *            If true, throw an exception if the field value could not be read.
+     *            If {@code true}, throw {@link IllegalArgumentException} on failure instead of returning
+     *            {@code null}.
      * @param obj
      *            The object.
      * @param fieldName
      *            The field name.
-     *
-     * @return The field value.
+     * @return The field value, or {@code null}.
      * @throws IllegalArgumentException
-     *             If the field value could not be read.
+     *             If the field value could not be read and {@code throwException} is {@code true}.
      */
     public static @Nullable Object getFieldVal(final boolean throwException, final @Nullable Object obj,
             final @Nullable String fieldName) throws IllegalArgumentException {
@@ -211,21 +188,18 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Invoke the named method in the given object or its superclasses. If an exception is thrown while trying to
-     * call the method, and throwException is true, then IllegalArgumentException is thrown wrapping the cause,
-     * otherwise this will return null. If passed a null object, returns null unless throwException is true, then
-     * throws IllegalArgumentException.
+     * Invoke a zero-argument method by name on {@code obj}.
      *
      * @param throwException
-     *            Whether to throw an exception on failure.
+     *            If {@code true}, throw {@link IllegalArgumentException} on failure instead of returning
+     *            {@code null}.
      * @param obj
      *            The object.
      * @param methodName
      *            The method name.
-     *
-     * @return The result of the method invocation.
+     * @return The result of the method invocation, or {@code null}.
      * @throws IllegalArgumentException
-     *             If the method could not be invoked.
+     *             If the method could not be invoked and {@code throwException} is {@code true}.
      */
     public static @Nullable Object invokeMethod(final boolean throwException, final @Nullable Object obj,
             final @Nullable String methodName) throws IllegalArgumentException {
@@ -240,25 +214,22 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Invoke the named method in the given object or its superclasses. If an exception is thrown while trying to
-     * call the method, and throwException is true, then IllegalArgumentException is thrown wrapping the cause,
-     * otherwise this will return null. If passed a null object, returns null unless throwException is true, then
-     * throws IllegalArgumentException.
+     * Invoke a single-argument method by name on {@code obj}.
      *
      * @param throwException
-     *            Whether to throw an exception on failure.
+     *            If {@code true}, throw {@link IllegalArgumentException} on failure instead of returning
+     *            {@code null}.
      * @param obj
      *            The object.
      * @param methodName
      *            The method name.
      * @param argType
-     *            The type of the method argument.
+     *            The parameter type of the method.
      * @param param
-     *            The parameter value to use when invoking the method.
-     *
-     * @return The result of the method invocation.
+     *            The argument value.
+     * @return The result of the method invocation, or {@code null}.
      * @throws IllegalArgumentException
-     *             If the method could not be invoked.
+     *             If the method could not be invoked and {@code throwException} is {@code true}.
      */
     public static @Nullable Object invokeMethod(final boolean throwException, final @Nullable Object obj,
             final @Nullable String methodName, final @Nullable Class<?> argType, final @Nullable Object param)
@@ -274,25 +245,22 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Invoke the named method in the given object or its superclasses. If an exception is thrown while trying to
-     * call the method, and throwException is true, then IllegalArgumentException is thrown wrapping the cause,
-     * otherwise this will return null. If passed a null object, returns null unless throwException is true, then
-     * throws IllegalArgumentException.
+     * Invoke a method by name and parameter types on {@code obj}.
      *
      * @param throwException
-     *            Whether to throw an exception on failure.
+     *            If {@code true}, throw {@link IllegalArgumentException} on failure instead of returning
+     *            {@code null}.
      * @param obj
      *            The object.
      * @param methodName
      *            The method name.
      * @param argTypes
-     *            The types of the method arguments.
+     *            The parameter types of the method.
      * @param params
-     *            The parameter values to use when invoking the method.
-     *
-     * @return The result of the method invocation.
+     *            The argument values.
+     * @return The result of the method invocation, or {@code null}.
      * @throws IllegalArgumentException
-     *             If the method could not be invoked.
+     *             If the method could not be invoked and {@code throwException} is {@code true}.
      */
     public static @Nullable Object invokeMethod(final boolean throwException, final @Nullable Object obj,
             final @Nullable String methodName, final Class<?> @Nullable [] argTypes,
@@ -312,20 +280,18 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Invoke the named method. If an exception is thrown while trying to call the method, and throwException is
-     * true, then IllegalArgumentException is thrown wrapping the cause, otherwise this will return null. If passed
-     * a null class reference, returns null unless throwException is true, then throws IllegalArgumentException.
+     * Invoke a zero-argument static method by name on {@code cls}.
      *
      * @param throwException
-     *            Whether to throw an exception on failure.
+     *            If {@code true}, throw {@link IllegalArgumentException} on failure instead of returning
+     *            {@code null}.
      * @param cls
      *            The class.
      * @param methodName
      *            The method name.
-     *
-     * @return The result of the method invocation.
+     * @return The result of the method invocation, or {@code null}.
      * @throws IllegalArgumentException
-     *             If the method could not be invoked.
+     *             If the method could not be invoked and {@code throwException} is {@code true}.
      */
     public static @Nullable Object invokeStaticMethod(final boolean throwException, final @Nullable Class<?> cls,
             final @Nullable String methodName) throws IllegalArgumentException {
@@ -340,24 +306,22 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Invoke the named method. If an exception is thrown while trying to call the method, and throwException is
-     * true, then IllegalArgumentException is thrown wrapping the cause, otherwise this will return null. If passed
-     * a null class reference, returns null unless throwException is true, then throws IllegalArgumentException.
+     * Invoke a single-argument static method by name on {@code cls}.
      *
      * @param throwException
-     *            Whether to throw an exception on failure.
+     *            If {@code true}, throw {@link IllegalArgumentException} on failure instead of returning
+     *            {@code null}.
      * @param cls
      *            The class.
      * @param methodName
      *            The method name.
      * @param argType
-     *            The type of the method argument.
+     *            The parameter type of the method.
      * @param param
-     *            The parameter value to use when invoking the method.
-     *
-     * @return The result of the method invocation.
+     *            The argument value.
+     * @return The result of the method invocation, or {@code null}.
      * @throws IllegalArgumentException
-     *             If the method could not be invoked.
+     *             If the method could not be invoked and {@code throwException} is {@code true}.
      */
     public static @Nullable Object invokeStaticMethod(final boolean throwException, final @Nullable Class<?> cls,
             final @Nullable String methodName, final @Nullable Class<?> argType, final @Nullable Object param)
@@ -374,13 +338,13 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Find a class by name in ClassGraph's own classloader, returning null if it could not be found or loaded.
+     * Find a class by name in ClassGraph's classloader, returning {@code null} if it could not be found or loaded.
      *
      * @param className
      *            The class name to load.
-     * @return The class of the requested name, or null if an exception was thrown while trying to load the class.
+     * @return The loaded {@link Class}, or {@code null} if it could not be found or loaded.
      * @throws VirtualMachineError
-     *             if one was thrown while trying to load or initialize the class.
+     *             if one was thrown while loading or initializing the class.
      */
     public static @Nullable Class<?> classForNameOrNull(final String className) {
         try {
@@ -392,22 +356,16 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Find a class by name in a given classloader, without initializing it, and returning null if it could not be
-     * found or loaded.
-     *
-     * <p>
-     * Use this rather than {@link #classForNameOrNull(String)} for a class that belongs to the environment being
-     * examined rather than to ClassGraph, such as a class of a servlet container: ClassGraph's own classloader is
-     * not necessarily one that the container's classes are visible to, and finding out what is on the classpath
-     * must not run the environment's code.
+     * Find a class by name in {@code classLoader} without initializing it, returning {@code null} if it could not
+     * be found or loaded.
      *
      * @param className
      *            The class name to load.
      * @param classLoader
-     *            The classloader to find the class in, or null to use the bootstrap classloader.
-     * @return The class of the requested name, or null if an exception was thrown while trying to load the class.
+     *            The classloader to find the class in, or {@code null} to use the bootstrap classloader.
+     * @return The loaded {@link Class}, or {@code null} if it could not be found or loaded.
      * @throws VirtualMachineError
-     *             if one was thrown while trying to load the class.
+     *             if one was thrown while loading the class.
      */
     public static @Nullable Class<?> classForNameOrNull(final String className,
             final @Nullable ClassLoader classLoader) {

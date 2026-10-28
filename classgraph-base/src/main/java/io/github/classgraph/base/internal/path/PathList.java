@@ -36,18 +36,11 @@ import java.util.Set;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The syntax of a list of paths delimited by {@link File#pathSeparatorChar}, as {@code java.class.path} and the
- * module path are written in, and as a {@code Class-Path:} manifest entry is written in with a different separator.
- *
- * <p>
- * A path element may itself be a URL, whose scheme ends in a {@code ':'} that is not a separator, so splitting a
- * path list is not simply splitting on the separator character.
+ * Utilities for splitting and joining path lists delimited by {@link File#pathSeparatorChar} or a custom separator
+ * character, preserving URL schemes within elements.
  */
 public final class PathList {
-    /**
-     * On everything but Windows, where the path separator is ':', need to treat the colon in these substrings as
-     * non-separators, when at the beginning of the string or following a ':'.
-     */
+    /** URL scheme prefixes whose colons are not path separators when splitting on {@code ':'}. */
     private static final String[] UNIX_NON_PATH_SEPARATORS = { //
             "jar:", "file:", "http://", "https://", //
             // Tomcat serves a non-exploded WAR file through its own "war:" URL protocol (#925)
@@ -56,9 +49,7 @@ public final class PathList {
             "nested:" //
     };
 
-    /**
-     * The position of the colon characters in the corresponding UNIX_NON_PATH_SEPARATORS array entry.
-     */
+    /** Index of the {@code ':'} character in each entry of {@link #UNIX_NON_PATH_SEPARATORS}. */
     private static final int[] UNIX_NON_PATH_SEPARATOR_COLON_POSITIONS;
 
     static {
@@ -79,13 +70,12 @@ public final class PathList {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Split a path on File.pathSeparator (':' on Linux, ';' on Windows), but also allow for the use of URLs with
-     * protocol specifiers, e.g. "http://domain/jar1.jar:http://domain/jar2.jar".
+     * Split a path list on {@link File#pathSeparatorChar}, preserving URLs with protocol specifiers.
      *
      * @param pathStr
-     *            The path to split, or null.
+     *            The path list to split, or {@code null}.
      * @param allowedURLSchemes
-     *            the URL schemes that may appear in path elements, or null if none have been registered
+     *            Additional allowed URL schemes, or {@code null}.
      * @return The path element substrings.
      */
     public static String[] split(final @Nullable String pathStr, final @Nullable Set<String> allowedURLSchemes) {
@@ -93,15 +83,15 @@ public final class PathList {
     }
 
     /**
-     * Split a path on the given separator char. If the separator char is ':', also allow for the use of URLs with
-     * protocol specifiers, e.g. "http://domain/jar1.jar:http://domain/jar2.jar".
+     * Split a path list on {@code separatorChar}, preserving URLs with protocol specifiers when
+     * {@code separatorChar} is {@code ':'}.
      *
      * @param pathStr
-     *            The path to split, or null.
+     *            The path list to split, or {@code null}.
      * @param separatorChar
-     *            The separator char to use.
+     *            The separator character.
      * @param allowedURLSchemes
-     *            the URL schemes that may appear in path elements, or null if none have been registered
+     *            Additional allowed URL schemes, or {@code null}.
      * @return The path element substrings.
      */
     public static String[] split(final @Nullable String pathStr, final char separatorChar,
@@ -114,14 +104,14 @@ public final class PathList {
     }
 
     /**
-     * Split a path on a separator char other than ':', which needs no special handling, since no URL scheme ends in
-     * it. This is the path taken on Windows, where the separator is ';'.
+     * Split a path list on a separator character other than {@code ':'}, trimming elements and omitting empty
+     * entries.
      *
      * @param pathStr
-     *            The path to split.
+     *            The path list to split.
      * @param separatorChar
-     *            The separator char to use.
-     * @return The non-empty path element substrings, trimmed.
+     *            The separator character.
+     * @return The non-empty trimmed path elements.
      */
     private static String[] splitOnSeparator(final String pathStr, final char separatorChar) {
         // N.B. the separator is searched for literally, rather than with String#split(), whose argument is a
@@ -143,14 +133,14 @@ public final class PathList {
     }
 
     /**
-     * Split a path on ':', skipping the colons that end a URL scheme or are in a URL's authority, so that HTTP(S)
-     * jars can be given in {@code java.class.path}. (The JRE may not even support them, but we may as well do so.)
+     * Split a path list on {@code ':'}, preserving colons that belong to URL schemes, URL authorities, or
+     * {@code "\\:"} escape sequences.
      *
      * @param pathStr
-     *            The path to split.
+     *            The path list to split.
      * @param allowedURLSchemes
-     *            the URL schemes that may appear in path elements, or null if none have been registered
-     * @return The non-empty path element substrings, trimmed and unescaped.
+     *            Additional allowed URL schemes, or {@code null}.
+     * @return The non-empty trimmed and unescaped path elements.
      */
     private static String[] splitOnColon(final String pathStr, final @Nullable Set<String> allowedURLSchemes) {
         // Find the ':' characters that really are path separators. The position before the start of the string and
@@ -199,17 +189,16 @@ public final class PathList {
     }
 
     /**
-     * Test whether a ':' in a path is part of a path element rather than a separator between two path elements,
-     * either because it ends a URL scheme such as {@code "http:"}, or because it was escaped as {@code "\:"}.
+     * Test whether the {@code ':'} at {@code colonIdx} is part of a URL scheme or escaped as {@code "\\:"} rather
+     * than a path separator.
      *
      * @param pathStr
-     *            The path being split.
+     *            The path list being split.
      * @param colonIdx
-     *            The index of the ':' character, or -1 for the position before the start of the path (which is
-     *            never a scheme colon, since a scheme needs at least one character before its colon).
+     *            The index of the {@code ':'} character, or -1 for the position before the start of the string.
      * @param allowedURLSchemes
-     *            the URL schemes that may appear in path elements, or null if none have been registered
-     * @return true if the ':' is part of a path element, so the path must not be split there.
+     *            Additional allowed URL schemes, or {@code null}.
+     * @return {@code true} if the {@code ':'} is part of a path element rather than a separator.
      */
     private static boolean isSchemeOrEscapedColon(final String pathStr, final int colonIdx,
             final @Nullable Set<String> allowedURLSchemes) {
@@ -252,20 +241,14 @@ public final class PathList {
     }
 
     /**
-     * Test whether a {@code '/'} ends the {@code "://"} that follows a URL's scheme. A ':' after it and before the
-     * next {@code '/'} or whitespace character is then in the URL's authority, as in
-     * {@code "http://host:8080/x.jar"}. The scheme must start a path element, possibly after an enclosing URL's
-     * scheme, as in {@code "jar:http://host:8080/x.jar!/"}. Any scheme is accepted, registered or not, since the
-     * colon is not a separator either way. As a result, a URL with no path that is followed directly by a
-     * separator, as in {@code "s3://bucket:/b.jar"}, is not split at that separator, so a URL must have a path, or
-     * be followed by a separator after its path.
+     * Test whether {@code slashIdx} is the second slash of a {@code "://"} URL scheme separator at the start of a
+     * path element.
      *
      * @param pathStr
-     *            The path being split.
+     *            The path list being split.
      * @param slashIdx
-     *            The index of the {@code '/'}, or of some other character (in which case the result is false), or
-     *            -1.
-     * @return true if a {@code "://"} that follows a URL scheme ends at the given index.
+     *            The character index to check, or -1.
+     * @return {@code true} if a {@code "://"} URL scheme separator ends at {@code slashIdx}.
      */
     private static boolean endsURLSchemeSeparator(final String pathStr, final int slashIdx) {
         if (slashIdx < 2 || pathStr.charAt(slashIdx) != '/' || pathStr.charAt(slashIdx - 1) != '/'
@@ -305,17 +288,14 @@ public final class PathList {
     }
 
     /**
-     * Test whether an index is at the start of a path element, i.e. whether everything between it and the previous
-     * separator (or the start of the path) is whitespace. Whitespace is skipped because the path elements are
-     * trimmed, so {@code "x.jar: http://domain/y.jar"} has to be read the same way as
-     * {@code "x.jar:http://domain/y.jar"} -- otherwise the space would hide the URL scheme, and the path would be
-     * split at the scheme's colon.
+     * Test whether {@code startIdx} is at the start of a path element (preceded only by whitespace after the start
+     * of the string or a {@code ':'} separator).
      *
      * @param pathStr
-     *            The path being split.
+     *            The path list being split.
      * @param startIdx
      *            The index to test.
-     * @return true if a path element starts at the given index.
+     * @return {@code true} if a path element starts at {@code startIdx}.
      */
     private static boolean startsAPathElement(final String pathStr, final int startIdx) {
         for (var i = startIdx - 1; i >= 0; i--) {
@@ -334,8 +314,7 @@ public final class PathList {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Append a path element to a buffer, escaping any path separator in it. The caller appends the separator that
-     * goes before the element.
+     * Append a path element to {@code buf}, escaping any embedded path separator.
      *
      * @param pathElt
      *            the path element
@@ -354,14 +333,12 @@ public final class PathList {
     }
 
     /**
-     * Join path elements into a single path, separated by {@link File#pathSeparatorChar}. Each element may be of
-     * any type (e.g. String, File or URL), and its toString() method is called to get its path. A path separator
-     * inside an element is escaped as {@code "\\:"} where the separator is ':', so that {@link #split} reads the
-     * element back whole.
+     * Join path elements into a single string separated by {@link File#pathSeparatorChar}, escaping embedded
+     * {@code ':'} separators as {@code "\\:"} on non-Windows platforms.
      *
      * @param pathElts
      *            The path elements.
-     * @return The path.
+     * @return The joined path list.
      */
     public static String join(final Iterable<?> pathElts) {
         final StringBuilder buf = new StringBuilder();

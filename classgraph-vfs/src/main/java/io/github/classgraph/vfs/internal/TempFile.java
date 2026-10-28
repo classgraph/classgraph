@@ -37,54 +37,25 @@ import java.util.regex.Pattern;
 import io.github.classgraph.base.internal.path.PathSyntax;
 
 /**
- * The temporary files that jarfiles read from a stream (a deflated nested jarfile, or a jarfile downloaded from a
- * URL) are written to when they are too large to buffer in RAM. A temporary file is owned by the slice that reads
- * through it, and is deleted when that slice is closed. Closing the {@link io.github.classgraph.vfs.VfsRoot} that
- * owns the slice closes it, as does closing the {@link io.github.classgraph.vfs.Vfs} that opened that root, but a
- * slice that no root owns belongs to whoever opened it, and closing the {@link io.github.classgraph.vfs.Vfs} does
- * not close it.
- *
- * <p>
- * A temporary file is scheduled for deletion when the JVM exits, with {@link File#deleteOnExit()}, only if deleting
- * it failed and it is still there, which happens mainly on Windows, when the file is still memory-mapped. Temporary
- * files are not all scheduled that way when they are created, because the JDK keeps every path passed to
- * {@link File#deleteOnExit()} until the JVM exits, even after the file has been deleted, so a long-running JVM that
- * scans repeatedly would accumulate them without limit. A failed delete is rare, so the paths kept for it are few.
- * Deleting the file when the JVM exits is best effort: it succeeds only if whatever kept the file mapped has
- * released it by then, since a mapping that is still held when the JVM exits is only released when the process
- * ends, after the JVM has tried to delete the files scheduled for deletion.
+ * Helper methods for creating and deleting temporary files used when streaming jarfiles exceed the in-memory buffer
+ * limit.
  */
 public final class TempFile {
     /** Not instantiable. */
     private TempFile() {
     }
 
-    /**
-     * Characters that may not appear in a filename. Windows rejects every ASCII control character, and also
-     * {@code " * / < > ? \ |}, whereas Linux and macOS reject only {@code /}. Windows accepts {@code :}, but treats
-     * it as the start of an NTFS alternate data stream rather than as part of the filename. The remaining
-     * characters are legal everywhere, but are replaced anyway so that a temporary filename can be pasted into a
-     * shell command or a log message without quoting. A surrogate that is not part of a pair ({@code \p{Cs}}) is
-     * not a character at all, and cannot be encoded in a filename on any platform; a surrogate pair matches as one
-     * supplementary character, which is not in {@code \p{Cs}}, so it is kept.
-     */
+    /** Characters that are invalid or unsafe in filenames across supported platforms, or unpaired surrogates. */
     private static final Pattern UNSAFE_FILENAME_CHARS = Pattern.compile("[\\x00-\\x1f\"*/:<>?\\\\|&= ]|\\p{Cs}");
 
-    /** Characters outside ASCII, replaced only when the platform cannot encode them in a filename. */
+    /** Non-ASCII characters, replaced when the platform filename encoding cannot represent them. */
     private static final Pattern NON_ASCII_CHARS = Pattern.compile("\\P{ASCII}");
 
-    /**
-     * The most characters of a zip entry's leafname that are kept in the name of its temporary file. A filename is
-     * limited to 255 bytes on Linux and macOS, and to 255 UTF-16 characters on Windows. A UTF-16 character takes at
-     * most 3 bytes in UTF-8, so this leaves room for the prefix and the random number that
-     * {@link Files#createTempFile(String, String, java.nio.file.attribute.FileAttribute...)} adds.
-     */
+    /** The maximum number of leafname characters retained in a temporary filename. */
     private static final int MAX_LEAFNAME_LENGTH = 64;
 
     /**
-     * Replace any character that is not valid in a filename on every supported platform with an underscore. Zip
-     * entry names may contain almost any byte, whereas filenames may not, so the temporary file that a nested jar
-     * is extracted to cannot simply be named after the zip entry it came from.
+     * Replace characters that are invalid or unsafe in a filename with underscores.
      *
      * @param filename
      *            the filename
@@ -95,21 +66,14 @@ public final class TempFile {
     }
 
     /**
-     * Create a temporary file that only its owner can read. The caller owns the file that is returned, and must
-     * delete it with {@link #delete(File)} once nothing is reading through it.
-     *
-     * <p>
-     * The file is named after the leafname of {@code path}, with any character that is not valid in a filename
-     * replaced, and with all but the last {@value #MAX_LEAFNAME_LENGTH} characters removed if it is longer than
-     * that. If the encoding that filenames are stored in cannot represent some character of what remains, every
-     * non-ASCII character is replaced too.
+     * Create a temporary file readable only by its owner, derived from the leafname of {@code path}. The caller
+     * owns the returned file and must delete it with {@link #delete(File)} when done.
      *
      * @param path
-     *            The path to derive the temporary filename from.
-     * @return The temporary {@link File}.
+     *            the path from which to derive the temporary filename.
+     * @return the temporary {@link File}.
      * @throws IOException
-     *             If the temporary file could not be created, including when the JDK could not set up its temporary
-     *             directory.
+     *             if the temporary file could not be created.
      */
     public static File create(final String path) throws IOException {
         var leafname = sanitizeFilename(PathSyntax.simpleName(path));
@@ -131,28 +95,16 @@ public final class TempFile {
     }
 
     /**
-     * Create a temporary file that only its owner can read, unlike {@link File#createTempFile(String, String)},
-     * whose file can be read by every local user under the usual umask of 022. On Windows the file takes the access
-     * control list of the temporary directory.
-     *
-     * <p>
-     * The file is created in the JDK's temporary directory, which is the value that the {@code java.io.tmpdir}
-     * system property had when the JVM started: the JDK reads the property only then, so a later change to it has
-     * no effect. The JDK resolves that directory in the static initializer of its temporary file helper, which runs
-     * on the first call in the JVM to any {@code Files.createTempFile} or {@code Files.createTempDirectory} method,
-     * whether by this class or by other code. If that initializer fails, the call that ran it throws
-     * {@link ExceptionInInitializerError}, and every later call to either method throws
-     * {@link NoClassDefFoundError}. So the call here gets {@link NoClassDefFoundError} if other code made the first
-     * call. Both are thrown here as an {@link IOException}.
+     * Create a temporary file in {@code java.io.tmpdir} that is readable only by its owner (or inherits the
+     * temporary directory's ACL on Windows).
      *
      * @param leafname
-     *            The sanitized leafname to end the temporary filename with.
-     * @return The temporary {@link File}.
+     *            the sanitized leafname suffix for the temporary filename.
+     * @return the temporary {@link File}.
      * @throws IOException
-     *             If the temporary file could not be created, including when the JDK could not set up its temporary
-     *             directory.
+     *             if the temporary file or temporary directory could not be created.
      * @throws InvalidPathException
-     *             If the temporary filename cannot be represented in the encoding that filenames are stored in.
+     *             if the filename cannot be encoded by the platform filesystem.
      */
     private static File createReadableOnlyByOwner(final String leafname) throws IOException {
         try {
@@ -168,10 +120,10 @@ public final class TempFile {
     }
 
     /**
-     * Delete a temporary file, ignoring any failure. The caller decides whether a failure is worth logging.
+     * Delete a temporary file, ignoring any failure.
      *
      * @param tempFile
-     *            the temp file
+     *            the temporary file
      * @return true if the file was deleted.
      */
     public static boolean delete(final File tempFile) {
@@ -184,15 +136,14 @@ public final class TempFile {
     }
 
     /**
-     * Schedule a temporary file that could not be deleted for deletion when the JVM exits, if the file is still
-     * there. Call this only once the last attempt to delete the file has failed, since the JDK keeps the path until
-     * the JVM exits, even if the file is deleted before then.
+     * Schedule a temporary file for deletion on JVM exit if it still exists. Should be called only after
+     * {@link #delete(File)} has failed, since {@link File#deleteOnExit()} retains the path in memory until JVM
+     * exit.
      *
      * @param tempFile
-     *            the temp file
-     * @return true if the file is still there and was scheduled for deletion; false if the file is gone, if the JVM
-     *         is already exiting and deleting the files scheduled for deletion, in which case it is too late to
-     *         schedule another, or if a security manager does not allow the file to be read or deleted.
+     *            the temporary file
+     * @return true if the file exists and was scheduled for deletion; false if it no longer exists or JVM shutdown
+     *         is already in progress.
      */
     public static boolean deleteOnExit(final File tempFile) {
         try {

@@ -59,8 +59,8 @@ public final class FieldInfoList extends MappableInfoList<FieldInfo> {
     }
 
     /**
-     * Construct a new unmodifiable {@link FieldInfoList} from a completed collection of {@link FieldInfo} objects.
-     * The collection is copied, and the fields are sorted by the name of their declaring class, then by name.
+     * Construct a new unmodifiable {@link FieldInfoList} from a collection of {@link FieldInfo} objects, sorted by
+     * declaring class name, field name, and type descriptor.
      *
      * @param fieldInfoCollection
      *            the collection of {@link FieldInfo} objects.
@@ -71,8 +71,7 @@ public final class FieldInfoList extends MappableInfoList<FieldInfo> {
     }
 
     /**
-     * Constructor. As in {@link InfoList#InfoList(List)}, this list claims the given list, and the caller is
-     * responsible for having sorted it.
+     * Construct a {@link FieldInfoList} backed by the given pre-sorted list.
      *
      * @param fieldInfo
      *            the elements of the list

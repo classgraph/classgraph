@@ -288,8 +288,7 @@ final class ClasspathElementZip extends ClasspathElement {
     }
 
     /**
-     * Check whether a jarfile is part of the JRE, which is identified by the titles that the jarfiles of the JRE
-     * declare in their manifests -- their filenames do not always give them away.
+     * Check whether a jarfile's manifest identifies it as part of the JRE.
      *
      * @param root
      *            the jarfile, as a root of the virtual filesystem
@@ -303,8 +302,7 @@ final class ClasspathElementZip extends ClasspathElement {
     }
 
     /**
-     * Check that a Spring Boot manifest attribute names one of the standard locations, if the manifest has the
-     * attribute at all. A trailing {@code '/'} is optional.
+     * Verify that a Spring Boot manifest attribute, if present, names one of the standard locations.
      *
      * @param root
      *            the jarfile, as a root of the virtual filesystem
@@ -337,9 +335,8 @@ final class ClasspathElementZip extends ClasspathElement {
     }
 
     /**
-     * Check whether this jarfile, and every jarfile it is nested inside, is accepted and not rejected by the
-     * jarfile accept/reject criteria. A jarfile nested inside a rejected jarfile is rejected along with it, since
-     * it is only on the classpath because the jarfile that contains it is.
+     * Check whether this jarfile and any outer jarfiles it is nested inside satisfy the jarfile accept/reject
+     * criteria.
      *
      * @return true if this jarfile should be scanned
      */
@@ -544,14 +541,8 @@ final class ClasspathElementZip extends ClasspathElement {
     }
 
     /**
-     * Get the module name declared by the jarfile, or, if it declares none, the automatic module name that the
-     * module system would derive from the jar's filename.
-     *
-     * <p>
-     * A jar scanned as a traditional classpath element is in the unnamed module at runtime, so the derived name is
-     * the name the jar <i>would</i> be given if it were placed on the module path, not a name it currently has. The
-     * two cases are told apart by {@link ModuleInfo#getModuleReference()}, which is null for any name that came
-     * from a classpath jar rather than from a module resolved in a {@link ModuleLayer}.
+     * Get the module name declared by the jarfile, or the automatic module name derived from its filename if none
+     * is declared.
      *
      * @return the module name, or null if the jar declares none and no name can be derived from its filename.
      */

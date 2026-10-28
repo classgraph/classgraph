@@ -44,57 +44,50 @@ import org.jspecify.annotations.Nullable;
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 
-/** Finds the modules of the module layers that are searched, and splits them into system and non-system modules. */
+/**
+ * Discovers modules in the searched {@link ModuleLayer}s and classifies them into system and non-system modules.
+ */
 public class ModuleFinder {
-    /**
-     * Sorts modules by name, with the location as a tiebreaker, so that the module order does not depend on hash
-     * ordering.
-     */
+    /** Comparator ordering modules by descriptor name and then location URI string. */
     private static final Comparator<ModuleReference> BY_NAME_THEN_LOCATION = Comparator
             .<ModuleReference, String> comparing(moduleReference -> moduleReference.descriptor().name())
             .thenComparing(moduleReference -> moduleReference.location().map(URI::toString).orElse(""));
 
-    /** The system modules, whether or not they are going to be scanned. */
+    /** Discovered system modules. */
     private final List<ModuleReference> systemModuleReferences;
 
-    /** The non-system modules, whether or not they are going to be scanned. */
+    /** Discovered non-system modules. */
     private final List<ModuleReference> nonSystemModuleReferences;
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the system modules. All visible system modules are listed, whether or not they are going to be scanned.
+     * Returns all discovered system modules in the searched module layers.
      *
-     * @return The system modules, as an unmodifiable list, or an empty list if none were found.
+     * @return the system modules, as an unmodifiable list.
      */
     public List<ModuleReference> getSystemModuleReferences() {
         return systemModuleReferences;
     }
 
     /**
-     * Get the non-system modules. All visible non-system modules are listed, whether or not they are going to be
-     * scanned.
+     * Returns all discovered non-system modules in the searched module layers.
      *
-     * @return The non-system modules, as an unmodifiable list, or an empty list if none were found.
+     * @return the non-system modules, as an unmodifiable list.
      */
     public List<ModuleReference> getNonSystemModuleReferences() {
         return nonSystemModuleReferences;
     }
 
     /**
-     * Check whether a reference identifies one of the JDK's own modules: a module whose name starts with
-     * {@code java.}, {@code jdk.}, {@code javafx.} or {@code oracle.}, and which
-     * {@link java.lang.module.ModuleFinder#ofSystem()} finds at the same location. The name test is needed because
-     * the runtime image of an application built by jlink or jpackage also holds the application's own modules, and
-     * {@code ofSystem()} finds those too. The location test stops a module on the module path or in a child layer
-     * from being taken for a system module merely because it has a system-looking name (or even the same name as a
-     * module in a parent layer).
+     * Checks whether {@code moduleReference} is a JDK system module ({@code java.*}, {@code jdk.*},
+     * {@code javafx.*}, or {@code oracle.*} located at the same URI in {@code systemModuleFinder}).
      *
      * @param moduleReference
-     *            the module reference to classify
+     *            the module reference to classify.
      * @param systemModuleFinder
-     *            the finder for the modules of the runtime image, {@link java.lang.module.ModuleFinder#ofSystem()}
-     * @return true if the reference identifies one of the JDK's own modules
+     *            the system module finder ({@link java.lang.module.ModuleFinder#ofSystem()}).
+     * @return true if {@code moduleReference} is a system module.
      */
     static boolean isSystemModule(final ModuleReference moduleReference,
             final java.lang.module.ModuleFinder systemModuleFinder) {
@@ -110,37 +103,17 @@ public class ModuleFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Recursively append a layer and then its ancestors to the layer order, skipping any layer that is already in
-     * the order.
-     *
-     * <p>
-     * A layer's own modules are searched before its parent layers' modules, which is the reverse of the classloader
-     * axis, where a parent classloader is searched before its children. The classloader that
-     * {@link ModuleLayer#defineModulesWithOneLoader} creates is a {@code jdk.internal.loader.Loader}, and its
-     * {@code loadClass} looks the package up in {@code localPackageToModule} -- the modules defined to that loader,
-     * i.e. this layer's own -- and only if that misses does it consult {@code remotePackageToLoader} (the parent
-     * layers' modules) and then the parent classloader. This is observable: a child layer may define a module with
-     * the same name as one in a parent layer, and the child layer's loader then resolves the shared package to the
-     * child's copy. So the layer is appended before its parents are.
-     *
-     * <p>
-     * The shared {@code layerVisited} set keeps a layer from being appended twice when the caller names both a
-     * layer and one of its ancestors. A layer named directly still takes the position its own name gives it, which
-     * is what naming it asks for; it is only reached indirectly, through {@link ModuleLayer#parents()}, if the
-     * caller did not name it.
-     *
-     * <p>
-     * The result is a depth-first order that lists each layer once, which is the order that
-     * {@code ModuleLayer#findModule} searches a layer's parents in.
+     * Traverses {@code layer} and its parent layers in depth-first preorder (child layers before parent layers) and
+     * appends unvisited layers to {@code layerOrderOut}.
      *
      * @param layer
-     *            the layer
+     *            the starting module layer.
      * @param layerVisited
-     *            the layers already appended to {@code layerOrderOut}, shared across all the top-level layers
+     *            set of already-visited layers.
      * @param parentLayers
-     *            the parent layers
+     *            set collecting all parent layers encountered.
      * @param layerOrderOut
-     *            the layer order
+     *            list receiving layers in resolution order.
      */
     private static void findLayerOrder(final ModuleLayer layer, final Set<ModuleLayer> layerVisited,
             final Set<ModuleLayer> parentLayers, final List<ModuleLayer> layerOrderOut) {
@@ -162,13 +135,14 @@ public class ModuleFinder {
     }
 
     /**
-     * Get all visible ModuleReferences in a list of layers.
+     * Collects all unique {@link ModuleReference}s from {@code layers} in layer resolution order, sorted by name
+     * within each layer.
      *
      * @param layers
-     *            the layers
+     *            the starting module layers.
      * @param classpathSpec
-     *            the classpath settings, which say whether to ignore the parent layers.
-     * @return the modules, in layer order, and by name within each layer.
+     *            the classpath configuration.
+     * @return the ordered list of module references.
      */
     private static List<ModuleReference> findModuleReferences(final LinkedHashSet<ModuleLayer> layers,
             final ClasspathSpec classpathSpec) {
@@ -219,15 +193,12 @@ public class ModuleFinder {
     }
 
     /**
-     * Find the module layers of the classes on the callstack, and the boot layer. A class in an unnamed module is
-     * in no layer: it was loaded from the classpath of its classloader, which is searched as a classpath source,
-     * not as a module source. A class in a dynamic module, such as the module that holds a
-     * {@link java.lang.reflect.Proxy} class, is in no layer either.
+     * Adds module layers from {@code callStackInfo} and {@link ModuleLayer#boot()} to {@code layersOut}.
      *
      * @param callStackInfo
-     *            the call stack info
+     *            the call stack info.
      * @param layersOut
-     *            the set to add the layers to
+     *            the set receiving the detected module layers.
      */
     private static void findDetectedModuleLayers(final CallStackInfo callStackInfo,
             final LinkedHashSet<ModuleLayer> layersOut) {
@@ -239,16 +210,16 @@ public class ModuleFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Find the modules of the module layers that the caller enabled.
+     * Discovers modules in the configured module layers.
      *
      * @param callStackInfo
      *            the call stack info.
      * @param classpathSpec
-     *            The classpath settings, which say which kinds of module to find.
+     *            the classpath configuration.
      * @param scanSourceSpec
-     *            The places to look for classpath elements and modules.
+     *            the configured module layer sources.
      * @param log
-     *            The log.
+     *            the log node, or null to skip logging.
      */
     public ModuleFinder(final CallStackInfo callStackInfo, final ClasspathSpec classpathSpec,
             final ScanSourceSpec scanSourceSpec, final @Nullable LogNode log) {
