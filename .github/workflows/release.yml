@@ -78,9 +78,19 @@ jobs:
         server-id: central
         server-username: CENTRAL_USERNAME
         server-password: CENTRAL_PASSWORD
-        # Imports the signing key into the runner's GnuPG keyring
-        gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
-        gpg-passphrase: MAVEN_GPG_PASSPHRASE
+    # setup-java's gpg-private-key input is not used: it imports the key silently and checks only gpg's
+    # exit code, so when the secret held no usable private key, it reported success and the release
+    # failed later with "no default secret key". gpg prints only key IDs and counts here, never the key.
+    - name: Import the signing key
+      env:
+        GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      run: |
+        printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --import
+        if ! gpg --list-secret-keys --with-colons | grep -q '^sec:'; then
+          echo "The GPG_PRIVATE_KEY secret holds no private key: set it to the output of"
+          echo "gpg --armor --export-secret-keys <key ID>"
+          exit 1
+        fi
     - name: Release to Maven Central
       env:
         CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
@@ -94,6 +104,7 @@ jobs:
         git config user.email "luke.hutch@gmail.com"
         # The pom signs with the key named by gpg.keyname, so name the key that was just imported
         keyid=$(gpg --list-secret-keys --with-colons | awk -F: '$1 == "sec" { print $5; exit }')
+        test -n "$keyid"
         # -Darguments is passed to the builds that release:prepare and release:perform fork, and
         # replaces the pom's <arguments>-Prelease</arguments>, so -Prelease is repeated in it
         ./mvnw -B -Prelease -Dgpg.keyname="$keyid" -Darguments="-Prelease -Dgpg.keyname=$keyid" \
