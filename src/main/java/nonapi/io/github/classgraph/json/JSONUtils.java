@@ -163,7 +163,7 @@ public final class JSONUtils {
     /** JSON object reference id suffix. */
     static final String ID_SUFFIX = "]";
 
-    /** JSON character-to-string escaping replacements -- see http://www.json.org/ under "string". */
+    /** JSON character-to-string escaping replacements (see http://www.json.org/ under "string"). */
     private static final String[] JSON_CHAR_REPLACEMENTS = new String[256];
 
     static {
@@ -422,11 +422,7 @@ public final class JSONUtils {
     }
 
     /**
-     * Check if a field is serializable. Don't serialize transient, final, synthetic, or inaccessible fields.
-     * 
-     * <p>
-     * N.B. Tries to set field to accessible, which will require an "opens" declarations from modules that want to
-     * allow this introspection.
+     * Check if a field is serializable (non-transient, non-final, non-synthetic, and accessible).
      *
      * @param field
      *            the field

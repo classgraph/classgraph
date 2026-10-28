@@ -98,9 +98,7 @@ public final class ScanResult implements Closeable {
     Map<String, ClassInfo> classNameToClassInfo;
 
     /**
-     * The map from array class name to {@link ArrayClassInfo}, for the {@link ArrayClassInfo} objects made after
-     * the scan for array classes that are not in {@link #classNameToClassInfo}. They are kept apart so that looking
-     * up an array type cannot change what {@link #getClassInfo(String)} or {@link #getAllClasses()} returns.
+     * The map from array class name to {@link ArrayClassInfo} for array classes instantiated after the scan.
      */
     final ConcurrentHashMap<String, ArrayClassInfo> arrayClassNameToArrayClassInfo = new ConcurrentHashMap<>();
 
@@ -111,10 +109,8 @@ public final class ScanResult implements Closeable {
     private Map<String, ModuleInfo> moduleNameToModuleInfo;
 
     /**
-     * The file, directory and jarfile resources timestamped during a scan, along with their timestamp at the time
-     * of the scan. For jarfiles, the timestamp represents the timestamp of all files within the jar. Null if this
-     * {@link ScanResult} came from {@code ClassGraph#getClasspathScanResult}, which only determines the classpath
-     * and never scans, so there is nothing to timestamp.
+     * The file, directory, and jarfile resources timestamped during a scan, mapped to their timestamp at the time
+     * of the scan (or null if no scan was performed).
      */
     private Map<File, Long> fileToLastModified;
 
@@ -142,12 +138,8 @@ public final class ScanResult implements Closeable {
     ReflectionUtils reflectionUtils;
 
     /**
-     * Get the {@link ReflectionUtils} instance of a {@link ScanResult}, falling back to a fresh instance if the
-     * {@link ScanResult} is null or has been closed. {@link #close()} sets {@link #reflectionUtils} to null, so
-     * testing only for a null {@link ScanResult} is not enough -- objects such as {@link AnnotationInfo} keep
-     * working after the {@link ScanResult} they came from is closed, and must not throw
-     * {@link NullPointerException}. The field is read only once, so that a concurrent {@link #close()} cannot
-     * cause null to be returned. (#930)
+     * Get the {@link ReflectionUtils} instance of a {@link ScanResult}, or a new instance if the
+     * {@link ScanResult} is null or has been closed.
      *
      * @param scanResult
      *            the {@link ScanResult}, or null.
@@ -421,10 +413,10 @@ public final class ScanResult implements Closeable {
     // Classpath / module path
 
     /**
-     * Returns the list of File objects for unique classpath elements (directories or jarfiles), in classloader
-     * resolution order. A classpath element that has no {@link File}, as described for
-     * {@link Resource#getClasspathElementFile()}, is left out, but {@link #getClasspathURIs()} lists it if it has a
-     * location URI.
+     * Returns the list of {@link File} objects for unique classpath elements (directories or jarfiles), in
+     * classloader resolution order. Classpath elements that cannot be represented as a {@link File} (see
+     * {@link Resource#getClasspathElementFile()}) are omitted; use {@link #getClasspathURIs()} to include all
+     * elements with a location URI.
      *
      * @return The unique classpath elements.
      */
@@ -445,9 +437,9 @@ public final class ScanResult implements Closeable {
 
     /**
      * Returns all unique directories or zip/jarfiles on the classpath, in classloader resolution order, as a
-     * classpath string, delineated with the standard path separator character. Where the path separator is ':', a
-     * ':' inside a file path is written as {@code "\:"}, which ClassGraph reads back as part of the path, but the
-     * {@code java} launcher does not.
+     * classpath string delineated with the standard path separator character. On platforms where the path separator
+     * is {@code ':'}, any {@code ':'} within a file path is escaped as {@code "\:"} (which is supported by
+     * ClassGraph path parsing, though not by the standard {@code java} launcher).
      *
      * @return the unique directories and jarfiles on the classpath, in classpath resolution order, as a path
      *         string.
@@ -779,7 +771,7 @@ public final class ScanResult implements Closeable {
      * <li>Single asterisks, to match zero or more of any character other than '/'</li>
      * <li>Double asterisks, to match zero or more of any character</li>
      * <li>Question marks, to match one character</li>
-     * <li>Any other regexp-style syntax, such as character sets (denoted by square brackets) -- the remainder of
+     * <li>Any other regexp-style syntax, such as character sets (denoted by square brackets): the remainder of
      * the expression is passed through to the Java regex parser, after escaping dot characters.</li>
      * </ul>
      *
@@ -937,8 +929,7 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Checks that inter-class dependencies were enabled. Checked by the dependency maps before asking any class for
-     * its dependencies, since a scan that found no classes never asks one.
+     * Check that this {@link ScanResult} has not been closed and that inter-class dependencies were enabled.
      *
      * @throws IllegalArgumentException
      *             if this {@link ScanResult} has been closed, or class info or inter-class dependencies were not
@@ -958,16 +949,13 @@ public final class ScanResult implements Closeable {
     // Classes
 
     /**
-     * Get the {@link ClassInfo} object for the named class, or null if there is none.
+     * Get the {@link ClassInfo} object for the named class, or null if the class was not found during the scan.
      *
      * <p>
-     * There is a {@link ClassInfo} object for each class found in the accepted packages, and also for each
-     * external class, which is a class outside them that the scan came across (see
-     * {@link ClassGraph#enableExternalClasses()} for which classes these are, including every class that a class
-     * it read refers to, if {@link ClassGraph#enableInterClassDependencies()} was called). So unlike
-     * {@link #getAllClasses()}, this can return an external class even if
-     * {@link ClassGraph#enableExternalClasses()} was not called, and {@link ClassInfo#isExternalClass()} then
-     * returns true.
+     * Unlike {@link #getAllClasses()}, this method may return a {@link ClassInfo} object for an external
+     * (non-accepted) class referenced by a scanned class (for example, a superclass, implemented interface,
+     * annotation, or inter-class dependency), even if {@link ClassGraph#enableExternalClasses()} was not called.
+     * For such classes, {@link ClassInfo#isExternalClass()} returns true.
      *
      * @param className
      *            The class name.
@@ -1033,9 +1021,9 @@ public final class ScanResult implements Closeable {
      * during the scan.
      *
      * <p>
-     * Unlike {@link #getAllClasses()}, the map also holds every class outside the accepted packages that
-     * {@link #getClassInfo(String)} returns, even if {@link ClassGraph#enableExternalClasses()} was not called.
-     * The map is the one the scan result uses itself, so it must not be modified.
+     * Unlike {@link #getAllClasses()}, the returned map also includes any external (non-accepted) classes
+     * accessible via {@link #getClassInfo(String)}, even if {@link ClassGraph#enableExternalClasses()} was not
+     * called. The returned map backs this {@link ScanResult} directly and must not be modified.
      *
      * @return The map from class name to {@link ClassInfo} object for all classes, interfaces and annotations found
      *         during the scan.
@@ -1543,7 +1531,7 @@ public final class ScanResult implements Closeable {
     /**
      * Determine whether the classpath contents have been modified since the last scan. Checks the timestamps of
      * files and jarfiles encountered during the previous scan to see if they have changed. Does not perform a full
-     * scan, so cannot detect the addition of directories that newly match accept criteria -- you need to perform a
+     * scan, so cannot detect the addition of directories that newly match accept criteria; you need to perform a
      * full scan to detect those changes.
      *
      * @return true if the classpath contents have been modified since the last scan.
@@ -1832,9 +1820,9 @@ public final class ScanResult implements Closeable {
 
     /**
      * Close this {@link ScanResult}, releasing the memory it holds, closing any open jarfiles, and deleting any
-     * temporary files that jars were extracted or downloaded to. Nothing else releases these, so a program that
-     * scans without closing its {@link ScanResult}s holds the open jarfiles and memory-mapped buffers until it
-     * exits, and leaves the temporary files behind after it exits.
+     * temporary files created for extracted nested jars or downloaded remote jars. Always close each
+     * {@link ScanResult} (preferably in a {@code try}-with-resources block) to avoid leaking open file descriptors,
+     * memory-mapped buffers, and temporary files.
      */
     @Override
     public void close() {
@@ -1900,7 +1888,7 @@ public final class ScanResult implements Closeable {
     /**
      * Close all {@link ScanResult} instances that have not yet been closed. Note that this will close all open
      * {@link ScanResult} instances for any class that uses the classloader that the {@link ScanResult} class is
-     * cached in -- so if you call this method, you need to ensure that the lifecycle of the classloader matches the
+     * cached in, so if you call this method, you need to ensure that the lifecycle of the classloader matches the
      * lifecycle of your application, or that two concurrent applications don't share the same classloader,
      * otherwise one application might close another application's {@link ScanResult} instances while they are still
      * in use.

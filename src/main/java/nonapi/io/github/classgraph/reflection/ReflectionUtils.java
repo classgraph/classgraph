@@ -76,12 +76,6 @@ public final class ReflectionUtils {
     /**
      * Read a field, whether static or not.
      * 
-     * <p>
-     * The methods that take an object rather than a class are deliberately indifferent to whether the member they
-     * find is static: {@code FallbackClassLoaderHandler} probes an unrecognized classloader for around forty
-     * speculative field and method names, and cannot know which of them a given classloader implements as a static
-     * member.
-     * 
      * @param obj
      *            the object to read the field from, if the field is not static.
      * @param field
@@ -96,8 +90,7 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Invoke a method, whether static or not. See {@link #read(Object, Field)} for why this is indifferent to
-     * whether the method is static.
+     * Invoke a method, whether static or not.
      * 
      * @param obj
      *            the object to invoke the method on, if the method is not static.
@@ -489,9 +482,8 @@ public final class ReflectionUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Implements {@code java.security.PrivilegedAction} by proxy, so that
-     * {@code AccessController#doPrivileged(PrivilegedAction)} can be invoked reflectively, without a compile-time
-     * reference to either of those deprecated types.
+     * Implements {@code java.security.PrivilegedAction} by proxy for reflective invocation of
+     * {@code AccessController#doPrivileged(PrivilegedAction)}.
      *
      * @param <T>
      *            the return type of the wrapped {@link Callable}.

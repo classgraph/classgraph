@@ -31,25 +31,12 @@ package nonapi.io.github.classgraph.concurrency;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Times a wait for other threads that gives up only once none of them has made progress for the whole timeout.
- * Progress is anything reported to {@link InterruptionChecker#progress()}. The wait is made in slices, and a slice
- * that took longer than it should have, because the whole JVM was paused (at a breakpoint that suspends all
- * threads, or by SIGSTOP), counts only as long as the slice. A pause therefore uses up at most one slice of the
- * timeout (at most one second, or a tenth of the timeout if that is shorter), so it makes the wait time out only if
- * the wait had already gone that close to the timeout with no progress. A breakpoint that suspends only a thread
- * being waited for is not a pause of the whole JVM: that thread makes no progress, and the wait times out as usual.
- *
- * <pre>
- * IdleTimeout idleTimeout = new IdleTimeout(interruptionChecker, timeoutNanos);
- * while (!latch.await(idleTimeout.nextWaitNanos(), TimeUnit.NANOSECONDS)) {
- *     if (idleTimeout.hasRunOut()) {
- *         throw new TimeoutException();
- *     }
- * }
- * </pre>
+ * Times a sliced wait across worker threads that expires only after no progress has been reported to
+ * {@link InterruptionChecker#progress()} for the full timeout duration. Each slice is capped so that a whole-JVM
+ * pause (e.g. a debugger breakpoint or SIGSTOP) consumes at most one slice of the timeout.
  */
 public final class IdleTimeout {
-    /** The longest slice. A pause counts as at most this long. */
+    /** The maximum wait slice duration in nanoseconds. */
     private static final long MAX_SLICE_NANOS = TimeUnit.SECONDS.toNanos(1);
 
     /** The InterruptionChecker that the threads being waited for report their progress to. */
@@ -96,9 +83,9 @@ public final class IdleTimeout {
     }
 
     /**
-     * Call when a slice of the wait ended without the thing waited for happening.
+     * Check whether the idle timeout has expired after a wait slice completes.
      *
-     * @return true if no progress has been made for the whole timeout.
+     * @return true if no progress has been reported for the full timeout duration.
      */
     public boolean hasRunOut() {
         final long newProgressCount = interruptionChecker.getProgressCount();

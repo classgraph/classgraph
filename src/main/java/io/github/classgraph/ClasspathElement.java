@@ -58,12 +58,8 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     int classpathElementIdx;
 
     /**
-     * If non-null, contains a list of resolved paths for any classpath element roots nested inside this classpath
-     * element. (Scanning should stop at a nested classpath element root, otherwise that subtree will be scanned
-     * more than once.) N.B. contains only the nested part of the resolved path (the common prefix is removed). Also
-     * includes a trailing '/', since only nested directory classpath elements need to be caught (nested jars do not
-     * need to be caught, because we don't scan jars-within-jars unless the inner jar is explicitly listed on the
-     * classpath).
+     * If non-null, contains a list of resolved paths (with common prefix removed and a trailing {@code '/'}) for
+     * any directory classpath element roots nested inside this classpath element.
      */
     List<String> nestedClasspathRootPrefixes;
 
@@ -85,25 +81,15 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     private boolean isToplevel;
 
     /**
-     * The index of the winning reference to this classpath element, as decided by
-     * {@link #addReference(boolean, int, ClassLoader)}: the index within the classpath if {@link #isToplevel} is
-     * true, or else the index within the parent classpath element that referenced it earliest. Only the toplevel
-     * case is used for ordering (see {@link #compareTo(ClasspathElement)}); a child classpath element is ordered by
-     * the index recorded on the edge from its parent, in {@link #childClasspathElements}.
+     * The index of the winning reference to this classpath element: its index within the classpath if
+     * {@link #isToplevel} is true, or the earliest index within a referencing parent classpath element.
      */
     private int classpathElementIdxWithinParent = Integer.MAX_VALUE;
 
     /**
-     * A reference from a parent classpath element to one of the classpath elements named by its {@code Class-Path}
-     * manifest entry (or found in its lib directory).
-     *
-     * <p>
-     * The index is recorded on the edge from the parent rather than on the child classpath element itself, because
-     * the same classpath element can be named by the {@code Class-Path} entries of two different jarfiles, at a
-     * different position within each of them -- so there is no single position that a child classpath element
-     * occupies.
+     * A reference from a parent classpath element to a child classpath element named by its {@code Class-Path}
+     * manifest entry or found in its lib directory.
      */
-    // #810
     static class ChildClasspathElement implements Comparable<ChildClasspathElement> {
         /**
          * The index of the child classpath element within the {@code Class-Path} manifest entry of the parent
@@ -143,14 +129,12 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     Collection<ChildClasspathElement> childClasspathElements = new ConcurrentLinkedQueue<>();
 
     /**
-     * Resources found within this classpath element that were accepted and not rejected. (Only written by one
-     * thread, so doesn't need to be a concurrent list.)
+     * Resources found within this classpath element that were accepted and not rejected.
      */
     protected final List<Resource> acceptedResources = new ArrayList<>();
 
     /**
-     * The list of all classfiles found within this classpath element that were accepted and not rejected. (Only
-     * written by one thread, so doesn't need to be a concurrent list.)
+     * The list of all classfiles found within this classpath element that were accepted and not rejected.
      */
     protected List<Resource> acceptedClassfileResources = new ArrayList<>();
 
@@ -217,27 +201,9 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Record a reference to this classpath element from a classpath entry work unit.
-     *
-     * <p>
-     * The same classpath element may be referenced by more than one work unit -- e.g. a jar may be listed both in
-     * the toplevel classpath and in the {@code Class-Path} manifest entry of another jar. Only one of those work
-     * units creates the {@link ClasspathElement} singleton, and which one wins that race is nondeterministic, so
-     * the classpath ordering key and the classloader have to be merged in from every work unit that references this
-     * classpath element, not just from the one that happened to create it (#810).
-     *
-     * <p>
-     * The classloader follows the winning reference, since the same directory or jar can be reached through more
-     * than one classloader (e.g. through a parent-last classloader and through its parent), and the classloader
-     * that gives the classpath element its position in the classpath order is also the one that should be used to
-     * load the classes found within it -- otherwise which classloader is recorded depends on which work unit won
-     * the race, and {@link ClassInfo#loadClass()} intermittently loads a class through the wrong classloader.
-     *
-     * <p>
-     * A toplevel reference always takes precedence over a reference from a parent classpath element, so that a jar
-     * listed in the classpath is ordered by its position in the classpath, rather than by the position of a
-     * manifest entry that also happens to reference it. Between two references of the same kind, the lowest index
-     * wins, so that the earliest reference determines the position of the classpath element.
+     * Record a reference to this classpath element from a classpath entry work unit. Toplevel classpath references
+     * take precedence over references from a parent classpath element, and earlier references take precedence over
+     * later ones.
      *
      * @param isToplevelRef
      *            true if the work unit referenced this classpath element from the toplevel classpath, false if it
@@ -261,9 +227,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     }
 
     /**
-     * Sort toplevel classpath elements into their order within the classpath. (Child classpath elements are not
-     * sorted with this method -- they are sorted by the index recorded on the edge from their parent, since the
-     * same classpath element can sit at a different position within each of two parents.)
+     * Sort toplevel classpath elements into their order within the classpath.
      */
     @Override
     public int compareTo(final ClasspathElement other) {
@@ -324,26 +288,15 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Check whether a candidate package root within a classpath element really is a package root, and not simply a
-     * package that happens to have the same name as one of the automatic package root prefixes.
-     *
-     * <p>
-     * {@code classes/} and {@code test-classes/} are both legal Java package names, so the layout of a classpath
-     * element cannot by itself distinguish (for example) the Ant layout {@code <root>/classes/com/xyz/Foo.class}
-     * from the Maven output directory {@code target/classes/}, which contains a package named {@code classes} at
-     * {@code target/classes/classes/Foo.class}. The two cases can however be told apart by reading the name of the
-     * class declared by any classfile beneath the candidate package root: if the candidate really is a package
-     * root, then the class name matches the path of the classfile relative to the candidate root; if the candidate
-     * is really a package, then the class name has the candidate's name as a package prefix, so it does not match.
-     * (#929)
+     * Check whether a candidate package root within a classpath element is a package root rather than a package
+     * with the same name as an automatic package root prefix.
      *
      * @param classfileReader
      *            a reader for a classfile found beneath the candidate package root.
      * @param classfileRelativePath
      *            the path of that classfile, relative to the candidate package root.
-     * @return null if the candidate is a package root, or if the class name could not be read from the classfile
-     *         (in which case the candidate is given the benefit of the doubt); otherwise the name of the class
-     *         declared by the classfile, which disproves that the candidate is a package root.
+     * @return null if the candidate is a package root or if the class name could not be read from the classfile;
+     *         otherwise the name of the class declared by the classfile.
      */
     static String getClassNameDisprovingPackageRoot(final ClassfileReader classfileReader,
             final String classfileRelativePath) {
@@ -355,24 +308,14 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get a key that identifies the file that a resource's {@link URI} refers to, for comparing two resources to
-     * see if they are the same file.
-     *
-     * <p>
-     * The same file can be reached through more than one path -- through a symbolic link, through a Windows
-     * junction or 8.3 short name, or spelled with a different case on a filesystem that ignores case -- so the path
-     * is canonicalized. (On macOS neither of the first two is a corner case: the temp directory
-     * {@code /var/folders/...} is reached through the symlink {@code /var -> /private/var}, and the filesystem
-     * ignores case by default, so the module path and the classpath can disagree on the path of the same jar in
-     * both ways at once.)
+     * Get a canonicalized key identifying the file that a resource's {@link URI} refers to.
      *
      * @param uri
      *            the URI of a resource.
      * @param canonicalPathCache
      *            a cache of canonical paths.
-     * @return a key that is equal for two URIs that refer to the same file. This is not a valid URI -- it is only
-     *         useful for equality comparison. If the URI does not refer to a file (e.g. a {@code jrt:/} URI), or
-     *         the file could not be canonicalized, the string representation of the URI is returned unchanged.
+     * @return a key that is equal for two URIs that refer to the same file, or the URI string if it does not refer
+     *         to a file or could not be canonicalized.
      */
     private static String getFileIdentityKey(final URI uri, final Map<String, String> canonicalPathCache) {
         final String uriStr = uri.toString();
@@ -403,14 +346,12 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     }
 
     /**
-     * Get a key that identifies the file or directory that this classpath element refers to, for comparing two
-     * classpath elements to see if they are the same file or directory.
+     * Get a key that identifies the file or directory that this classpath element refers to.
      *
      * @param canonicalPathCache
      *            a cache of canonical paths.
      * @return a key that is equal for two classpath elements that refer to the same file or directory (see
-     *         {@link #getFileIdentityKey(URI, Map)}), or null if this classpath element has no location URI, so
-     *         cannot be compared to any other classpath element.
+     *         {@link #getFileIdentityKey(URI, Map)}), or null if this classpath element has no location URI.
      */
     String getFileIdentityKey(final Map<String, String> canonicalPathCache) {
         URI uri;
@@ -426,23 +367,13 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Remove any resource that refers to the same file as a resource already found in this or an earlier classpath
-     * element, i.e. a resource with the same {@link Resource#getURI()}.
-     *
-     * <p>
-     * Two different classpath elements may legitimately contain different resources with the same relative path
-     * (e.g. two jars may each contain their own {@code META-INF/services/} entries), and both should be returned by
-     * {@link ScanResult#getAllResources()}. However, the same *file* can also be reached through more than one
-     * classpath element -- e.g. Maven Surefire and IDEs splice the test output directory into a module using
-     * {@code --patch-module}, while also placing that same directory on the classpath, so the module and the
-     * classpath element both list the same file. Returning one file twice is never useful, so the second and
-     * subsequent occurrences are removed here. (#704)
+     * Remove any resource that refers to the same underlying file as a resource already found in this or an earlier
+     * classpath element.
      *
      * @param classpathIdx
      *            the classpath index
      * @param collidingPaths
-     *            the relative paths that occur in more than one place in the classpath / module path (only these
-     *            can be duplicates, so only for these does the {@link URI} need to be computed)
+     *            the relative paths that occur in more than one place in the classpath / module path
      * @param fileIdentityKeysFound
      *            the file identity keys of the resources found so far (see
      *            {@link #getFileIdentityKey(URI, Map)})
@@ -507,7 +438,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Apply relative path masking within this classpath resource -- remove relative paths that were found in an
+     * Apply relative path masking within this classpath resource by removing relative paths that were found in an
      * earlier classpath element.
      *
      * @param classpathIdx
@@ -719,10 +650,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     abstract Resource getResource(final String relativePath);
 
     /**
-     * Get the {@link Resource} for a given relative path while the scan is running. This returns what
-     * {@link #getResource(String)} returns, but may assume that the classpath element does not change during the
-     * scan, so it may remember what it learned from earlier calls. Scanning calls it to find the classfile of an
-     * external class, once in each classpath element before the one holding the classfile.
+     * Get the {@link Resource} for a given relative path while the scan is running.
      *
      * @param relativePath
      *            The relative path of the {@link Resource} to return.
@@ -734,9 +662,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     }
 
     /**
-     * Called once every classfile has been scanned. Nothing calls {@link #getResourceDuringScan(String)} after
-     * this point, so anything it remembered is released here, rather than being kept for as long as the
-     * {@link ScanResult} is open.
+     * Called once every classfile has been scanned to release any temporary state cached during the scan.
      */
     void classfileScanFinished() {
         // Nothing is remembered by default
@@ -750,10 +676,8 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     abstract URI getURI();
 
     /**
-     * Get the separator between the URI of this classpath element and the path of a resource within it. This is
-     * {@code "!/"} for a jarfile, since that is what separates the path of an archive from a path within it, and
-     * {@code "/"} for a classpath element that is a directory, whether a directory on disk or a package root
-     * within a jarfile.
+     * Get the separator between the URI of this classpath element and the path of a resource within it
+     * ({@code "!/"} for a jarfile, or {@code "/"} for a directory or package root).
      *
      * @return the separator.
      */

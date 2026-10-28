@@ -49,10 +49,7 @@ public class ModuleFinder {
     /** The non system module refs. */
     private List<ModuleRef> nonSystemModuleRefs;
 
-    /**
-     * True if {@code java.class.path} has to be scanned even though it was not asked for, since a class on the call
-     * stack is in an unnamed module, whose classes are found on {@code java.class.path}.
-     */
+    /** True if {@code java.class.path} should be scanned because a call stack class is in an unnamed module. */
     private boolean forceScanJavaClassPath;
 
     /** The reflection utils instance. */
@@ -81,10 +78,9 @@ public class ModuleFinder {
     }
 
     /**
-     * Whether {@code java.class.path} has to be scanned even though it was not asked for.
+     * Check whether {@code java.class.path} must be scanned because a call stack class is in an unnamed module.
      *
-     * @return true if a class on the call stack is in an unnamed module, whose classes are found on
-     *         {@code java.class.path}.
+     * @return true if {@code java.class.path} must be scanned.
      */
     public boolean forceScanJavaClassPath() {
         return forceScanJavaClassPath;
@@ -93,33 +89,12 @@ public class ModuleFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Recursively append a layer and then its ancestors to the layer order, skipping any layer that is already in
-     * the order.
-     *
-     * <p>
-     * A layer's own modules are searched before its parent layers' modules, which is the reverse of the classloader
-     * axis, where a parent classloader is searched before its children. The classloader that
-     * {@code ModuleLayer#defineModulesWithOneLoader} creates is a {@code jdk.internal.loader.Loader}, and its
-     * {@code loadClass} looks the package up in {@code localPackageToModule} -- the modules defined to that loader,
-     * i.e. this layer's own -- and only if that misses does it consult {@code remotePackageToLoader} (the parent
-     * layers' modules) and then the parent classloader. This is observable: a child layer may define a module with
-     * the same name as one in a parent layer, and the child layer's loader then resolves the shared package to the
-     * child's copy. So the layer is appended before its parents are.
-     *
-     * <p>
-     * The shared {@code layerVisited} set keeps a layer from being appended twice when the caller names both a
-     * layer and one of its ancestors. A layer named directly still takes the position its own name gives it, which
-     * is what naming it asks for; it is only reached indirectly, through {@code ModuleLayer#parents()}, if the
-     * caller did not name it.
-     *
-     * <p>
-     * The result is a depth-first order that lists each layer once, which is the order that
-     * {@code ModuleLayer#findModule} searches a layer's parents in.
+     * Recursively append a module layer and its ancestors to the layer order in depth-first order.
      *
      * @param layer
      *            the layer
      * @param layerVisited
-     *            the layers already appended to {@code layerOrderOut}, shared across all the top-level layers
+     *            the layers already visited
      * @param parentLayers
      *            the parent layers
      * @param layerOrderOut

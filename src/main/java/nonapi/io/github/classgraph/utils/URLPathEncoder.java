@@ -210,19 +210,7 @@ public final class URLPathEncoder {
     }
 
     /**
-     * Percent-encode only the characters that a URI cannot hold, leaving the rest of a URL as it is written.
-     *
-     * <p>
-     * This is what a path that is still a URL needs, as opposed to a file path: a URL is already percent-encoded,
-     * so {@link #encodePath(String)} would encode it a second time and turn {@code "%20"} into {@code "%2520"},
-     * naming a resource that does not exist. It would also escape the URL's own syntax -- the colon before a port
-     * number becomes {@code "%3a"}, which makes the authority name a host that does not exist, and the {@code '?'}
-     * of a query string becomes {@code "%3f"}.
-     *
-     * <p>
-     * An escape that is already written is therefore kept as it is, and only a lone {@code '%'} that does not
-     * introduce one is escaped. What is escaped besides that is what {@link URI} rejects: a space, a control
-     * character, a character outside ASCII, and the handful of ASCII characters that no part of a URI may hold.
+     * Percent-encode characters that a {@link URI} cannot hold, preserving existing percent-escape sequences.
      *
      * @param url
      *            the URL.
@@ -254,19 +242,8 @@ public final class URLPathEncoder {
     }
 
     /**
-     * Move the server of a UNC path out of the authority of a {@code "file:"} URI and back into its path, so that
-     * the URI names the same file after it is converted to a {@link java.net.URL} and opened.
-     *
-     * <p>
-     * {@link java.nio.file.Path#toUri()} renders the UNC path {@code \\server\share\x} as
-     * {@code file://server/share/x}, putting the server in the URI authority. {@link java.net.URL} reads that back
-     * as the local path {@code \share\x}, dropping the server, so opening it fails or, worse, reads a different
-     * file. {@link java.io.File#toURI()} renders the same path as {@code file:////server/share/x}, with an empty
-     * authority and the server in the path, and that does read back as the UNC path it came from. Both spellings
-     * are permitted (RFC 8089 appendix E.3.2); only the second one round-trips.
-     *
-     * <p>
-     * A URI with no authority is returned unchanged, so this is a no-op for every path that is not a UNC path.
+     * Move the server of a Windows UNC {@code "file:"} URI from the authority component into the path component
+     * ({@code file:////server/share/...}) so that it round-trips through {@link java.net.URL}.
      *
      * @param uri
      *            the URI

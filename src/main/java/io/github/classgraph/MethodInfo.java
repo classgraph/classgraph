@@ -232,20 +232,12 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     }
 
     /**
-     * Determine the number of implicit (compiler-synthesized) parameters at the start of this method's
-     * parameter list that are not counted by the {@code formal_parameter_index} of type annotations. This is
-     * used only when there is no generic type signature to compare the descriptor against. Handles the two cases
-     * javac produces: the leading enclosing-instance parameter of an inner class constructor, and the leading
-     * {@code (String name, int ordinal)} parameters of an enum constructor. (The variables that a local or
-     * anonymous class captures are passed as trailing parameters, so they do not affect the count. If the count
-     * is wrong, as it is for a local class declared in a static context whose first declared parameter has the
-     * type of the class it is nested in, a parameter type annotation whose index falls past the last parameter is
-     * dropped, one whose type path does not fit the parameter's type is skipped by {@link #decorateMethodType},
-     * and any other is attached to the wrong parameter.) (#897)
+     * Determine the number of implicit (compiler-synthesized) prefix parameters in the method type descriptor that
+     * are not counted by the {@code formal_parameter_index} of type annotations.
      *
      * @param descriptor
-     *            the method type descriptor
-     * @return the number of implicit prefix parameters (0 if none, or if it cannot be determined).
+     *            the method type descriptor.
+     * @return the number of implicit prefix parameters (or 0 if none).
      */
     private int getNumImplicitPrefixParams(final MethodTypeSignature descriptor) {
         if ("<init>".equals(name)) {
@@ -273,11 +265,8 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     }
 
     /**
-     * Run the method type annotation decorators on the given parsed method type, temporarily stripping the
-     * given number of implicit prefix parameters so that {@code formal_parameter_index} values line up with
-     * the source-declared parameters. Any individual type annotation that cannot be matched to a parameter
-     * type (e.g. due to compiler-specific parameter indexing, as with Kotlin, local or anonymous classes, or
-     * a compiler bug) is skipped rather than being allowed to abort parsing of the whole method type. (#897)
+     * Apply method type annotation decorators to the parsed method type, temporarily stripping any implicit prefix
+     * parameters so that {@code formal_parameter_index} values align with source-declared parameters.
      *
      * @param methodType
      *            the parsed method type signature or descriptor to decorate.
@@ -346,10 +335,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     }
 
     /**
-     * Get the parsed type signature for the method, or null if the method has no {@code Signature} attribute or if
-     * its type signature cannot be parsed. The JVM does not check the {@code Signature} attribute when it loads a
-     * class, so a method whose type signature does not parse can still be called, and its type descriptor stands in
-     * for the type signature.
+     * Get the parsed type signature for the method, or null if unavailable or unparseable.
      *
      * @return The parsed type signature for the method, or null.
      */
@@ -503,9 +489,8 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     }
 
     /**
-     * Returns true if this is a default method, which is a public instance method of an interface that has a body,
-     * as for {@link java.lang.reflect.Method#isDefault()}. A static or private method of an interface has a body
-     * too, but is not a default method.
+     * Returns true if this is a default interface method (a public non-abstract instance method declared in an
+     * interface, as defined by {@link java.lang.reflect.Method#isDefault()}).
      *
      * @return True if this is a default method.
      */

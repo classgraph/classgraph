@@ -42,15 +42,6 @@ import nonapi.io.github.classgraph.utils.StringUtils;
 /**
  * {@link RandomAccessReader} for a {@link ByteBuffer}. Reads in <b>little endian</b> order, as required by the
  * zipfile format.
- *
- * <p>
- * The buffer may be a memory mapping of a file that is released when the {@link io.github.classgraph.ScanResult}
- * is closed, which can happen while this reader is being read from. Reading a released file fails with an
- * {@link IOException}, the same documented way as reading from a closed {@link java.nio.channels.FileChannel},
- * whichever way the JDK unmaps the file: on JDK 22 and later the arena that mapped it is closed, and reading the
- * buffer afterwards throws {@link IllegalStateException}, which is translated here; below JDK 22 the address range
- * is simply freed, and reading the buffer afterwards would read memory that is no longer mapped, so this reader is
- * given a flag to check whether the file is still there before it reads.
  */
 public class RandomAccessByteBufferReader implements RandomAccessReader {
     /** The byte buffer. */
@@ -62,10 +53,7 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
     /** The slice length. */
     private final int sliceLength;
 
-    /**
-     * Whether the file this reader's buffer is a view of has been released, or null if the buffer is not a view of
-     * anything that can be released while this reader is alive.
-     */
+    /** Flag indicating whether the underlying memory-mapped file has been released, or null. */
     private final AtomicBoolean isReleased;
 
     /**
@@ -108,9 +96,7 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
     }
 
     /**
-     * Check that the file can still be read, and that a read stays within the slice, so that it cannot read the
-     * bytes that surround the slice in the buffer. (A zipfile can ask for a read at any offset, since offsets are
-     * read from the zipfile itself.)
+     * Check that the underlying buffer has not been released and that the read stays within the slice bounds.
      *
      * @param offset
      *            the offset to read from, relative to the start of the slice

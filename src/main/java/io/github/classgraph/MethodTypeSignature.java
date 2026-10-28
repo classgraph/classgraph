@@ -93,11 +93,10 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Get the type signatures of the method parameters. N.B. this is non-public, since the types have to be aligned
-     * with other parameter metadata. The type of a parameter can be obtained post-alignment from the parameter's
-     * {@link MethodParameterInfo} object.
+     * Get the unaligned type signatures of the method parameters. Use {@link MethodInfo#getParameterInfo()} to
+     * obtain aligned parameter types via {@link MethodParameterInfo}.
      * 
-     * @return The parameter types for the method, as {@link TypeSignature} parsed type objects.
+     * @return The parameter types for the method, as {@link TypeSignature} objects.
      */
     List<TypeSignature> getParameterTypeSignatures() {
         return parameterTypeSignatures;

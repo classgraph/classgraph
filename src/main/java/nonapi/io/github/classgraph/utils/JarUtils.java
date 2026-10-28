@@ -66,9 +66,7 @@ public final class JarUtils {
     private static final Pattern TRAILING_DOTS = Pattern.compile("\\.$");
 
     /**
-     * The words that cannot be part of a module name, as for {@code ModuleDescriptor.newAutomaticModule}: the Java
-     * keywords and the literals {@code true}, {@code false} and {@code null}. ({@code "_"} is one too, but cannot
-     * occur in a derived name.)
+     * Java keywords and boolean/null literals that cannot be part of a derived automatic module name.
      */
     private static final Set<String> JAVA_KEYWORDS = new HashSet<>(Arrays.asList("abstract", "assert", "boolean",
             "break", "byte", "case", "catch", "char", "class", "const", "continue", "default", "do", "double", "else",
@@ -232,11 +230,8 @@ public final class JarUtils {
     }
 
     /**
-     * Test whether an index is at the start of a path element, i.e. whether everything between it and the previous
-     * separator (or the start of the path) is whitespace. Whitespace is skipped because the path elements are
-     * trimmed, so {@code "x.jar: http://domain/y.jar"} has to be read the same way as
-     * {@code "x.jar:http://domain/y.jar"} -- otherwise the space would hide the URL scheme, and the path would be
-     * split at the scheme's colon.
+     * Test whether an index is at the start of a path element (i.e. preceded only by whitespace since the start of
+     * the path or the previous {@code ':'} separator).
      *
      * @param pathStr
      *            The path being split.
@@ -320,19 +315,7 @@ public final class JarUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Determine whether the '!' at a given index of a path is a nested jar separator.
-     *
-     * <p>
-     * The {@code "jar:"} URL scheme spells the separator {@code "!/"}: {@link java.net.JarURLConnection} rejects a
-     * URL whose '!' is not followed by '/' when the URL is constructed, before any connection is opened. ClassGraph
-     * accepts the looser form its own API has always taken as well, where a bare '!' separates. Which form a path
-     * is written in is decided by the outermost separator, since that one is identified by testing the filesystem
-     * rather than by syntax: if it is followed by '/', the path is in the scheme's form, and a later '!' separates
-     * only when it is followed by '/' too; if it is a bare '!', every '!' from it onwards separates.
-     *
-     * <p>
-     * A '!' that ends the path counts as followed by '/' either way: it is what a trailing {@code "!/"} is left as
-     * once {@link FastPathResolver} has removed the '/'.
+     * Determine whether the {@code '!'} at a given index of a path is a nested jar separator.
      *
      * @param path
      *            the path.
@@ -365,31 +348,9 @@ public final class JarUtils {
     }
 
     /**
-     * Find the index of the outermost nested jar separator ('!') in a path, i.e. the '!' that separates the
-     * outermost jarfile from a path nested within it, or -1 if the path contains no nested jar separator.
-     *
-     * <p>
-     * A '!' is not necessarily a separator -- it is a legal character in a file or directory name on every
-     * platform ClassGraph supports, and users do put it in their directory names. The
-     * {@link java.net.JarURLConnection} spec defines the separator as {@code "!/"}, and gives no way of escaping a
-     * literal '!' other than percent-encoding it as {@code %21} within the inner URL, so the separator cannot be
-     * identified by syntax alone: {@code /dir!/x.jar} is ambiguous between a jar {@code x.jar} in a directory named
-     * {@code dir!}, and an entry {@code x.jar} within a jarfile named {@code dir}.
-     *
-     * <p>
-     * That ambiguity is resolved here by testing the filesystem: the outermost '!' separator is the first '!' whose
-     * preceding path names an existing regular file (which must be the outermost jarfile). If no '!' is preceded by
-     * an existing file, the path contains no separator, and any '!' in it is a literal filename character. Which of
-     * the later '!' characters separate is then decided by how this one is spelled -- see
-     * {@link #isNestedJarSeparatorAt(String, int, int)}.
-     *
-     * <p>
-     * The filesystem cannot be consulted for non-{@code file:} URLs (e.g. {@code http:} jar URLs), so if no '!' is
-     * preceded by an existing file and the path has a URL scheme, the old syntactic rule is retained, and the first
-     * '!' is taken to be the separator. The filesystem is tested before the path is read as a URL, and not after,
-     * because a relative path can itself begin with something shaped like a URL scheme: {@code ':'} is a legal
-     * filename character everywhere but Windows, so a directory named {@code foo:bar} cannot be told by syntax from
-     * a URL with the scheme {@code foo}. See {@link #hasURLScheme(String)}.
+     * Find the index of the outermost nested jar separator ({@code '!'}) in a path by testing whether the prefix
+     * before {@code '!'} names an existing regular file (falling back to syntactic matching for remote URLs), or
+     * -1 if the path contains no nested jar separator.
      *
      * @param path
      *            the path, with any {@code "jar:"} and {@code "file:"} scheme prefixes already stripped.
@@ -475,21 +436,7 @@ public final class JarUtils {
     }
 
     /**
-     * Determine whether a path is a URL, i.e. whether it begins with a URL scheme that names how to fetch it,
-     * rather than naming something in the local filesystem.
-     *
-     * <p>
-     * A URL scheme cannot be recognized by syntax alone. {@code ':'} is a legal filename character on every
-     * platform ClassGraph supports except Windows, and a relative path is not required to begin with a {@code '/'},
-     * so the relative path {@code foo:bar} is spelled exactly like a URL whose scheme is {@code foo}. (An absolute
-     * path is unambiguous, since it begins with a separator, and so is a Windows path, since a drive designation is
-     * a single character and a scheme is at least two.)
-     *
-     * <p>
-     * The ambiguity is resolved the same way {@link #indexOfNestedJarSeparator(String)} resolves the one around
-     * {@code '!'}: by testing the filesystem. A path whose outermost element exists locally names that file or
-     * directory, and is not a URL. Only if nothing exists there is the path read as a URL, which is also the only
-     * case in which the scheme could have been of any use.
+     * Determine whether a path begins with a URL scheme and does not name a local file or directory.
      *
      * @param path
      *            the path, with any {@code "jar:"} and {@code "file:"} scheme prefixes already stripped.

@@ -113,13 +113,8 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Get the paths from a containerClassLoader object.
+     * Get the paths from a {@code com.ibm.ws.classloading.internal.ContainerClassLoader} object.
      *
-     * <p>
-     * The passed in object should be an instance of "com.ibm.ws.classloading.internal.ContainerClassLoader".
-     * <p>
-     * Will attempt to use "getContainerURLs" methods to recap the classpath.
-     * 
      * @param containerClassLoader
      *            the containerClassLoader object
      * @param reflectionUtils
@@ -179,15 +174,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Utility to call a "getURLs" method, flattening "collections of collections" and ignoring
-     * "UnsupportedOperationException".
-     * 
-     * All of the "getURLs" methods eventually call "com.ibm.wsspi.adaptable.module.Container#getURLs()".
-     * 
-     * https://www.ibm.com/support/knowledgecenter/SSEQTP_liberty/com.ibm.websphere.javadoc.liberty.doc
-     * /com.ibm.websphere.appserver.spi.artifact_1.2-javadoc
-     * /com/ibm/wsspi/adaptable/module/Container.html?view=embed#getURLs() "A collection of URLs that represent all
-     * of the locations on disk that contribute to this container"
+     * Call a URL-returning method on a container object, flattening nested collections.
      *
      * @param container
      *            the container object to call the method on
@@ -268,10 +255,6 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
 
     /**
      * Get the automatic package root prefixes for classpath elements obtained from this classloader.
-     *
-     * <p>
-     * No narrower set of prefixes is known for this classloader, so this returns the default set that is used for a
-     * general-purpose classloader, {@link ClassLoaderHandlerRegistry#DEFAULT_PACKAGE_ROOT_PREFIXES}.
      *
      * @return the package root prefixes.
      */

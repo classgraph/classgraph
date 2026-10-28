@@ -83,10 +83,6 @@ class ClassGraphClassLoaderHandler implements ClassLoaderHandler {
     /**
      * Get the automatic package root prefixes for classpath elements obtained from this classloader.
      *
-     * <p>
-     * The classpath elements this handler contributes are the URLs of a previous scan's ClassGraphClassLoader,
-     * which are ordinary classpath elements in any of the layouts a general-purpose classloader can be handed.
-     *
      * @return the package root prefixes.
      */
     @Override

@@ -61,9 +61,8 @@ public class ClasspathFinder {
     private ClassLoader[] classLoaderOrderRespectingParentDelegation;
 
     /**
-     * If one of the classloaders that was found was an existing instance of {@link ClassGraphClassLoader}, then
-     * delegate to that classloader first rather than trying to load from the {@link ClassGraphClassLoader} of the
-     * current scan, so that classes are compatible between nested scans (#485).
+     * An existing {@link ClassGraphClassLoader} from an enclosing scan to delegate to before loading classes with
+     * this scan's {@link ClassGraphClassLoader}.
      */
     private ClassGraphClassLoader delegateClassGraphClassLoader;
 
@@ -97,10 +96,8 @@ public class ClasspathFinder {
     }
 
     /**
-     * If one of the classloaders that was found was an existing instance of {@link ClassGraphClassLoader}, then
-     * delegate to that classloader first rather than trying to load from the {@link ClassGraphClassLoader} of the
-     * current scan, so that classes are compatible between nested scans (#485).
-     * 
+     * Get the {@link ClassGraphClassLoader} from an enclosing scan to delegate to first, if any.
+     *
      * @return the {@link ClassGraphClassLoader} to delegate to before loading classes with this scan's own
      *         {@link ClassGraphClassLoader} (or null if none).
      */
@@ -111,11 +108,8 @@ public class ClasspathFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * A class to find the unique ordered classpath elements, reading what is needed from the current thread. Use
-     * {@link #ClasspathFinder(ScanSpec, CallStackInfo, ReflectionUtils, LogNode)} instead if the thread that asked
-     * for the search has already read that itself, since it is that thread's classloaders and locks that matter,
-     * not those of the thread that this constructor runs on.
-     * 
+     * Construct a {@link ClasspathFinder}, reading call stack info from the current thread.
+     *
      * @param scanSpec
      *            The {@link ScanSpec}.
      * @param reflectionUtils
@@ -128,12 +122,12 @@ public class ClasspathFinder {
     }
 
     /**
-     * A class to find the unique ordered classpath elements.
-     * 
+     * Construct a {@link ClasspathFinder}.
+     *
      * @param scanSpec
      *            The {@link ScanSpec}.
      * @param callStackInfo
-     *            What was read from the thread that asked for the search.
+     *            Call stack info for the calling thread.
      * @param reflectionUtils
      *            The reflection utils instance.
      * @param log

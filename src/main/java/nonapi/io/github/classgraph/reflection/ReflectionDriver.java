@@ -48,11 +48,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** Reflection driver */
 abstract class ReflectionDriver {
-    /**
-     * Caches the methods and fields of each class that has been reflected on. No driver's
-     * {@link #getDeclaredMethods(Class)} or {@link #getDeclaredFields(Class)} reflects on a class through this
-     * cache, so building an entry can never recursively update the map.
-     */
+    /** Caches the methods and fields of each class that has been reflected on. */
     private final SingletonMap<Class<?>, ClassMemberCache, Exception> classToClassMemberCache //
             = new SingletonMap<Class<?>, ClassMemberCache, Exception>() {
                 @Override
@@ -138,10 +134,7 @@ abstract class ReflectionDriver {
         }
 
         /**
-         * Cache the declared methods and fields of a class or interface. Methods and fields are read separately,
-         * so that if one of the two cannot be read, the other is still cached. {@link LinkageError} is caught as
-         * well as {@link Exception}, since {@link Class#getDeclaredMethods()} throws {@link NoClassDefFoundError}
-         * if a method names a class that cannot be loaded.
+         * Cache the declared methods and fields of a class or interface.
          *
          * @param cls
          *            the class or interface to cache the declared members of.
@@ -276,12 +269,6 @@ abstract class ReflectionDriver {
 
     /**
      * Get the value of a non-static field, boxing the value if necessary.
-     *
-     * <p>
-     * The six member-access operations are final, and check that the field or method they are passed is of the
-     * kind they act on before handing it to the driver, so that every driver rejects a mismatched member in the
-     * same way. Without the check the drivers disagree: JNI rejects a static member passed to a non-static
-     * operation, whereas {@link Method#invoke(Object, Object...)} silently ignores the receiver.
      *
      * @param object
      *            the object instance to get the field value from
@@ -470,9 +457,8 @@ abstract class ReflectionDriver {
     abstract boolean makeAccessible(final Object instance, final AccessibleObject fieldOrMethod);
 
     /**
-     * Get the instance to check accessibility against for a given field or method: the object instance for a
-     * non-static member, or null for a static member, since {@code AccessibleObject#canAccess(Object)} requires
-     * null for a static member and throws {@link IllegalArgumentException} if it is passed an object instance.
+     * Get the instance to check accessibility against for a given field or method (the object instance for a
+     * non-static member, or null for a static member).
      * 
      * @param member
      *            the field or method.
@@ -486,9 +472,6 @@ abstract class ReflectionDriver {
 
     /**
      * Check whether a field or method is accessible.
-     * 
-     * <p>
-     * N.B. this is overridden in Narcissus driver to just return true, since everything is accessible to JNI.
      * 
      * @param instance
      *            the object instance, or null if static.
@@ -524,7 +507,7 @@ abstract class ReflectionDriver {
      *            the class.
      * @param obj
      *            the object instance, or null if there is none. This is only used to check accessibility, and is
-     *            ignored if the field turns out to be static.
+     *            ignored if the field is static.
      * @param fieldName
      *            The name of the field.
      * @return The {@link Field} object for the requested field name (never null).
@@ -571,7 +554,7 @@ abstract class ReflectionDriver {
      *            the class.
      * @param obj
      *            the object instance, or null if there is none. This is only used to check accessibility, and is
-     *            ignored if the method turns out to be static.
+     *            ignored if the method is static.
      * @param methodName
      *            The name of the method.
      * @param paramTypes

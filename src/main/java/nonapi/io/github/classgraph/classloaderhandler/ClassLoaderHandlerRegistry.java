@@ -105,18 +105,12 @@ public class ClassLoaderHandlerRegistry {
     };
 
     /**
-     * The package root prefixes for classpath elements that have no automatic package roots at all.
+     * The package root prefixes for classpath elements that have no automatic package roots.
      */
     public static final String[] NO_PACKAGE_ROOT_PREFIXES = {};
 
     /**
-     * The package root prefixes of the standard packaged-archive layouts: Spring-Boot executable jars, and wars.
-     *
-     * <p>
-     * These are safe to look for in any classpath element, whatever classloader it came from, because neither
-     * {@code "BOOT-INF"} nor {@code "WEB-INF"} can ever be a real package name -- a hyphen is not a legal character
-     * in a Java identifier, so a directory with one of these names is unambiguously a package root rather than a
-     * package.
+     * The package root prefixes for packaged archives (Spring-Boot executable jars and WAR files).
      */
     public static final String[] ARCHIVE_PACKAGE_ROOT_PREFIXES = {
             // Spring-Boot
@@ -125,17 +119,8 @@ public class ClassLoaderHandlerRegistry {
             "WEB-INF/classes/" };
 
     /**
-     * The package root prefixes to look for in classpath elements from a general-purpose classloader, which could
-     * have been handed a classpath element in any of the common build-tool or packaged-archive layouts.
-     *
-     * <p>
-     * Note that unlike {@link #ARCHIVE_PACKAGE_ROOT_PREFIXES}, {@code "classes"} and {@code "test-classes"} are
-     * both legal Java package names, so treating them as automatic package roots is a heuristic, not a certainty.
-     * Each candidate package root is therefore checked against the first classfile found beneath it, and is not
-     * treated as a package root if the class name that classfile declares shows that the candidate is a package
-     * (#929). A real package named {@code classes} is still misread as a package root if there is no classfile
-     * beneath it, or if the first one cannot be read. The heuristic is relied upon for general-purpose
-     * classloaders -- see {@code Issue420Test} and {@code Issue766Test}.
+     * The default package root prefixes for general-purpose classloaders, including build tool output directories
+     * and packaged archives.
      */
     public static final String[] DEFAULT_PACKAGE_ROOT_PREFIXES = {
             // Ant, Maven, Gradle and other build tool output dirs
@@ -155,7 +140,7 @@ public class ClassLoaderHandlerRegistry {
     }
 
     /**
-     * A single registered {@link ClassLoaderHandler}, whether built-in or registered by the user.
+     * A registry entry for a {@link ClassLoaderHandler}.
      */
     public static class ClassLoaderHandlerRegistryEntry {
         /** The {@link ClassLoaderHandler} instance. */
@@ -181,9 +166,8 @@ public class ClassLoaderHandlerRegistry {
         }
 
         /**
-         * The automatic package root prefixes (e.g. {@code "BOOT-INF/classes/"}) that should be looked for, and
-         * stripped from resource paths, in classpath elements obtained from the associated
-         * {@link ClassLoaderHandler}.
+         * Get the automatic package root prefixes to strip from resource paths in classpath elements obtained from
+         * the associated {@link ClassLoaderHandler}.
          *
          * @return the package root prefixes.
          */

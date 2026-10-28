@@ -54,7 +54,7 @@ class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandle
     }
 
     /**
-     * Checks if is this classloader uses a parent-first strategy.
+     * Check whether this classloader uses a parent-first strategy.
      *
      * @param classRealmInstance
      *            the ClassRealm instance
@@ -127,10 +127,6 @@ class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandle
 
     /**
      * Get the automatic package root prefixes for classpath elements obtained from this classloader.
-     *
-     * <p>
-     * No narrower set of prefixes is known for this classloader, so this returns the default set that is used for a
-     * general-purpose classloader, {@link ClassLoaderHandlerRegistry#DEFAULT_PACKAGE_ROOT_PREFIXES}.
      *
      * @return the package root prefixes.
      */

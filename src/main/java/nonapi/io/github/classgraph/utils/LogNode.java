@@ -99,19 +99,11 @@ public final class LogNode {
     /** The elapsed time formatter. */
     private static final DecimalFormat nanoFormatter = new DecimalFormat("0.000000");
 
-    /**
-     * If true, log entries are output in realtime, as well as added to the LogNode tree.
-     *
-     * <p>
-     * Volatile, since {@link #logInRealtime(boolean)} is called from the caller's thread, whereas this field is
-     * read when a log entry is added, which happens on the scan threads.
-     */
+    /** If true, log entries are output in realtime, as well as added to the LogNode tree. */
     private static volatile boolean logInRealtime;
 
     /**
-     * If logInRealtime is true, log entries are output in realtime, as well as added to the LogNode tree. This can
-     * help debug situations where log info is never shown, e.g. deadlocks, or where you need to show the log info
-     * right up to the point where you hit a breakpoint.
+     * Enable or disable realtime logging of log entries as they are added to the {@link LogNode} tree.
      *
      * @param logInRealtime
      *            whether to log in realtime
@@ -465,10 +457,7 @@ public final class LogNode {
 
     /**
      * Write the log out to the {@link ClassGraph} {@link Logger} at {@code INFO} level, and clear the log contents.
-     * (Where the log ends up is therefore up to the JDK logging configuration, which by default writes to stderr.)
-     * Only call this on the toplevel log node, when
-     * threads do not have access to references of internal log nodes so that they cannot add more log entries
-     * inside the tree, otherwise log entries may be lost.
+     * Must only be called on the toplevel log node after all concurrent logging has completed.
      */
     public void flush() {
         if (parent != null) {

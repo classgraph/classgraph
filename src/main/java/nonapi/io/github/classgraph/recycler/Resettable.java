@@ -29,8 +29,7 @@
 package nonapi.io.github.classgraph.recycler;
 
 /**
- * An interface for recyclable objects that need to be reset when they are handed back to
- * {@link Recycler#recycle(Object)}, so that they do not carry over any state to their next user.
+ * An interface for recyclable objects that are reset when recycled via {@link Recycler#recycle(Object)}.
  */
 public interface Resettable {
     /** Reset a recyclable object (called when the object is recycled). */

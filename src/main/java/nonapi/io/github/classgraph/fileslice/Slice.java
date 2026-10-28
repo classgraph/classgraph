@@ -43,13 +43,9 @@ import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 import nonapi.io.github.classgraph.utils.FileUtils;
 
 /**
- * A slice of a {@link File}, {@link ByteBuffer} or {@link InputStream}.
- *
- * <p>
- * A {@link Slice} may be shared between threads -- a zipfile's slice is read concurrently by all the threads
- * scanning that zipfile. It is the objects obtained <i>from</i> a slice that are single-threaded: each call to
- * {@link #randomAccessReader()} or {@link #open()} returns a new reader or stream with its own read position and
- * scratch buffers, and each of those must be used by only one thread.
+ * A slice of a {@link File}, {@link ByteBuffer}, or {@link InputStream}. A {@link Slice} instance may be shared
+ * across threads, whereas each reader or stream returned by {@link #randomAccessReader()} or {@link #open()} is
+ * single-threaded.
  */
 public abstract class Slice implements Closeable {
     /** The {@link NestedJarHandler}. */
@@ -174,13 +170,7 @@ public abstract class Slice implements Closeable {
      */
     public InputStream open(final Resource resourceToClose) throws IOException {
         final InputStream rawInputStream = new InputStream() {
-            /**
-             * The reader that the bytes are read through, or null once this stream has been closed. A reader of a
-             * memory-mapped file holds a duplicate of the mapped buffer, so this reference is dropped as the
-             * stream closes rather than being kept for as long as anything still refers to the stream -- below
-             * JDK 22 the file is unmapped by freeing its address range, so a duplicate that outlived the
-             * unmapping would be a view of memory that is no longer there.
-             */
+            /** The underlying reader, or null once closed. */
             // #939
             private volatile RandomAccessReader randomAccessReader = randomAccessReader();
             private long currOff;
@@ -289,21 +279,19 @@ public abstract class Slice implements Closeable {
     public abstract RandomAccessReader randomAccessReader();
 
     /**
-     * Take a view of the memory mapping of this slice, if the file is memory-mapped, so that the file is not
-     * unmapped while the caller can still read a {@link ByteBuffer} that {@link #read()} returned -- see
-     * {@link nonapi.io.github.classgraph.fileslice.FileSlice#close()}. A slice that is not memory-mapped has no
-     * view to take, and returns a release action that does nothing.
+     * Acquire a view of the memory mapping of this slice, if memory-mapped, so the file is not unmapped while the
+     * caller reads the {@link ByteBuffer} returned by {@link #read()}.
      *
-     * @return the action that releases the view, which the caller must run once it can no longer read the buffer.
+     * @return an action that releases the view.
      * @throws IOException
-     *             if the file has already been unmapped, so that there is nothing left to read.
+     *             if the file has already been unmapped.
      */
     // #939
     public Runnable acquireMappingView() throws IOException {
         return NO_MAPPING_VIEW_TO_RELEASE;
     }
 
-    /** The release action of a slice that has no memory mapping, so that there is nothing to release. */
+    /** No-op release action for slices that are not memory-mapped. */
     private static final Runnable NO_MAPPING_VIEW_TO_RELEASE = new Runnable() {
         @Override
         public void run() {
@@ -360,9 +348,8 @@ public abstract class Slice implements Closeable {
     }
 
     /**
-     * A child slice is equal to another child slice of the same parent slice that spans the same range of it. A
-     * toplevel slice is only equal to itself, since it owns the resource it reads through -- two toplevel slices of
-     * the same file are two separate handles on that file, and closing one of them does not close the other.
+     * Two child slices are equal if they share the same parent slice and byte range; a top-level slice is only
+     * equal to itself.
      */
     @Override
     public boolean equals(final Object o) {

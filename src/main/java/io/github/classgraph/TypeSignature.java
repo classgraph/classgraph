@@ -69,15 +69,13 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      * subinterface of the class declaring the type variable, if the supertype is used in raw form, if the type
      * variable is shadowed by a type parameter of the method that declares this type, or if the type argument is a
      * wildcard that has no expressible equivalent outside type argument position ({@code "?"} or
-     * {@code "? super X"} -- an upper-bounded wildcard {@code "? extends X"} is substituted as {@code X}). In type
+     * {@code "? super X"}; an upper-bounded wildcard {@code "? extends X"} is substituted as {@code X}). In type
      * argument position, wildcards are substituted verbatim, so {@code List<T>} with {@code T := "? extends Number"}
      * resolves to {@code List<? extends Number>}.
      *
      * <p>
-     * Type variables are matched by the class that declares them together with their name, and bindings are
-     * collected by walking up the superclass and superinterface chain of the context class. A type variable that an
-     * inner class inherits from its enclosing class is therefore not resolved, since the classfile records it as
-     * declared by the inner class, which is not on that chain.
+     * Note that type variables inherited by an inner class from its enclosing class are not resolved against the
+     * hierarchy of the enclosing class.
      *
      * @param contextClass
      *            the class to resolve type variables against.
@@ -104,9 +102,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Get the key used to look up a type variable in a substitution map. A type variable is identified by the class
-     * that declares it as well as by its name, since the same name may be declared by several classes in a class
-     * hierarchy.
+     * Get the key used to look up a type variable in a substitution map.
      *
      * @param definingClassName
      *            the name of the class declaring the type variable.
@@ -237,10 +233,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Render a type signature back into the type signature string format of JVMS section 4.7.9.1, so that a
-     * substituted array type can be given a type signature string that matches its substituted element type. This
-     * is implemented in one place using {@code instanceof} rather than as an overridden method in each of the five
-     * signature classes, since it is only needed for this one purpose.
+     * Render a type signature into the JVM type signature string format (JVMS section 4.7.9.1).
      *
      * @param typeSignature
      *            the type signature to render.

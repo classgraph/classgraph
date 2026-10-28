@@ -68,8 +68,7 @@ public class RandomAccessArrayReader implements RandomAccessReader {
     }
 
     /**
-     * Check that a read stays within the slice, so that it cannot read the bytes that surround the slice in the
-     * array. (A zipfile can ask for a read at any offset, since offsets are read from the zipfile itself.)
+     * Check that a read stays within the bounds of the slice.
      *
      * @param offset
      *            the offset to read from, relative to the start of the slice

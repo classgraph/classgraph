@@ -320,10 +320,7 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     /**
-     * Get the paths named by a {@code Bundle-ClassPath} manifest attribute. The attribute uses the OSGi header
-     * syntax: a comma-separated list of entries, each of which is one or more semicolon-separated paths followed by
-     * optional {@code name=value} parameters. A path may be surrounded by spaces, and may be quoted. A quoted path
-     * that contains ',' or ';' is not supported, since such a path cannot name a file inside a bundle in practice.
+     * Parse the paths named by an OSGi {@code Bundle-ClassPath} manifest attribute.
      *
      * @param bundleClassPath
      *            the value of the {@code Bundle-ClassPath} manifest attribute.
@@ -527,8 +524,7 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     /**
-     * Filter out any candidate package root prefix that is really a package with the same name as the prefix, e.g.
-     * a package named {@code classes} in a jar that has no {@code classes/} package root (#929).
+     * Filter out any candidate package root prefix that is actually a package with the same name as the prefix.
      *
      * @param log
      *            the log

@@ -36,30 +36,20 @@ import java.util.regex.Pattern;
 import nonapi.io.github.classgraph.utils.VersionFinder.OperatingSystem;
 
 /**
- * Resolve relative paths and URLs/URIs against a base path in a way that is faster than Java's URL/URI parser (and
- * much faster than Path), while aiming for cross-platform compatibility, and hopefully in particular being robust
- * to the many forms of Windows path weirdness.
+ * Resolve relative paths and URLs/URIs against a base path.
  */
 public final class FastPathResolver {
     /** Match %-encoded characters in URLs. */
     private static final Pattern percentMatcher = Pattern.compile("([%][0-9a-fA-F][0-9a-fA-F])+");
 
     /**
-     * Match custom URLs that are followed by one or two slashes. The scheme grammar is the one in RFC 3986: a
-     * letter, then any number of letters, digits, {@code '+'}, {@code '-'} and {@code '.'} -- digits included, so
-     * that a scheme such as {@code "s3:"} is recognized. At least two characters are required, so that a Windows
-     * drive designation such as {@code "C:/dir"} is read as a drive and not as a scheme, matching
-     * {@link JarUtils#URL_SCHEME_PATTERN}. A single-letter scheme is unusable in practice for exactly that reason,
-     * so nothing is given up by not recognizing one: off Windows, {@code "C:/dir"} is then resolved as an ordinary
-     * relative path, which does not exist, so the classpath element is logged and skipped during scanning.
+     * Match custom URL schemes of at least two characters (to avoid matching Windows drive letters, see
+     * {@link JarUtils#URL_SCHEME_PATTERN}) followed by one or two slashes.
      */
     private static final Pattern schemeOneOrTwoSlashMatcher = Pattern.compile("^[a-zA-Z][a-zA-Z0-9+\\-.]+:/{1,2}");
 
     /**
-     * The separator that Tomcat uses in a {@code "war:"} URL between the path of the WAR file and the path within
-     * the WAR file. Tomcat uses {@code "*&#47;"} by default, or {@code "^&#47;"}, or a custom separator set through
-     * this system property, since a WAR file's path may itself contain {@code '*'} or {@code '^'}. See
-     * {@code org.apache.tomcat.util.buf.UriUtil#warToJar}. (#925)
+     * Custom separator used by Tomcat in {@code "war:"} URLs between the WAR file path and the inner path.
      */
     private static final String customWarSeparator = VersionFinder
             .getProperty("org.apache.tomcat.util.buf.UriUtil.WAR_SEPARATOR");
@@ -206,14 +196,6 @@ public final class FastPathResolver {
     /**
      * Convert a Tomcat {@code "war:"} URL into the equivalent {@code "jar:"} URL.
      *
-     * <p>
-     * Tomcat serves a non-exploded WAR file (i.e. a webapp deployed with {@code unpackWARs="false"}) through its
-     * own {@code "war:"} URL protocol, which separates the path of the WAR file from the path within the WAR file
-     * using {@code "*&#47;"} rather than the standard {@code "!&#47;"}, e.g.
-     * {@code "war:file:/path/to/app.war*&#47;WEB-INF/classes/"}. Without this conversion, the {@code '*'} was read
-     * as a wildcard, and the whole classpath element was rejected, so nothing in a non-exploded WAR was scanned.
-     * (#925)
-     *
      * @param path
      *            The path, which may or may not be a {@code "war:"} URL.
      * @return The equivalent {@code "jar:"} URL if this is a {@code "war:"} URL, otherwise the path, unchanged.
@@ -239,14 +221,6 @@ public final class FastPathResolver {
 
     /**
      * Convert a Spring Boot {@code "nested:"} URL into the equivalent {@code "jar:"} URL.
-     *
-     * <p>
-     * Spring Boot 3.2 and later address an entry inside an executable jar or war with their own {@code "nested:"}
-     * URL protocol, which separates the path of the outer archive from the name of the entry within it using
-     * {@code "/!"} rather than the standard {@code "!/"}, e.g.
-     * {@code "jar:nested:/path/to/app.jar/!BOOT-INF/lib/dep.jar!/"}. The classpath URLs that the Spring Boot
-     * launcher hands to its classloader are all in this form, so without this conversion nothing in a Spring Boot
-     * executable archive is scanned.
      *
      * @param path
      *            The path, which may or may not be a {@code "nested:"} URL.
@@ -275,12 +249,8 @@ public final class FastPathResolver {
     }
 
     /**
-     * Strip away any "jar:" prefix from a filename URI, and convert it to a file path, handling possibly-broken
-     * mixes of filesystem and URI conventions; resolve relative paths relative to resolveBasePath.
-     *
-     * <p>
-     * Any {@code ".."} segment is resolved textually, without consulting the filesystem, and cannot climb above the
-     * root of the path or above the nearest enclosing nested jar separator. Use
+     * Strip any {@code "jar:"} prefix from a filename URI, convert it to a file path, and resolve relative paths
+     * relative to {@code resolveBasePath}, collapsing {@code ".."} segments lexically. Use
      * {@link #resolveFilePath(String, String)} instead for a path that names a file on disk.
      *
      * @param resolveBasePath
@@ -294,19 +264,8 @@ public final class FastPathResolver {
     }
 
     /**
-     * Resolve a path that names a file on disk, such as a classpath entry, in the same way that the JVM's own
-     * classloader resolves it.
-     *
-     * <p>
-     * This differs from {@link #resolve(String, String)} in that a {@code ".."} segment in the outermost section of
-     * the path is left in the resolved path, for the platform to resolve when the path is canonicalized. Only the
-     * platform knows what such a segment means, and the platforms differ: on Linux and macOS the filesystem
-     * resolves it, so after a symlinked directory {@code ".."} names the parent of the directory the symlink points
-     * at rather than the parent of the symlink, while on Windows the path APIs collapse it lexically. Collapsing it
-     * here would name a different file than the one the JVM reaches through the same path on Linux and macOS, so
-     * each platform is left to resolve it its own way. Everything after a nested jar separator is
-     * an entry name within an archive, which has no symlinks and no filesystem to ask, so a {@code ".."} there is
-     * still collapsed, and still cannot climb out of the archive it is in.
+     * Resolve a path that names a file on disk, leaving {@code ".."} segments in the outermost section for the
+     * platform to resolve during canonicalization.
      *
      * @param resolveBasePath
      *            The base path.
@@ -326,13 +285,7 @@ public final class FastPathResolver {
         /** True if the path after the prefix is an absolute path, so no base path is resolved against it. */
         boolean isAbsolutePath;
 
-        /**
-         * True if what is left after the prefix is a filesystem path rather than a URL. Percent encoding is only
-         * decoded for a filesystem path: a path that is still a URL has to keep its encoding, or it can no longer
-         * be fetched, since a space decoded into "jar:http://host/a%20b.jar!/x" gives a URL that will not even
-         * parse as a URI. Each scheme sets this according to what it leaves behind, so the innermost scheme is the
-         * one that decides.
-         */
+        /** True if the remainder after the prefix is a filesystem path rather than a URL. */
         boolean remainderIsFilePath;
 
         /** The index of the first character after the prefix. */
@@ -416,14 +369,8 @@ public final class FastPathResolver {
     }
 
     /**
-     * The authority at the beginning of the path of a URL whose scheme has one, e.g. "host:8080" in
-     * "http://host:8080/dir", or the empty string if the prefix is not that of such a URL. The authority names a
-     * server rather than a directory, so it belongs with the scheme prefix: a ".." segment resolves within the
-     * path, and must not be able to climb up into the authority and point the URL at a different server.
-     *
-     * <p>
-     * The server name of a Windows UNC path is an authority in the same sense, and is found by the same rule, since
-     * the "//" that starts a UNC path is stripped into the prefix too.
+     * Return the authority at the beginning of a URL path (e.g. {@code "host:8080"} in {@code "http://host:8080/dir"})
+     * or Windows UNC path, or the empty string if none.
      *
      * @param prefix
      *            the scheme prefix that was stripped from the front of the path
@@ -440,10 +387,7 @@ public final class FastPathResolver {
     }
 
     /**
-     * The part of a path that follows its authority, dropping any separator between the two beyond the first. Once
-     * the authority has been split off, a leading "//" is an empty path segment, and not the start of a Windows UNC
-     * path -- but {@link FileUtils#sanitizeEntryPath} reads it as one and preserves it (#736), so it has to be
-     * dropped here.
+     * Return the part of a path that follows its authority, dropping any duplicate leading slashes.
      *
      * @param path
      *            the path that the authority was read from

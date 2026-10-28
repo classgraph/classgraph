@@ -181,23 +181,13 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
         }
     }
 
-    /**
-     * Resources that are present in the root of many classpath elements, so that the classpath element can be
-     * recovered from the URL of the resource. The empty path is the package root itself, which is only returned by
-     * some classloaders, and only for classpath elements that are directories.
-     */
+    /** Resource paths present at the root of many classpath elements, used to probe for classpath roots. */
     private static final String[] CLASSPATH_ELEMENT_ROOT_RESOURCE_PATHS = { "META-INF/MANIFEST.MF", "META-INF/",
             "module-info.class", "" };
 
     /**
-     * Ask a {@link ClassLoader} for resources that are present in the root of most classpath elements, and strip
-     * the resource path from each returned URL to recover the classpath element that contains it.
-     *
-     * <p>
-     * {@link ClassLoader#getResources(String)} delegates to the parent classloader, so any resource that is also
-     * visible to the parent is skipped -- the parent's classpath elements are found by handling the parent
-     * classloader itself, and adding them here would ignore
-     * {@link io.github.classgraph.ClassGraph#ignoreParentClassLoaders()}.
+     * Find classpath entries for a {@link ClassLoader} by querying common root resource paths and stripping the
+     * resource path from each returned URL.
      *
      * @param classLoader
      *            the {@link ClassLoader} to probe.
@@ -259,16 +249,14 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Strip a resource path from the end of the URL of the resource, to recover the classpath element that contains
-     * the resource.
+     * Strip a resource path from the end of a resource URL to obtain the containing classpath element.
      *
      * @param resourceURL
      *            the URL of the resource.
      * @param resourcePath
      *            the path of the resource within its classpath element.
-     * @return the classpath element, or null if the resource path is not a suffix of the URL (which happens if the
-     *         classloader percent-encodes the resource path, or names the resource some other way), or if nothing
-     *         is left of the URL once the resource path has been stripped.
+     * @return the classpath element, or null if the resource path is not a suffix of the URL or nothing remains
+     *         after stripping it.
      */
     private static String stripResourcePath(final String resourceURL, final String resourcePath) {
         if (!resourceURL.endsWith(resourcePath)) {
@@ -286,11 +274,6 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
 
     /**
      * Get the automatic package root prefixes for classpath elements obtained from this classloader.
-     *
-     * <p>
-     * Nothing is known about an unrecognized classloader, so look for all the common package roots. Note that this
-     * includes {@code "classes/"} and {@code "test-classes/"}, which are legal package names, so this is a
-     * heuristic -- see {@link ClassLoaderHandlerRegistry#DEFAULT_PACKAGE_ROOT_PREFIXES}.
      *
      * @return the package root prefixes.
      */

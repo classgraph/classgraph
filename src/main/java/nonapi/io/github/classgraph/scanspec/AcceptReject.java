@@ -68,11 +68,8 @@ public abstract class AcceptReject {
     /** The separator character. */
     protected char separatorChar;
     /**
-     * If true, a {@code '*'} in a glob matches only within a single package or path segment, rather than spanning
-     * separators, and {@code "**"}, used as a complete segment, matches zero or more whole segments (#940). Used
-     * for package and path accept/reject criteria, where recursion into sub-packages already provides the "and
-     * everything below" behaviour. Class name globs keep the older separator-spanning behaviour for {@code '*'}.
-     * (#643, #870)
+     * If true, {@code '*'} in a glob matches only within a single package or path segment, and {@code "**"} as a
+     * complete segment matches zero or more whole segments.
      */
     protected boolean segmentGlobs;
 
@@ -105,15 +102,7 @@ public abstract class AcceptReject {
 
     /**
      * Convert a glob to a regexp {@link Pattern}, where {@code '*'} matches zero or more characters within a
-     * single package or path segment, i.e. does not span {@link #separatorChar}, and {@code "**"} matches zero
-     * or more whole segments. Any number of wildcards may be used in a single glob.
-     *
-     * <p>
-     * As the final segment of an accept or reject criterion, {@code "**"} means "and everything below", which is
-     * already the default for {@link io.github.classgraph.ClassGraph#acceptPackages(String...)} and friends, so
-     * it is stripped by the caller before the glob reaches this method. In any other position, {@code "**"} must
-     * form a complete segment, and matches zero or more whole segments, e.g. {@code "com.**.impl"} matches
-     * {@code com.impl}, {@code com.a.impl} and {@code com.a.b.impl}. (#643, #870, #940)
+     * single package or path segment and {@code "**"} as a complete segment matches zero or more whole segments.
      *
      * @param glob
      *            the glob
@@ -124,8 +113,7 @@ public abstract class AcceptReject {
      *            than requiring a whole-string match
      * @return the pattern
      * @throws IllegalArgumentException
-     *             if {@code "**"} is used without forming a complete package or path segment, e.g.
-     *             {@code "com.a**b.impl"}
+     *             if {@code "**"} is used without forming a complete package or path segment
      */
     public static Pattern segmentGlobToPattern(final String glob, final char separatorChar,
             final boolean prefixMatch) {
@@ -178,10 +166,7 @@ public abstract class AcceptReject {
     }
 
     /**
-     * Strip a trailing {@code "**"} segment from a normalized package name or path, if present. A trailing
-     * {@code "**"} means "and everything below", which is what the recursive accept/reject methods already do, so
-     * it can simply be removed. {@code "**"} in any other position matches zero or more whole segments (see
-     * {@link #segmentGlobToPattern(String, char, boolean)}).
+     * Strip a trailing {@code "**"} segment from a normalized package name or path, if present.
      *
      * @param packageOrPath
      *            the normalized package name or path
@@ -320,7 +305,7 @@ public abstract class AcceptReject {
         }
 
         /**
-         * Prefix-of-prefix is invalid -- throws {@link IllegalArgumentException}.
+         * Prefix-of-prefix is invalid: throws {@link IllegalArgumentException}.
          *
          * @param str
          *            the string to test
@@ -387,8 +372,7 @@ public abstract class AcceptReject {
         }
 
         /**
-         * Convert a glob to a {@link Pattern}, using segment-bounded matching if this accept/reject was
-         * constructed with {@code segmentGlobs}, or the older separator-spanning matching otherwise.
+         * Convert a glob to a {@link Pattern}.
          *
          * @param glob
          *            the glob
@@ -615,7 +599,7 @@ public abstract class AcceptReject {
         }
 
         /**
-         * Prefix tests are invalid for jar leafnames -- throws {@link IllegalArgumentException}.
+         * Prefix tests are invalid for jar leafnames: throws {@link IllegalArgumentException}.
          *
          * @param str
          *            the string to test

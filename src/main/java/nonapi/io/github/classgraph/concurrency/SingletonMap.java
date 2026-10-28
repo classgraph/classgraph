@@ -41,16 +41,14 @@ import java.util.concurrent.TimeoutException;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
- * A map from keys to singleton instances. Allows you to create object instance singletons and add them to a
- * {@link ConcurrentMap} on demand, based on a key value. Works the same as
- * {@code concurrentMap.computeIfAbsent(key, key -> newInstance(key))}, except that it also works on JDK 7.
+ * A concurrent map from keys to singleton instances, initialized on demand.
  *
  * @param <K>
  *            The key type.
  * @param <V>
  *            The value type.
  * @param <E>
- *            the element type
+ *            The exception type that may be thrown during instantiation.
  */
 public abstract class SingletonMap<K, V, E extends Exception> {
     /** The map. */
@@ -84,8 +82,7 @@ public abstract class SingletonMap<K, V, E extends Exception> {
     }
 
     /**
-     * Thrown when {@link SingletonMap#newInstance(Object, LogNode)} throws anything other than an
-     * {@link InterruptedException} or a {@link VirtualMachineError}, which are rethrown as themselves.
+     * Thrown when {@link SingletonMap#newInstance(Object, LogNode)} throws an exception.
      */
     public static class NewInstanceException extends Exception {
         /** serialVersionUID. */
@@ -109,10 +106,7 @@ public abstract class SingletonMap<K, V, E extends Exception> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Wrapper to allow an object instance to be put into a ConcurrentHashMap using putIfAbsent() without requiring
-     * the instance to be initialized first, so that putIfAbsent can be performed without wrapping it with a
-     * synchronized lock, and so that initialization work is not wasted if an object is already in the map for the
-     * key.
+     * Holder for a singleton instance initialized asynchronously via a {@link CountDownLatch}.
      *
      * @param <V>
      *            the singleton type
@@ -163,18 +157,17 @@ public abstract class SingletonMap<K, V, E extends Exception> {
         }
 
         /**
-         * Get the singleton value, waiting for it to be set until the idle timeout runs out.
+         * Get the singleton value, waiting until it is initialized or the idle timeout expires.
          *
          * @param key
-         *            the key the value is for, to name in the exception if the wait times out.
+         *            the key for the value.
          * @param idleTimeout
-         *            the idle timeout, which runs out once no progress has been reported for the whole timeout, or
-         *            null to wait indefinitely.
+         *            the idle timeout, or null to wait indefinitely.
          * @return the singleton value.
          * @throws InterruptedException
          *             if the thread was interrupted while waiting for the value to be set.
          * @throws TimeoutException
-         *             if the idle timeout ran out before the value was set.
+         *             if the idle timeout expired before the value was set.
          */
         V get(final Object key, final IdleTimeout idleTimeout) throws InterruptedException, TimeoutException {
             if (idleTimeout == null) {
@@ -230,39 +223,24 @@ public abstract class SingletonMap<K, V, E extends Exception> {
     }
 
     /**
-     * Check if the given key is in the map, and if so, return the value of {@link #newInstance(Object, LogNode)}
-     * for that key, or block on the result of {@link #newInstance(Object, LogNode)} if another thread is currently
-     * creating the new instance.
-     * 
-     * If the given key is not currently in the map, store a placeholder in the map for this key, then run
-     * {@link #newInstance(Object, LogNode)} for the key, store the result in the placeholder (which unblocks any
-     * other threads waiting for the value), and then return the new instance.
-     *
-     * <p>
-     * A failure to create the value is remembered, so that a later call for the same key throws
-     * {@link NullSingletonException} rather than trying again. An interruption is not remembered, since it means
-     * the creating thread was cancelled, not that the key is bad, so a later call tries again. Nor is a
-     * {@link VirtualMachineError} such as {@link OutOfMemoryError}, since it means the JVM is in trouble, not that
-     * the key is bad; it is rethrown as itself, not wrapped in a {@link NewInstanceException}.
+     * Get the singleton for a key, creating it via {@code newInstanceFactory} or
+     * {@link #newInstance(Object, LogNode)} if not yet initialized, or waiting if another thread is currently
+     * creating it.
      *
      * @param key
      *            The key for the singleton.
      * @param newInstanceFactory
-     *            if non-null, a factory for creating new instances, otherwise if null, then
-     *            {@link #newInstance(Object, LogNode)} is called instead (this allows new instance creation to be
-     *            overridden on a per-instance basis).
+     *            if non-null, a factory for creating new instances, otherwise {@link #newInstance(Object, LogNode)}
+     *            is called instead.
      * @param log
      *            The log.
-     * @return The non-null singleton instance, if {@link #newInstance(Object, LogNode)} returned a non-null
-     *         instance on this call or a previous call, otherwise throws {@link NullPointerException} if this call
-     *         or a previous call to {@link #newInstance(Object, LogNode)} returned null.
+     * @return The non-null singleton instance.
      * @throws E
      *             If {@link #newInstance(Object, LogNode)} threw an exception.
      * @throws InterruptedException
-     *             if the thread was interrupted while waiting for the singleton to be instantiated by another
-     *             thread.
+     *             if the thread was interrupted while creating or waiting for the singleton.
      * @throws NullSingletonException
-     *             if {@link #newInstance(Object, LogNode)} returned null.
+     *             if {@link #newInstance(Object, LogNode)} returned null on this call or an earlier one.
      * @throws NewInstanceException
      *             if {@link #newInstance(Object, LogNode)} threw an exception.
      */
@@ -277,44 +255,32 @@ public abstract class SingletonMap<K, V, E extends Exception> {
     }
 
     /**
-     * Get the value for a key, as {@link #get(Object, LogNode, NewInstanceFactory)} does, but give up waiting for
-     * another thread's value once the timeout has passed with no progress reported to the
-     * {@link InterruptionChecker}. A thread that is creating the value can be stuck, for example on a read from a
-     * network filesystem that never returns, and without a timeout every thread that asks for the same key would
-     * then be stuck too. A thread that is creating the value slowly but steadily, for example by downloading a
-     * large jarfile, reports its progress, and the wait for it goes on for as long as that progress continues. A
-     * pause of the whole JVM, for example at a breakpoint that suspends all threads, counts as at most one slice of
-     * the wait: see {@link IdleTimeout}. The timeout bounds only the wait for another thread's value, not the time
-     * this thread spends creating the value itself.
+     * Get the singleton for a key, creating it if not yet initialized, or waiting for another thread to create it
+     * up to the specified idle timeout.
      *
      * @param key
      *            The key for the singleton.
      * @param log
      *            The log.
      * @param newInstanceFactory
-     *            if non-null, a factory for creating new instances, otherwise if null, then
-     *            {@link #newInstance(Object, LogNode)} is called instead.
+     *            if non-null, a factory for creating new instances, otherwise {@link #newInstance(Object, LogNode)}
+     *            is called instead.
      * @param interruptionChecker
-     *            The {@link InterruptionChecker} that the thread creating the value reports its progress to with
-     *            {@link InterruptionChecker#progress()}. If null, no progress is seen, and the wait gives up once
-     *            the timeout has passed.
+     *            The {@link InterruptionChecker} to monitor for progress while waiting, or null.
      * @param timeoutNanos
-     *            The number of nanoseconds to wait for another thread to create the value with no progress, or
+     *            The maximum idle time in nanoseconds to wait for another thread to create the value, or
      *            {@link Long#MAX_VALUE} to wait indefinitely.
      * @return The non-null singleton instance.
      * @throws E
      *             If {@link #newInstance(Object, LogNode)} threw an exception.
      * @throws InterruptedException
-     *             if the thread was interrupted while creating the value, or while waiting for another thread to
-     *             create it.
+     *             if the thread was interrupted while creating or waiting for the singleton.
      * @throws TimeoutException
-     *             if another thread was creating the value, and made no progress for the whole timeout. The
-     *             creation is not abandoned: the other thread may still finish it, and a later call may then get
-     *             the value.
+     *             if another thread was creating the value and made no progress for the timeout duration.
      * @throws NullSingletonException
-     *             if {@link #newInstance(Object, LogNode)} returned null, on this call or an earlier one.
+     *             if {@link #newInstance(Object, LogNode)} returned null on this call or an earlier one.
      * @throws NewInstanceException
-     *             if {@link #newInstance(Object, LogNode)} threw an exception, on this call or an earlier one.
+     *             if {@link #newInstance(Object, LogNode)} threw an exception on this call or an earlier one.
      */
     public V get(final K key, final LogNode log, final NewInstanceFactory<V, E> newInstanceFactory,
             final InterruptionChecker interruptionChecker, final long timeoutNanos)
@@ -402,26 +368,18 @@ public abstract class SingletonMap<K, V, E extends Exception> {
     }
 
     /**
-     * Check if the given key is in the map, and if so, return the value of {@link #newInstance(Object, LogNode)}
-     * for that key, or block on the result of {@link #newInstance(Object, LogNode)} if another thread is currently
-     * creating the new instance.
-     * 
-     * If the given key is not currently in the map, store a placeholder in the map for this key, then run
-     * {@link #newInstance(Object, LogNode)} for the key, store the result in the placeholder (which unblocks any
-     * other threads waiting for the value), and then return the new instance.
+     * Get the singleton for a key, creating it via {@link #newInstance(Object, LogNode)} if not yet initialized, or
+     * waiting if another thread is currently creating it.
      *
      * @param key
      *            The key for the singleton.
      * @param log
      *            The log.
-     * @return The non-null singleton instance, if {@link #newInstance(Object, LogNode)} returned a non-null
-     *         instance on this call or a previous call, otherwise throws {@link NullPointerException} if this call
-     *         or a previous call to {@link #newInstance(Object, LogNode)} returned null.
+     * @return The non-null singleton instance.
      * @throws E
      *             If {@link #newInstance(Object, LogNode)} threw an exception.
      * @throws InterruptedException
-     *             if the thread was interrupted while waiting for the singleton to be instantiated by another
-     *             thread.
+     *             if the thread was interrupted while creating or waiting for the singleton.
      * @throws NullSingletonException
      *             if {@link #newInstance(Object, LogNode)} returned null.
      * @throws NewInstanceException
@@ -491,11 +449,7 @@ public abstract class SingletonMap<K, V, E extends Exception> {
     }
 
     /**
-     * Discard the singleton for a given key, if there is one, so that a later lookup for the key rebuilds the value
-     * rather than getting the discarded instance. This is how a closed object leaves the cache that holds it.
-     * Unlike {@link #remove(Object)}, does not wait for a value that another thread is still creating, so it can be
-     * called from a close path that must not block; a discarded in-flight creation still completes for the thread
-     * creating it, but the value is no longer in the map.
+     * Remove the singleton entry for a given key without waiting for any in-flight initialization to complete.
      *
      * @param key
      *            the key

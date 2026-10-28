@@ -95,7 +95,7 @@ class ClasspathElementDir extends ClasspathElement {
      * A directory classpath element.
      *
      * @param workUnit
-     *            the work unit -- workUnit.classpathEntryObj must be a {@link Path} object
+     *            the work unit ({@code workUnit.classpathEntryObj} must be a {@link Path} object)
      * @param nestedJarHandler
      *            the nested jar handler
      * @param scanSpec
@@ -206,13 +206,11 @@ class ClasspathElementDir extends ClasspathElement {
     }
 
     /**
-     * Find the first classfile beneath a directory, so that the class it declares can be compared to its path.
+     * Find the first classfile beneath a directory (ignoring {@code META-INF}).
      *
      * @param dir
      *            the directory to search.
-     * @return the first classfile found beneath the directory, or null if there are none. Classfiles beneath a
-     *         {@code META-INF} directory are ignored, since the path of a classfile in a multi-release jar layout
-     *         ({@code META-INF/versions/N/}) does not correspond to the name of the class it declares.
+     * @return the first classfile found beneath the directory, or null if there are none.
      */
     private static Path findFirstClassfile(final Path dir) {
         final Path[] firstClassfile = new Path[1];
@@ -248,8 +246,8 @@ class ClasspathElementDir extends ClasspathElement {
     }
 
     /**
-     * Check whether a candidate package root directory is really a package root, or is simply a package that has
-     * the same name as one of the automatic package root prefixes (#929).
+     * Check whether a candidate package root directory is a package root rather than a package with the same name
+     * as an automatic package root prefix.
      *
      * @param packageRoot
      *            the candidate package root directory.
@@ -457,9 +455,8 @@ class ClasspathElementDir extends ClasspathElement {
     }
 
     /**
-     * Get the {@link Resource} for a given relative path while the scan is running. A file can only exist if its
-     * parent directory does, so whether each parent directory exists is looked up once per scan, rather than
-     * looking up every file in a package that this directory does not hold.
+     * Get the {@link Resource} for a given relative path while the scan is running, caching whether each parent
+     * directory exists.
      *
      * @param relativePath
      *            The relative path of the {@link Resource} to return.
@@ -489,8 +486,7 @@ class ClasspathElementDir extends ClasspathElement {
     }
 
     /**
-     * Forget which directories {@link #getResourceDuringScan(String)} found, so that the map does not stay
-     * reachable from the {@link ScanResult} for its whole life.
+     * Clear the parent directory existence cache populated by {@link #getResourceDuringScan(String)}.
      */
     @Override
     void classfileScanFinished() {

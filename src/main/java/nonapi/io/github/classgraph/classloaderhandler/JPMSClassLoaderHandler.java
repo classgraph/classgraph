@@ -38,9 +38,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /**
- * A ClassLoaderHandler that matches the Java 9+ builtin classloaders. Modules are scanned through the JPMS API
- * rather than as classpath elements, but these classloaders also load classes from a
- * {@code jdk.internal.loader.URLClassPath}, which no public API exposes, so that is read here.
+ * Extract classpath entries from Java 9+ built-in classloaders.
  */
 class JPMSClassLoaderHandler implements ClassLoaderHandler {
     /** The name of the application classloader's class. */
@@ -102,11 +100,6 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
 
     /**
      * Get the automatic package root prefixes for classpath elements obtained from this classloader.
-     *
-     * <p>
-     * Modules are scanned through the JPMS API rather than as classpath elements, so the only classpath elements
-     * this handler contributes are the jarfiles a Java agent appended to the system classloader's search. Those are
-     * ordinary jarfiles, which can be in any of the layouts a general-purpose classloader can be handed.
      *
      * @return the package root prefixes.
      */

@@ -100,7 +100,7 @@ public final class TypeArgument extends HierarchicalTypeSignature {
 
     /**
      * Substitute type variables in this type argument, using a substitution map built by
-     * {@link TypeSignature#resolveTypeVariables(ClassInfo)} (#735).
+     * {@link TypeSignature#resolveTypeVariables(ClassInfo)}.
      *
      * @param substitutions
      *            the substitution map.

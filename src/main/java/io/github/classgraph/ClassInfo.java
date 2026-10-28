@@ -109,11 +109,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     private boolean isAnonymousClass;
 
     /**
-     * If true, this class is not an accepted class: it is known only because an accepted class refers to it,
-     * directly or through other external classes, and its classfile was either not read at all, or read only
-     * because scanning was extended to the classes that accepted classes refer to.
-     *
-     * If false, this class's classfile was read because the class itself is accepted.
+     * True if this class is not an accepted class and is referenced only by an accepted class.
      */
     protected boolean isExternalClass = true;
 
@@ -166,9 +162,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     private ClassInfoList referencedClasses;
 
     /**
-     * Set to true once any Object[] arrays of boxed values or strings in annotationDefaultParamValues have been
-     * lazily converted to arrays of their element type. Volatile, so that a thread that sees this flag set also
-     * sees the converted values.
+     * Set to true once any {@code Object[]} arrays of boxed values or strings in
+     * {@link #annotationDefaultParamValues} have been lazily converted to arrays of their element type.
      */
     transient volatile boolean annotationDefaultParamValuesHasBeenConvertedToPrimitive;
 
@@ -198,10 +193,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     private static final int ANNOTATION_CLASS_MODIFIER = 0x2000;
 
     /**
-     * The {@code ACC_SUPER} bit of a classfile's {@code access_flags} field. This selects the JVM's treatment of
-     * the {@code invokespecial} instruction, and has no counterpart in {@link Modifier} -- the same bit value is
-     * {@link Modifier#SYNCHRONIZED}, which is not a legal class modifier. It is masked out of the value returned by
-     * {@link #getModifiers()} (#791).
+     * The {@code ACC_SUPER} bit of a classfile's {@code access_flags} field, masked out of the value returned by
+     * {@link #getModifiers()}.
      */
     private static final int ACC_SUPER = 0x0020;
 
@@ -477,18 +470,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     private static final int ACCESS_LEVEL_MODIFIERS = Modifier.PUBLIC | Modifier.PRIVATE | Modifier.PROTECTED;
 
     /**
-     * Set the modifiers of a nested class from the {@code InnerClasses} attribute of its enclosing class.
-     *
-     * <p>
-     * For a nested class, the {@code access_flags} field in the class's own classfile cannot express the source-level
-     * access level: the JVM requires a nested class to be reachable from its enclosing class, so javac emits
-     * {@code ACC_PUBLIC} (or package-private) there, and records the real access level only in the
-     * {@code InnerClasses} attribute of the enclosing class. The {@code InnerClasses} bits are therefore
-     * authoritative for the access level, so they replace the access level bits read from the classfile rather than
-     * being OR'd into them -- OR-ing left a {@code protected} nested class with both {@code ACC_PUBLIC} and
-     * {@code ACC_PROTECTED} set, so that both {@link #isPublic()} and {@link #isProtected()} returned true. The
-     * remaining bits (e.g. {@code ACC_STATIC}, which only appears in the {@code InnerClasses} attribute) are OR'd in
-     * as before. (#791)
+     * Set the modifiers of a nested class from the {@code InnerClasses} attribute of its enclosing class, replacing
+     * the access-level bits read from the classfile while OR-ing in the remaining modifier bits.
      *
      * @param innerClassModifierBits
      *            the modifier bits from the {@code InnerClasses} attribute entry for this class
@@ -1270,22 +1253,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the class modifier bits, in the same form as {@link Class#getModifiers()}.
-     *
-     * <p>
-     * The {@code ACC_SUPER} bit (0x0020) of the classfile's {@code access_flags} field is masked out, because it is
-     * not a modifier: it selects the JVM's treatment of the {@code invokespecial} instruction, javac sets it on
-     * almost every class, and the same bit value in {@link Modifier} is {@link Modifier#SYNCHRONIZED}, which is not
-     * a legal class modifier. {@link Class#getModifiers()} masks it out for the same reason.
-     *
-     * <p>
-     * <b>Note:</b> comparing the returned value against a hardcoded integer is fragile, and the value of that bit
-     * changed in version 4.8.186 (see <a href="https://github.com/classgraph/classgraph/issues/791">#791</a>): a
-     * {@code protected static} nested class previously returned 0x002C, and now returns 0x000C. Prefer the named
-     * accessors ({@link #isPublic()}, {@link #isProtected()}, {@link #isPrivate()}, {@link #isStatic()},
-     * {@link #isFinal()}, {@link #isAbstract()}, {@link #isInterface()}, {@link #isAnnotation()},
-     * {@link #isEnum()}, {@link #isSynthetic()}), or test individual bits with the {@link Modifier} predicates,
-     * rather than comparing the whole value.
+     * Get the class modifier bits, in the same form as {@link Class#getModifiers()} (with {@code ACC_SUPER} masked
+     * out).
      *
      * @return The class modifier bits, e.g. {@link Modifier#PUBLIC}.
      */
@@ -1507,13 +1476,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Checks whether this class is an implemented interface (meaning a standard, non-annotation interface, or an
-     * annotation that has also been implemented as an interface by some class).
-     *
-     * <p>
-     * Annotations are interfaces, but you can also implement an annotation, so to we return whether an interface
-     * (even an annotation) is implemented by a class or extended by a subinterface, or (failing that) if it is not
-     * an interface but not an annotation.
+     * Checks whether this class is an implemented interface (a standard non-annotation interface, or an annotation
+     * that is implemented as an interface by some class or extended by a subinterface).
      *
      * @return true if this class is an implemented interface.
      */
@@ -1838,19 +1802,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Recurse to collect classes and interfaces in the order of overridden methods, in descending priority.
-     * <p>
-     * First collects all direct super classes, as their methods always have a higher priority than any method
-     * declared by an interface. Iterates over interfaces and inserts those extending already found interfaces
-     * before them in the output. The order of unrelated interfaces is unspecified.
-     * <p>
-     * See Java Language Specification 8.4.8 for details.
+     * Collect classes and interfaces in descending method override priority order (concrete superclasses first,
+     * followed by interfaces with subinterfaces ordered before their superinterfaces).
      *
      * @param visited
-     *            non-null set of already visited ClassInfos
+     *            already visited ClassInfos
      * @param overrideOrderOut
-     *            non-null outgoing list of ClassInfos in descending override order.
-     * @return the overrideOrderOut instance
+     *            outgoing list of ClassInfos in descending override order
+     * @return {@code overrideOrderOut}
      */
     private List<ClassInfo> getMethodOverrideOrder(final Set<ClassInfo> visited,
             final List<ClassInfo> overrideOrderOut) {
@@ -2044,11 +2003,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * Get the classes (and their subclasses) that implement this interface, if this is an interface.
      *
      * <p>
-     * The returned list also contains the transitive subinterfaces of this interface, since an interface that
-     * extends this interface is a subtype of it. To separate the two, call
+     * The returned list also contains the transitive subinterfaces of this interface. Call
      * {@link ClassInfoList#getInterfaces()} for just the subinterfaces, or
-     * {@link ClassInfoList#getStandardClasses()} for just the implementing classes. (Note that
-     * {@link #getSubclasses()} does not traverse the interface hierarchy -- use this method instead to find the
+     * {@link ClassInfoList#getStandardClasses()} for just the implementing classes. ({@link #getSubclasses()} does
+     * not traverse the interface hierarchy; use this method or {@link #getSubinterfaces()} to find the
      * subinterfaces of an interface.)
      *
      * @return the list of the classes (and their subclasses) that implement this interface, and the transitive
@@ -2360,9 +2318,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the default parameter values for this annotation, first converting any Object[] arrays of boxed values or
-     * strings to arrays of their element type. No lock is taken here: two threads may both start the conversion,
-     * and the conversion of each value is synchronized, so the second thread finds each value already converted.
+     * Get the default parameter values for this annotation, first converting any {@code Object[]} arrays of boxed
+     * values or strings to arrays of their element type.
      *
      * @return the default parameter values, or null if none.
      */
@@ -2825,7 +2782,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * </ul>
      *
      * <p>
-     * Constructors are not included -- to find annotated constructors, filter
+     * Constructors are not included; to find annotated constructors, filter
      * {@link #getDeclaredMethodAndConstructorInfo()} using {@link MethodInfoList#filter(MethodInfoFilter)}.
      *
      * <p>
@@ -2858,7 +2815,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * </ul>
      *
      * <p>
-     * Constructors are not included -- to find annotated constructors, filter
+     * Constructors are not included; to find annotated constructors, filter
      * {@link #getDeclaredMethodAndConstructorInfo()} using {@link MethodInfoList#filter(MethodInfoFilter)}.
      *
      * <p>
@@ -2893,7 +2850,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * </ul>
      *
      * <p>
-     * Constructors are not included -- to find annotated constructors, filter
+     * Constructors are not included; to find annotated constructors, filter
      * {@link #getMethodAndConstructorInfo()} using {@link MethodInfoList#filter(MethodInfoFilter)}.
      *
      * <p>
@@ -2926,7 +2883,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * </ul>
      *
      * <p>
-     * Constructors are not included -- to find annotated constructors, filter
+     * Constructors are not included; to find annotated constructors, filter
      * {@link #getMethodAndConstructorInfo()} using {@link MethodInfoList#filter(MethodInfoFilter)}.
      *
      * <p>
@@ -2979,8 +2936,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return A list of all annotations or meta-annotations on methods declared by the class, (not including
      *         methods declared by the interfaces or superclasses of this class), as a list of {@link ClassInfo}
      *         objects, or the empty list if none. N.B. these annotations do not contain specific annotation
-     *         parameters -- call {@link MethodInfo#getAnnotationInfo()} to get details on specific method
-     *         annotation instances.
+     *         parameters; call {@link MethodInfo#getAnnotationInfo()} to get details on specific method annotation
+     *         instances.
      */
     public ClassInfoList getMethodAnnotations() {
         return getFieldOrMethodAnnotations(RelType.METHOD_ANNOTATIONS);
@@ -2992,7 +2949,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return A list of all annotations or meta-annotations on the parameters of methods declared by the class,
      *         (not including methods declared by the interfaces or superclasses of this class), as a list of
      *         {@link ClassInfo} objects, or the empty list if none. N.B. these annotations do not contain specific
-     *         annotation parameters -- call {@link MethodParameterInfo#getAnnotationInfo()} to get details on
+     *         annotation parameters; call {@link MethodParameterInfo#getAnnotationInfo()} to get details on
      *         specific method parameter annotation instances.
      */
     public ClassInfoList getMethodParameterAnnotations() {
@@ -3405,7 +3362,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * Get all field annotations.
      *
      * @return A list of all annotations on fields of this class, or the empty list if none. N.B. these annotations
-     *         do not contain specific annotation parameters -- call {@link FieldInfo#getAnnotationInfo()} to get
+     *         do not contain specific annotation parameters; call {@link FieldInfo#getAnnotationInfo()} to get
      *         details on specific field annotation instances.
      */
     public ClassInfoList getFieldAnnotations() {
@@ -3477,8 +3434,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     /**
      * Get the parsed type signature for the class, or null if the class has no {@code Signature} attribute or if
-     * its type signature cannot be parsed. The JVM does not check the {@code Signature} attribute when it loads a
-     * class, so a class whose type signature does not parse can still be used, and is treated as non-generic.
+     * its type signature cannot be parsed.
      *
      * @return The parsed type signature for the class, or null.
      */
@@ -3491,14 +3447,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Run the type annotation decorators on the given class type signature or synthetic type descriptor. A type
-     * annotation that cannot be matched to the type it names (from a corrupt classfile, or a compiler bug) is
-     * skipped, rather than making the whole class type unreadable.
+     * Apply the type annotation decorators to the given class type signature or synthetic type descriptor,
+     * skipping any type annotation that cannot be matched to the type.
      *
      * @param classType
      *            the class type signature or synthetic type descriptor to decorate.
      */
-    // #897
     private void decorateType(final ClassTypeSignature classType) {
         if (typeAnnotationDecorators != null) {
             for (final ClassTypeAnnotationDecorator decorator : typeAnnotationDecorators) {
@@ -3941,13 +3895,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     /**
      * Append the record components of this class to a buffer, in the form {@code "(int x, String name)"}. Does
-     * nothing if this class is not a record.
-     *
-     * <p>
-     * The record components are the instance fields of the record, in declaration order. (A record may also declare
-     * static fields, which are not components.) If field info was not enabled during the scan, or the component
-     * fields were not visible to the scan, then no component is known, and the whole component list is omitted
-     * rather than rendered empty, since an empty list would wrongly state that the record has no components.
+     * nothing if this class is not a record or if no record component fields were scanned.
      *
      * @param useSimpleNames
      *            if true, strip package and outer class names from class names

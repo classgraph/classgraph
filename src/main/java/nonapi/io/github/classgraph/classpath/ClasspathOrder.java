@@ -73,28 +73,16 @@ public class ClasspathOrder {
     /** Match URL schemes (must consist of at least two chars, otherwise this is Windows drive letter). */
     private static final Pattern schemeMatcher = Pattern.compile("^[a-zA-Z][a-zA-Z0-9+\\-.]+:");
 
-    /**
-     * The package root prefixes of the {@code ClassLoaderHandler} whose {@code findClasspathOrder} method is
-     * currently being called, or the default prefixes if classpath entries are not currently being obtained from a
-     * {@code ClassLoaderHandler} (e.g. for {@code java.class.path} entries, or an overridden classpath).
-     */
+    /** The package root prefixes for the current {@code ClassLoaderHandler}, or the default prefixes. */
     private String[] currPackageRootPrefixes = ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
 
     /** True once the Equinox system bundles have been added to this classpath order. */
     private boolean addedEquinoxSystemBundles;
 
     /**
-     * Test whether the Equinox system bundles still need to be added to the classpath order, and if so, atomically
-     * record that they are being added, so that they are only added once.
+     * Atomically mark Equinox system bundles as added for this scan.
      *
-     * <p>
-     * All Equinox bundles yield the same system bundles, so they only need to be read from the first Equinox
-     * classloader encountered. This flag is held here, on a per-scan object, rather than in a static field of the
-     * {@code ClassLoaderHandler}: a single handler instance is shared between all scans, so a static flag would
-     * stay set after the first scan, and every subsequent scan in the same JVM would silently omit the system
-     * bundles from the classpath.
-     *
-     * @return true the first time this method is called for a given scan, false every time thereafter.
+     * @return true the first time this method is called for a given scan, false thereafter.
      */
     public synchronized boolean tryAddEquinoxSystemBundles() {
         if (addedEquinoxSystemBundles) {
@@ -191,9 +179,7 @@ public class ClasspathOrder {
     }
 
     /**
-     * Set the automatic package root prefixes to record for subsequently-added classpath entries. Called before
-     * and after invoking the {@code findClasspathOrder} method of a {@code ClassLoaderHandler}, so that each
-     * classpath entry records the package roots of the classloader it was obtained from.
+     * Set the automatic package root prefixes to record for subsequently-added classpath entries.
      *
      * @param packageRootPrefixes
      *            the package root prefixes, or null to reset to the default prefixes.
@@ -205,8 +191,7 @@ public class ClasspathOrder {
     }
 
     /**
-     * Convert a resolved classpath element path back into a {@link URL}, so that it can be tested against the user's
-     * {@link URL} filters.
+     * Convert a resolved classpath element path into a {@link URL} for testing against {@link URL} filters.
      *
      * @param classpathElementPath
      *            the resolved classpath element path
@@ -264,8 +249,8 @@ public class ClasspathOrder {
      * Add a system classpath entry.
      *
      * @param pathEntry
-     *            the system classpath entry -- the path string should already have been run through
-     *            FastPathResolver.resolveFilePath(FileUtils.currDirPath(), path)
+     *            the system classpath entry (already resolved via
+     *            {@code FastPathResolver.resolveFilePath(FileUtils.currDirPath(), path)})
      * @param classLoader
      *            the classloader
      * @return true, if added and unique

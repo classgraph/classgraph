@@ -35,11 +35,7 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
- * This handler uses parent-last delegation order (i.e. it adds the classloader itself to the classloader order
- * before delegating to the parent) to support the <code>RestartClassLoader</code> of Spring Boot's devtools.
- * <code>RestartClassLoader</code> provides parent-last loading for specified URLs (those are all that are supposed
- * to be changed during development). Therefore the handler for that class loader also has to delegate in
- * parent-last order.
+ * Handle the Spring Boot DevTools {@code RestartClassLoader}, which uses parent-last delegation order.
  */
 class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
     /** Constructor. */
@@ -65,17 +61,6 @@ class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
 
     /**
      * Find the classpath entries for the associated {@link ClassLoader}.
-     * 
-     * Spring Boot's RestartClassLoader sits in front of the parent class loader and watches a given set of
-     * directories for changes. While those classes are reachable from the parent class loader directly, they should
-     * always be loaded through direct access from the RestartClassLoader until it's completely turned off by means
-     * of Spring Boot Developer tools.
-     * 
-     * The RestartClassLoader shades only the project classes and additional directories that are configurable, so
-     * itself needs access to parent, but last.
-     * 
-     * See: <a href="https://github.com/classgraph/classgraph/issues/267">#267</a>,
-     * <a href="https://github.com/classgraph/classgraph/issues/268">#268</a>
      *
      * @param classLoader
      *            the {@link ClassLoader} to find the classpath entries order for.
@@ -94,10 +79,6 @@ class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
 
     /**
      * Get the automatic package root prefixes for classpath elements obtained from this classloader.
-     *
-     * <p>
-     * No narrower set of prefixes is known for this classloader, so this returns the default set that is used for a
-     * general-purpose classloader, {@link ClassLoaderHandlerRegistry#DEFAULT_PACKAGE_ROOT_PREFIXES}.
      *
      * @return the package root prefixes.
      */

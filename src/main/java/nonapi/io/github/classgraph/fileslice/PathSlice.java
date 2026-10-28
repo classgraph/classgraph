@@ -50,20 +50,13 @@ public class PathSlice extends Slice {
     /** The file length. */
     private final long fileLength;
 
-    /**
-     * The {@link FileChannel} opened on the {@link Path}, or null once closed. Only set on the toplevel file slice,
-     * which owns the file channel. Volatile, since every slice of the file reads it, and it is replaced when a
-     * thread that was interrupted while reading it closes it.
-     */
+    /** The {@link FileChannel} opened on the {@link Path} on the top-level slice, or null once closed. */
     private volatile FileChannel fileChannel;
 
-    /**
-     * The lock that the toplevel slice's {@link #fileChannel} is replaced and set to null under, which every slice
-     * of the file shares.
-     */
+    /** Lock guarding {@link #fileChannel} on the top-level slice. */
     private final Object fileChannelLock;
 
-    /** The toplevel file slice, which owns the file channel, or {@code this} if this is the toplevel slice. */
+    /** The top-level slice that owns the file channel. */
     private final PathSlice topLevelPathSlice;
 
     /** True if {@link #close} has been called. */
@@ -198,19 +191,13 @@ public class PathSlice extends Slice {
     }
 
     /**
-     * Get the {@link FileChannel} to read the file through. Called on the toplevel slice before every read.
-     *
-     * <p>
-     * A file channel is closed by a read on a thread that has been interrupted, or that is interrupted during the
-     * read, and every slice of the file reads through the same channel. So that one interrupted thread cannot stop
-     * every other thread from reading the file, a thread that has been interrupted is not allowed to read the
-     * channel, and a channel that was closed by an interruption during a read is reopened.
+     * Get the {@link FileChannel} for reading the file, reopening it if it was closed by an interrupted thread.
      *
      * @return the {@link FileChannel}
      * @throws InterruptedIOException
      *             if this thread has been interrupted
      * @throws IOException
-     *             if {@link #close()} has been called, or if the channel had to be reopened and could not be
+     *             if {@link #close()} has been called, or if the channel could not be reopened
      */
     private FileChannel fileChannel() throws IOException {
         if (Thread.currentThread().isInterrupted()) {
@@ -303,8 +290,7 @@ public class PathSlice extends Slice {
     }
 
     /**
-     * Read the slice into a {@link ByteBuffer}. (A {@link PathSlice} is never memory-mapped, unlike a
-     * {@link FileSlice} -- the content is always copied into a heap {@link ByteBuffer}.)
+     * Read the slice into a heap {@link ByteBuffer}.
      *
      * @return the byte buffer
      * @throws IOException

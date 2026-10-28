@@ -46,12 +46,9 @@ public class ClassLoaderFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the classloaders to search: the classloaders that the scan spec overrides the environment's with, or else
-     * the classloaders found in the environment (the context classloader of the calling thread, the classloader of
-     * ClassGraph, the system classloader and the classloaders of the classes on the call stack, with every
-     * classloader ordered ahead of its own ancestors), followed by any classloaders the scan spec adds.
+     * Get the classloaders to search, in search order.
      *
-     * @return The classloaders, in the order they should be searched in.
+     * @return The classloaders, in the order they should be searched.
      */
     public ClassLoader[] getContextClassLoaders() {
         return contextClassLoaders;
@@ -111,12 +108,12 @@ public class ClassLoaderFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * A class to find the unique ordered classpath elements.
+     * Find the context classloaders to search.
      *
      * @param scanSpec
      *            The scan spec, or null if none available.
      * @param callStackInfo
-     *            What was read from the thread that started the search.
+     *            Call stack and context classloader info for the calling thread.
      * @param log
      *            The log.
      */

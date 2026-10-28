@@ -57,8 +57,8 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
  */
 public class LogicalZipFile extends ZipFileSlice {
     /**
-     * Bit 11 of an entry's general purpose bit flag, the "language encoding flag", which declares that the entry's
-     * name is encoded in UTF-8 rather than in the zip specification's default of IBM Code Page 437.
+     * Bit 11 of an entry's general purpose bit flag ("language encoding flag"), indicating that the entry name is
+     * UTF-8 encoded rather than CP437.
      */
     private static final int UTF8_NAME_FLAG_BIT = 1 << 11;
 
@@ -170,14 +170,13 @@ public class LogicalZipFile extends ZipFileSlice {
 
     /**
      * Extract a value from the manifest, and return the value as a string, along with the index after the
-     * terminating newline. Manifest files support three different line terminator types, and entries can be split
-     * across lines with a line terminator followed by a space.
+     * terminating newline.
      *
      * @param manifest
      *            the manifest bytes
      * @param startIdx
      *            the start index of the manifest value
-     * @return the manifest value
+     * @return the manifest value and end index
      */
     private static Entry<String, Integer> getManifestValue(final byte[] manifest, final int startIdx) {
         // See if manifest entry is split across multiple lines

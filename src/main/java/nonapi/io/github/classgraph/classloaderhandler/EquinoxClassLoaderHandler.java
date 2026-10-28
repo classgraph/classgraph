@@ -131,9 +131,7 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Test whether a bundle file is of the named {@code BundleFile} class. The name is matched by suffix, since
-     * these classes moved from {@code org.eclipse.osgi.baseadaptor.bundlefile} to
-     * {@code org.eclipse.osgi.storage.bundlefile} in Equinox 3.9.
+     * Test whether a bundle file is an instance of the named {@code BundleFile} class.
      *
      * @param bundlefile
      *            the bundle file
@@ -267,10 +265,6 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
 
     /**
      * Get the automatic package root prefixes for classpath elements obtained from this classloader.
-     *
-     * <p>
-     * No narrower set of prefixes is known for this classloader, so this returns the default set that is used for a
-     * general-purpose classloader, {@link ClassLoaderHandlerRegistry#DEFAULT_PACKAGE_ROOT_PREFIXES}.
      *
      * @return the package root prefixes.
      */

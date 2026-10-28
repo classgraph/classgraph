@@ -29,12 +29,7 @@
 package io.github.classgraph;
 
 /**
- * An unchecked exception that is thrown when an error state occurs or an unhandled exception is caught during
- * scanning.
- * 
- * <p>
- * (Extends {@link IllegalArgumentException}, which extends {@link RuntimeException}, so either of the more generic
- * exceptions may be caught.)
+ * An unchecked exception thrown when an error occurs during scanning.
  */
 public class ClassGraphException extends IllegalArgumentException {
     /** serialVersionUID. */

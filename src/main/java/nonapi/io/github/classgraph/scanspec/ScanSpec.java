@@ -28,7 +28,6 @@
  */
 package nonapi.io.github.classgraph.scanspec;
 
-import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
@@ -111,23 +110,13 @@ public class ScanSpec {
     /** If true, scan classfile bytecodes, producing {@link ClassInfo} objects. */
     public boolean enableClassInfo;
 
-    /**
-     * If true, enables the saving of field info during the scan. This information can be obtained using
-     * {@link ClassInfo#getFieldInfo()}. By default, field info is not scanned, for efficiency.
-     */
+    /** If true, scan field info ({@link ClassInfo#getFieldInfo()}). */
     public boolean enableFieldInfo;
 
-    /**
-     * If true, enables the saving of method info during the scan. This information can be obtained using
-     * {@link ClassInfo#getMethodInfo()}. By default, method info is not scanned, for efficiency.
-     */
+    /** If true, scan method info ({@link ClassInfo#getMethodInfo()}). */
     public boolean enableMethodInfo;
 
-    /**
-     * If true, enables the saving of annotation info (for class, field, method or method parameter annotations)
-     * during the scan. This information can be obtained using {@link ClassInfo#getAnnotationInfo()} etc. By
-     * default, annotation info is not scanned, for efficiency.
-     */
+    /** If true, scan annotation info ({@link ClassInfo#getAnnotationInfo()}, etc.). */
     public boolean enableAnnotationInfo;
 
     /** Enable the storing of constant initializer values for static final fields in ClassInfo objects. */
@@ -136,12 +125,7 @@ public class ScanSpec {
     /** If true, enables the determination of inter-class dependencies. */
     public boolean enableInterClassDependencies;
 
-    /**
-     * If true, allow external classes (classes that were not accepted, but that the scan came across while reading
-     * the accepted classes) to be returned in the ScanResult. See
-     * {@link io.github.classgraph.ClassGraph#enableExternalClasses()} for which classes these are. Disabled by
-     * default.
-     */
+    /** If true, include external classes referenced by accepted classes in the {@link ScanResult}. */
     public boolean enableExternalClasses;
 
     /**
@@ -170,10 +154,8 @@ public class ScanSpec {
     public boolean disableRuntimeInvisibleAnnotations;
 
     /**
-     * If true, when classes refer to external classes as a superclass, implemented interface, annotation,
-     * enclosing class, class named in an annotation parameter value, or thrown exception type, those classes are
-     * also scanned. (Even though this slows down scanning a bit, there is no API for disabling this currently,
-     * since disabling it can lead to problems -- see #261.)
+     * If true, also scan external classes referenced as a superclass, implemented interface, annotation, enclosing
+     * class, class named in an annotation parameter value, or thrown exception type.
      */
     public boolean extendScanningUpwardsToExternalClasses = true;
 
@@ -237,38 +219,13 @@ public class ScanSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * The maximum size of an inner (nested) jar that has been deflated (i.e. compressed, not stored) within an
-     * outer jar, before it has to be spilled to disk rather than stored in a RAM-backed {@link ByteBuffer} when it
-     * is deflated, in order for the inner jar's entries to be read. (Note that this situation of having to deflate
-     * a nested jar to RAM or disk in order to read it is rare, because normally adding a jarfile to another jarfile
-     * will store the inner jar, rather than deflate it, because deflating a jarfile does not usually produce any
-     * further compression gains. If an inner jar is stored, not deflated, then its zip entries can be read directly
-     * using ClassGraph's own zipfile central directory parser, which can use file slicing to extract entries
-     * directly from stored nested jars.)
-     * 
-     * <p>
-     * This is also the maximum size of a jar downloaded from an {@code http://} or {@code https://} classpath
-     * {@link URL} to RAM. Once this many bytes have been read from the {@link URL}'s {@link InputStream}, then the
-     * RAM contents are spilled over to a temporary file on disk, and the rest of the content is downloaded to the
-     * temporary file. (This is also rare, because normally there are no {@code http://} or {@code https://}
-     * classpath entries.)
-     * 
-     * <p>
-     * Default: 64MB (i.e. writing to disk is avoided wherever possible). Setting a lower max RAM size value will
-     * decrease ClassGraph's memory usage if either of the above rare situations occurs.
+     * The maximum size in bytes (default 64MB) of a deflated nested jar or downloaded HTTP(S) jar that will be
+     * buffered in a RAM-backed {@link ByteBuffer} before spilling to a temporary file on disk.
      */
     public int maxBufferedJarRAMSize = 64 * 1024 * 1024;
 
     /**
      * If true, use a {@link MappedByteBuffer} rather than the {@link FileChannel} API to access file content.
-     *
-     * <p>
-     * A mapping is released as soon as the {@link io.github.classgraph.ScanResult} is closed, so that Windows,
-     * which refuses to delete, rename or overwrite a file while it is mapped, stops locking the file. A
-     * {@link java.nio.ByteBuffer} obtained from {@link io.github.classgraph.Resource#read()} must therefore not be
-     * read after the {@link io.github.classgraph.ScanResult} has been closed -- but the file is not unmapped while
-     * such a buffer is open, so a {@link io.github.classgraph.Resource} that is still open when the
-     * {@link io.github.classgraph.ScanResult} is closed holds its file mapped until it is closed too.
      */
     public boolean enableMemoryMapping;
 
@@ -536,12 +493,7 @@ public class ScanSpec {
     }
 
     /**
-     * Returns true if the resource at the given path is rejected, either because a rejected package contains it, or
-     * because the classfile itself is rejected.
-     *
-     * <p>
-     * This is for callers that look a resource up by name, rather than reaching it through a walk of a classpath
-     * element, so they do not have the {@link ScanSpecPathMatch} of the containing directory in hand.
+     * Returns true if the resource at the given path is in a rejected package or is a rejected classfile.
      *
      * @param relativePath
      *            the path of the resource, relative to the package root of its classpath element.

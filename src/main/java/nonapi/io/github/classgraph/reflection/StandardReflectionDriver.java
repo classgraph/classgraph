@@ -87,9 +87,8 @@ class StandardReflectionDriver extends ReflectionDriver {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Implements {@code java.security.PrivilegedAction} by proxy, so that
-     * {@code AccessController#doPrivileged(PrivilegedAction)} can be invoked reflectively, without a compile-time
-     * reference to either of those deprecated types.
+     * Implements {@code java.security.PrivilegedAction} by proxy for reflective invocation of
+     * {@code AccessController#doPrivileged(PrivilegedAction)}.
      *
      * @param <T>
      *            the return type of the wrapped {@link Callable}.

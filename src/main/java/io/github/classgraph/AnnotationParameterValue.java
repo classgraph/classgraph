@@ -79,32 +79,30 @@ public class AnnotationParameterValue extends ScanResultObject
      *
      * @return The annotation parameter value. May be one of the following types:
      *         <ul>
-     *         <li>String for string constants
-     *         <li>String[] for arrays of strings
-     *         <li>A boxed type, e.g. Integer or Character, for primitive-typed constants
-     *         <li>A 1-dimensional primitive-typed array (i.e. int[], long[], short[], char[], byte[], boolean[],
-     *         float[], or double[]), for arrays of primitives
-     *         <li>A 1-dimensional {@link Object}[] array for array types (and then the array element type may be
+     *         <li>{@link String} for string constants
+     *         <li>{@code String[]} for arrays of strings
+     *         <li>A boxed type, e.g. {@link Integer} or {@link Character}, for primitive-typed constants
+     *         <li>A 1-dimensional primitive-typed array (i.e. {@code int[]}, {@code long[]}, {@code short[]},
+     *         {@code char[]}, {@code byte[]}, {@code boolean[]}, {@code float[]}, or {@code double[]}), for arrays
+     *         of primitives
+     *         <li>A 1-dimensional {@code Object[]} array for array types (and then the array element type may be
      *         one of the types in this list)
      *         <li>{@link AnnotationEnumValue}, for enum constants (this wraps the enum class and the string name of
      *         the constant)
-     *         <li>{@link AnnotationClassRef}, for Class references within annotations (this wraps the name of the
-     *         referenced class)
+     *         <li>{@link AnnotationClassRef}, for {@link Class} references within annotations (this wraps the name
+     *         of the referenced class)
      *         <li>{@link AnnotationInfo}, for nested annotations
      *         </ul>
-     *         An array is returned as an {@link Object}[] array if the annotation class does not declare a
+     *         An array is returned as an {@code Object[]} array if the annotation class does not declare a
      *         one-dimensional array type for this parameter, or if its elements do not have the declared element
-     *         type. This happens when the annotation class was changed after the annotated class was compiled (the
-     *         JDK reports such a value as an {@link java.lang.annotation.AnnotationTypeMismatchException} when it
-     *         is read).
+     *         type.
      */
     public Object getValue() {
         return value == null ? null : value.get();
     }
 
     /**
-     * Set (update) the value of the annotation parameter. Used to replace Object[] arrays containing boxed types
-     * into primitive arrays.
+     * Set (update) the value of the annotation parameter.
      *
      * @param newValue
      *            the new value
@@ -209,11 +207,7 @@ public class AnnotationParameterValue extends ScanResultObject
     }
 
     /**
-     * Compare two annotation parameter values. Values of the same class are compared by their natural order, or by
-     * their string form if they have no natural order. Arrays are compared element by element, so an Object[]
-     * array that has not yet been converted to a primitive array compares equal to the converted array. Values of
-     * different classes cannot be compared with each other, so they are ordered by class name, which keeps the
-     * order transitive.
+     * Compare two annotation parameter values.
      *
      * @param v0
      *            the first value, or null.
@@ -251,9 +245,7 @@ public class AnnotationParameterValue extends ScanResultObject
     }
 
     /**
-     * Check whether this annotation parameter value equals another, consistently with
-     * {@link #compareTo(AnnotationParameterValue)}. Arrays are compared by their contents, and an Object[] array
-     * that has not yet been converted to a primitive array or a String[] array equals the converted array.
+     * Check whether this annotation parameter value equals another.
      *
      * @param obj
      *            the object to compare with.

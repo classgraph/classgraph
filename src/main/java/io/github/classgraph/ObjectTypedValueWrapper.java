@@ -297,9 +297,8 @@ class ObjectTypedValueWrapper extends ScanResultObject {
      *            the parameter name
      * @param getClass
      *            If true, return a {@code Class<?>} reference, otherwise return the class name.
-     * @return the array value type as a {@code Class<?>} reference if getClass is true, otherwise the class name as
-     *         a String, or null if the annotation class does not declare a one-dimensional array type for this
-     *         parameter, so that the array cannot be converted.
+     * @return the array element type as a {@code Class<?>} reference if {@code getClass} is true, otherwise the
+     *         class name as a String, or null if the parameter does not have a one-dimensional array type.
      */
     private Object getArrayValueClassOrName(final ClassInfo annotationClassInfo, final String paramName,
             final boolean getClass) {
@@ -371,15 +370,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
     }
 
     /**
-     * Replace Object[] arrays containing boxed types with primitive arrays. If the annotation class does not
-     * declare a one-dimensional array type for the parameter, or an element does not have the declared element
-     * type, the Object[] array is kept.
-     *
-     * <p>
-     * Two threads can read the same annotation parameter value for the first time at once, and both then convert
-     * it. The conversion writes several fields one after another, so it is synchronized: the second thread waits
-     * until the first has finished, and then finds the value already converted. A thread that has called this
-     * method also sees the converted value, since nothing changes it afterwards.
+     * Replace {@code Object[]} arrays containing boxed types with primitive arrays.
      *
      * @param annotationClassInfo
      *            annotation class info
@@ -498,7 +489,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
      * @param elementTypeName
      *            the element type name, as returned by {@code getArrayValueClassOrName}
      * @return true if this wrapper holds a value of the named type, or if the named type is not a primitive type
-     *         or String (an array of such a type is not converted).
+     *         or String.
      */
     private boolean holdsValueOfType(final String elementTypeName) {
         switch (elementTypeName) {

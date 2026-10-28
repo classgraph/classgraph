@@ -182,8 +182,8 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Get the non-{@link Repeatable} annotation on this method, or null if the method parameter does not have the
-     * annotation. (Use {@link #getAnnotationInfoRepeatable(Class)} for {@link Repeatable} annotations.)
+     * Get the non-{@link Repeatable} annotation on this method parameter, or null if the method parameter does not
+     * have the annotation. (Use {@link #getAnnotationInfoRepeatable(Class)} for {@link Repeatable} annotations.)
      *
      * @param annotation
      *            The annotation.
@@ -196,8 +196,8 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Get the named non-{@link Repeatable} annotation on this method, or null if the method parameter does not
-     * have the named annotation. (Use {@link #getAnnotationInfoRepeatable(String)} for {@link Repeatable}
+     * Get the named non-{@link Repeatable} annotation on this method parameter, or null if the method parameter
+     * does not have the named annotation. (Use {@link #getAnnotationInfoRepeatable(String)} for {@link Repeatable}
      * annotations.)
      *
      * @param annotationName
@@ -210,8 +210,8 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Get the {@link Repeatable} annotation on this method, or the empty list if the method parameter does not
-     * have the annotation.
+     * Get the {@link Repeatable} annotation on this method parameter, or the empty list if the method parameter
+     * does not have the annotation.
      *
      * @param annotation
      *            The annotation.
@@ -224,8 +224,8 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Get the named {@link Repeatable} annotation on this method, or the empty list if the method parameter does
-     * not have the named annotation.
+     * Get the named {@link Repeatable} annotation on this method parameter, or the empty list if the method
+     * parameter does not have the named annotation.
      *
      * @param annotationName
      *            The annotation name.

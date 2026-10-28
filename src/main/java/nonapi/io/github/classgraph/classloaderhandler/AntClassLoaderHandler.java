@@ -64,10 +64,6 @@ class AntClassLoaderHandler implements ClassLoaderHandler {
     /**
      * Get the automatic package root prefixes for classpath elements obtained from this classloader.
      *
-     * <p>
-     * Ant builds put compiled classes in a "classes/" or "test-classes/" dir within the build dir, and
-     * AntClassLoader lists the build dir rather than these dirs as the classpath element.
-     *
      * @return the package root prefixes.
      */
     @Override

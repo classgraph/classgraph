@@ -288,9 +288,8 @@ class Classfile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Extend scanning to a class that this class refers to, if the class is external: schedule its classfile for
-     * reading, unless the class is {@code java.lang.Object}, is accepted, was already scheduled, was rejected by
-     * name, or has no classfile that can be found.
+     * Schedule an external class referenced by this class for scanning, unless it is {@code java.lang.Object}, is
+     * already accepted or scheduled, is rejected, or its classfile cannot be found.
      *
      * @param className
      *            the class name
@@ -770,10 +769,8 @@ class Classfile {
     }
 
     /**
-     * Check that a class name does not name an array type with more than {@link ArrayTypeSignature#MAX_DIMENSIONS}
-     * dimensions, counting both a leading '[' (e.g. "[[I") and a trailing "[]" (e.g. "int[][]") as a dimension,
-     * since {@link ClassInfo#getOrCreateClassInfo(String, Map)} counts both. The JVM never creates such an array
-     * class, but it does not check a class name that it does not resolve.
+     * Check that a class name does not have more than {@link ArrayTypeSignature#MAX_DIMENSIONS} array dimensions
+     * (counting both leading {@code '['} and trailing {@code "[]"}).
      *
      * @param className
      *            the class name, or null
@@ -801,12 +798,8 @@ class Classfile {
     }
 
     /**
-     * Check whether the name of a class that a classfile refers to, read from its constant pool with {@code '/'}
-     * replaced by {@code '.'}, is a legal class name: a sequence of segments separated by {@code '.'}, none of them
-     * empty, and none of them containing {@code ';'} or {@code '['} (JVMS 4.2.1). An array class name, which starts
-     * with {@code '['}, is not a legal class name in this sense. A {@code '.'} that the classfile wrote in place of
-     * a {@code '/'} cannot be told apart from a separator once {@code '/'} has been replaced, so it is accepted: it
-     * gives the name of the same class as the name with {@code '/'}.
+     * Check whether a dot-separated class name read from the constant pool is a legal non-array class name (no
+     * empty segments, and no {@code ';'} or {@code '['} characters).
      *
      * @param className
      *            the class name, with {@code '.'} as the separator.
@@ -832,11 +825,7 @@ class Classfile {
     }
 
     /**
-     * Check that a class name that this classfile refers to, and that a {@link ClassInfo} is to be created for, is
-     * legal (see {@link #isLegalClassName(String)}). The JVM refuses to load a classfile whose constant pool has a
-     * {@code CONSTANT_Class} entry with an illegal name, though it does not check the name of the type of an
-     * annotation. Without this check, a name such as {@code "p.S;"} would make the scan fail when the
-     * {@link ClassInfo} is created, and an empty name would give a class with no name.
+     * Verify that a referenced class name is legal (see {@link #isLegalClassName(String)}).
      *
      * @param name
      *            the class name, with {@code '.'} as the separator.
@@ -1004,9 +993,8 @@ class Classfile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returned by {@link #readAnnotationElementValue()} in place of a nested annotation that
-     * {@link #readAnnotation()} leaves out, because its class name, or that of an annotation nested in it, is
-     * missing or illegal, or in place of an array that holds such an annotation.
+     * Sentinel returned by {@link #readAnnotationElementValue()} for a nested annotation (or array containing one)
+     * whose class name is missing or illegal.
      */
     private static final Object ILLEGAL_ANNOTATION = new Object();
 
@@ -1042,24 +1030,18 @@ class Classfile {
     }
 
     /**
-     * The deepest that annotation element values may be nested, counting each array element value and each nested
-     * annotation element value as one level. The reader recurses once per level, so without a limit, a crafted or
-     * corrupt classfile that nests them a few thousand deep would overflow the stack, and the
-     * {@link StackOverflowError} would make the whole scan fail rather than only this class being skipped. javac
-     * cannot nest arrays in an annotation, and annotation types cannot contain themselves, so real annotations nest
-     * only a few levels deep.
+     * Maximum nesting depth for annotation element values (counting array elements and nested annotations).
      */
     private static final int MAX_ANNOTATION_NESTING_DEPTH = 255;
 
-    /** How deeply the annotation element value that is being read is nested. */
+    /** Current annotation element value nesting depth. */
     private int annotationNestingDepth;
 
     /**
      * Read annotation element value from classfile.
      *
-     * @return the annotation element value, or {@link #ILLEGAL_ANNOTATION} if it is, or is an array that holds,
-     *         an annotation that {@link #readAnnotation()} leaves out because a class name in it is missing or
-     *         illegal.
+     * @return the annotation element value, or {@link #ILLEGAL_ANNOTATION} if it is (or contains) an annotation
+     *         with a missing or illegal class name.
      * @throws IOException
      *             If an IO exception occurs.
      * @throws ClassfileFormatException
@@ -1079,12 +1061,10 @@ class Classfile {
     }
 
     /**
-     * Read the contents of an annotation element value from classfile, at the nesting depth set by
-     * {@link #readAnnotationElementValue()}.
+     * Read the contents of an annotation element value from classfile.
      *
-     * @return the annotation element value, or {@link #ILLEGAL_ANNOTATION} if it is, or is an array that holds,
-     *         an annotation that {@link #readAnnotation()} leaves out because a class name in it is missing or
-     *         illegal.
+     * @return the annotation element value, or {@link #ILLEGAL_ANNOTATION} if it is (or contains) an annotation
+     *         with a missing or illegal class name.
      * @throws IOException
      *             If an IO exception occurs.
      */
@@ -1152,10 +1132,9 @@ class Classfile {
     }
 
     /**
-     * Convert the class name stored in a {@code CONSTANT_Class} entry into a type descriptor. Per JVMS 4.4.1, the
-     * name in a {@code CONSTANT_Class} entry is a binary class name (e.g. "java/lang/String"), except for array
-     * types, where it is the descriptor of the array type (e.g. "[Ljava/lang/String;"). Primitive types and void
-     * cannot be named by a {@code CONSTANT_Class} entry, so a name of "I" is the class {@code I}, not {@code int}.
+     * Convert the class name stored in a {@code CONSTANT_Class} entry (a binary class name such as
+     * {@code "java/lang/String"} or an array descriptor such as {@code "[Ljava/lang/String;"}) into a type
+     * descriptor.
      *
      * @param constantPoolClassName
      *            the class name from a {@code CONSTANT_Class} entry
@@ -1268,16 +1247,12 @@ class Classfile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Read only the name of the class defined by a classfile, skipping everything else. This is a cut-down version
-     * of {@link #readConstantPoolEntries(LogNode)} followed by {@link #readBasicClassInfo()}, for the case where a
-     * classfile has to be read before scanning has started, so none of the scanning context needed by the
-     * {@link Classfile} constructor is available yet. (Used to check whether a candidate package root really is a
-     * package root -- see {@link ClasspathElement#getClassNameDisprovingPackageRoot(ClassfileReader, String)}.)
+     * Read only the binary class name defined by a classfile, skipping the rest of the classfile.
      *
      * @param reader
      *            a reader for the classfile.
-     * @return the name of the class defined by the classfile, in binary form, with {@code '/'} as the package
-     *         separator (e.g. {@code "java/lang/String"}), or null if the class name could not be read.
+     * @return the binary name of the class defined by the classfile, with {@code '/'} as the package separator
+     *         (e.g. {@code "java/lang/String"}), or null if the class name could not be read.
      */
     static String readClassName(final ClassfileReader reader) {
         try {

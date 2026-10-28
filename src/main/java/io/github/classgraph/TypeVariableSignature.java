@@ -88,19 +88,18 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     }
 
     /**
-     * Look up a type variable (e.g. "T") in the type parameters of the method whose signature it is part of, then
-     * in those of the class it is used in, then, if that class is an inner member class, in those of the classes it
-     * is nested in, and return the type parameter with the same name (e.g. "T extends com.xyz.Cls").
+     * Resolve this type variable (e.g. {@code "T"}) against the type parameters of the enclosing method, the
+     * declaring class, or any enclosing non-static classes, returning the corresponding {@link TypeParameter}
+     * (e.g. {@code "T extends com.xyz.Cls"}).
      *
      * <p>
-     * A type variable declared by a method that a local or anonymous class is declared in is not found, since the
-     * classfile does not record which overload of the method that is.
+     * Note that a type variable declared by a method enclosing a local or anonymous class cannot be resolved,
+     * because the classfile does not record the specific overload of the enclosing method.
      *
-     * @return the type parameter (e.g. "T extends com.xyz.Cls", or simply "T" if the type parameter does not have
-     *         any bounds). If no type parameter of the same name is found, an unbounded type parameter with just
-     *         the type variable's name is returned (#706).
+     * @return the resolved {@link TypeParameter} (or an unbounded {@link TypeParameter} with the same name if the
+     *         type parameter declaration could not be found).
      * @throws IllegalArgumentException
-     *             if the class that the type variable is used in was not found during the scan.
+     *             if the containing class was not found during the scan.
      */
     public TypeParameter resolve() {
         if (typeParameterCached != null) {
@@ -167,8 +166,8 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     }
 
     /**
-     * Look this type variable up in a substitution map built by {@link TypeSignature#resolveTypeVariables(ClassInfo)}
-     * (#735).
+     * Look this type variable up in a substitution map built by
+     * {@link TypeSignature#resolveTypeVariables(ClassInfo)}.
      *
      * @param substitutions
      *            the substitution map.
@@ -292,11 +291,13 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     }
 
     /**
-     * Two type variables are equal if they have the same name and type annotations, are used in the same class, and
-     * are either both declared by the method whose signature they are part of, or both not. So the {@code T} of a
-     * method that declares {@code <T>} does not equal a {@code T} declared by the class, but the {@code T}s of two
-     * methods that each declare {@code <T>} are equal, as are the signatures of {@code <T> void a(T t)} and
-     * {@code <T> void b(T t)}, even though the two {@code T}s may have different bounds.
+     * Test whether this type variable is equal to another object. Two {@link TypeVariableSignature} instances are
+     * equal if they have the same name, defining class name, and type annotations, and are either both method type
+     * variables or both class type variables.
+     *
+     * @param obj
+     *            the object to compare for equality.
+     * @return true if equal.
      */
     @Override
     public boolean equals(final Object obj) {
@@ -325,8 +326,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      * @param other
      *            the other type signature to compare to, or null.
      * @param visited
-     *            the names of the type variables whose bounds are already being compared, so that a chain of type
-     *            variable bounds that loops back on itself is not followed forever, or null if none are.
+     *            the names of already-visited type variables (for cycle detection), or null.
      * @return true if the two type signatures are equal, ignoring type parameters.
      */
     private boolean equalsIgnoringTypeParams(final TypeSignature other, final Set<String> visited) {

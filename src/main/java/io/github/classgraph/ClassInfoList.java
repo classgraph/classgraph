@@ -202,7 +202,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      *            The superclass or interface class reference to cast each loaded class to.
      * @param ignoreExceptions
      *            If true, ignore any exceptions or errors thrown during classloading, or when attempting to cast
-     *            the resulting {@code Class<?>} reference to the requested type -- instead, skip the element (i.e.
+     *            the resulting {@code Class<?>} reference to the requested type, and skip the element instead (so
      *            the returned list may contain fewer items than this input list). If false,
      *            {@link IllegalArgumentException} is thrown if the class could not be loaded or could not be cast
      *            to the requested type.

@@ -69,12 +69,7 @@ public class WorkQueue<T> implements AutoCloseable {
     /** The worker tasks that were submitted to the ExecutorService, used to detect worker completion. */
     private final ConcurrentLinkedQueue<Worker> workerTasks = new ConcurrentLinkedQueue<>();
 
-    /**
-     * A worker submitted to the {@link ExecutorService}, and the flag that decides whether the worker runs the work
-     * loop or is abandoned. The worker sets the flag when it starts, and {@link WorkQueue#close()} sets it if the
-     * worker has not started by then; whichever sets it first wins, so once {@link WorkQueue#close()} has claimed a
-     * worker, that worker is guaranteed never to run the work loop, and does not have to be waited for.
-     */
+    /** A worker task submitted to the {@link ExecutorService}. */
     private static class Worker {
         /** Whether the worker or {@link WorkQueue#close()} claimed this worker first. */
         private final AtomicBoolean claimed;
@@ -103,18 +98,12 @@ public class WorkQueue<T> implements AutoCloseable {
     private final InterruptionChecker interruptionChecker;
 
     /**
-     * The number of nanoseconds with no progress after which the calling thread stops waiting for more work while
-     * it has no work of its own to do, and {@link #close()} stops waiting for the workers to finish, or
-     * {@link Long#MAX_VALUE} to wait indefinitely. Progress is anything reported to
-     * {@link InterruptionChecker#progress()}: a work unit finishing, or a worker reporting progress from within a
-     * long work unit.
+     * The maximum idle time in nanoseconds without progress before waiting for workers times out, or
+     * {@link Long#MAX_VALUE} to wait indefinitely.
      */
     private final long workerTimeoutNanos;
 
-    /**
-     * True once the calling thread has stopped waiting for more work because no progress was made for the worker
-     * timeout. Only read and written on the calling thread.
-     */
+    /** True once the calling thread has timed out waiting for work. */
     private boolean timedOutWaitingForWork;
 
     /** The log node. */
@@ -179,13 +168,8 @@ public class WorkQueue<T> implements AutoCloseable {
      * @param numParallelTasks
      *            The number of parallel tasks.
      * @param workerTimeoutNanos
-     *            The number of nanoseconds with no progress after which to stop waiting for the workers, or
-     *            {@link Long#MAX_VALUE} to wait indefinitely. Progress is anything reported to
-     *            {@link InterruptionChecker#progress()}: a work unit finishing on any thread, or a worker reporting
-     *            progress from within a long work unit. The timeout applies once the calling thread has no work of
-     *            its own left to do, and while waiting for the workers to finish. A pause of the whole JVM, for
-     *            example at a breakpoint that suspends all threads, counts as at most one slice of the wait: see
-     *            {@link IdleTimeout}.
+     *            The maximum idle time in nanoseconds without progress before waiting for workers times out, or
+     *            {@link Long#MAX_VALUE} to wait indefinitely.
      * @param log
      *            The log.
      * @param workUnitProcessor
@@ -193,10 +177,7 @@ public class WorkQueue<T> implements AutoCloseable {
      * @throws InterruptedException
      *             If the work was interrupted.
      * @throws ExecutionException
-     *             If the calling thread throws an uncaught exception while processing a work unit, or if no
-     *             progress is made for the timeout while the calling thread is waiting for more work. A failure or
-     *             timeout of a worker thread is not thrown here, but recorded in the {@link InterruptionChecker},
-     *             to be thrown by its next {@link InterruptionChecker#check()}.
+     *             If a work unit fails with an uncaught exception or waiting for work times out.
      */
     public static <U> void runWorkQueue(final Collection<U> elements, final ExecutorService executorService,
             final InterruptionChecker interruptionChecker, final int numParallelTasks,
@@ -281,22 +262,14 @@ public class WorkQueue<T> implements AutoCloseable {
     }
 
     /**
-     * Take work units from the queue and process them until a poison pill is received. Each worker started by
-     * {@link #startWorkers(ExecutorService, int)} runs this, and so does the thread that called
-     * {@link #runWorkQueue}, so that the work still gets done if the ExecutorService has fewer free threads than
-     * numParallelTasks. When this method returns normally, either all the work has been completed, or another
-     * thread failed, was interrupted or timed out, and emptied the queue so that every thread stops.
+     * Take work units from the queue and process them until a poison pill is received.
      *
      * @param isCallingThread
-     *            true on the thread that called {@link #runWorkQueue}, which stops waiting for more work once no
-     *            progress has been made for the worker timeout. False on a worker thread, which waits for more work
-     *            for as long as it takes, since the calling thread sends it a poison pill if the work queue times
-     *            out.
+     *            true if running on the calling thread, or false if running on a worker thread.
      * @throws InterruptedException
      *             if this thread or another thread was interrupted
      * @throws ExecutionException
-     *             if this thread throws an uncaught exception, if a failure of another thread has been recorded in
-     *             the {@link InterruptionChecker}, or if this is the calling thread and the work queue timed out
+     *             if an uncaught exception occurs or the work queue times out
      */
     private void runWorkLoop(final boolean isCallingThread) throws InterruptedException, ExecutionException {
         for (;;) {
@@ -341,23 +314,14 @@ public class WorkQueue<T> implements AutoCloseable {
     }
 
     /**
-     * Take the next work unit from the queue on the thread that called {@link #runWorkQueue}, giving up once no
-     * progress has been made for the worker timeout. The calling thread cannot wait for more work indefinitely,
-     * since a worker thread that never finishes its work unit would then stop it from ever reaching
-     * {@link #close()}, where the worker timeout is applied to the workers.
-     *
-     * <p>
-     * The timeout counts only time with no progress on any thread, so that the work queue is not stopped while
-     * the other threads are still finishing work units, or are still making progress within a long work unit,
-     * such as a slow download. A pause of the whole JVM counts as at most one slice of the wait: see
-     * {@link IdleTimeout}.
+     * Take the next work unit from the queue on the calling thread, timing out if no progress is made within
+     * {@link #workerTimeoutNanos}.
      *
      * @return the wrapper of the work unit, holding null for a poison pill.
      * @throws InterruptedException
      *             if this thread was interrupted while waiting.
      * @throws ExecutionException
-     *             if no progress was made for the worker timeout. The queue has then been emptied and the other
-     *             threads sent poison pills, and the timeout has been recorded in the {@link InterruptionChecker}.
+     *             if no progress was made within {@link #workerTimeoutNanos}.
      */
     private WorkUnitWrapper<T> takeWorkUnitOnCallingThread() throws InterruptedException, ExecutionException {
         if (workerTimeoutNanos == Long.MAX_VALUE) {
@@ -386,9 +350,7 @@ public class WorkQueue<T> implements AutoCloseable {
     }
 
     /**
-     * Create the exception that reports that a worker thread did not finish within the worker timeout. The message
-     * has to go in the innermost exception, since {@link InterruptionChecker#getCause(Throwable)} unwraps nested
-     * {@link ExecutionException}s.
+     * Create an {@link ExecutionException} indicating that a worker thread timed out.
      *
      * @return the exception.
      */

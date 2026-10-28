@@ -38,23 +38,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A set that compares its elements by reference rather than by {@code equals()}, and that iterates them in the
- * order they were added: a {@link java.util.LinkedHashSet} with the comparison semantics of an
- * {@link IdentityHashMap}.
- *
- * <p>
- * This is for deduplicating objects whose {@code equals()} method cannot be trusted to mean "the same object". Two
- * {@link ClassLoader} instances are two classloaders, and each of them can load a different set of classes,
- * whatever either of them says about being equal to the other -- TomEE makes an instance of
- * {@code CxfContainerClassLoader} equal to the instance of {@code TomEEWebappClassLoader} that it delegates to
- * (#515), so an equals-based set drops whichever of the two it sees second, and the classpath entries of the
- * dropped one are never scanned.
- *
- * <p>
- * Like {@link Collections#newSetFromMap(Map)} over an {@link IdentityHashMap}, this deliberately breaks the general
- * contract of {@link java.util.Set}, which is defined in terms of {@code equals()}. Elements cannot be removed:
- * every removal method throws {@link UnsupportedOperationException}, rather than fall back on the equals-based
- * implementation it inherits and remove an element that was never asked for.
+ * A set that compares its elements by reference identity rather than {@code equals()}, and iterates them in
+ * insertion order. Removal operations are not supported and throw {@link UnsupportedOperationException}.
  *
  * @param <E>
  *            the element type.

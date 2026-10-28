@@ -318,9 +318,7 @@ public class ClassGraphClassLoader extends ClassLoader {
 
     /**
      * Get the classloaders to delegate resource lookups to, in the same order that {@link #findClass(String)}
-     * delegates classloading to them. The null {@link ClassLoader} that stands for the bootstrap classloader is
-     * not included, since the bootstrap classloader is searched by calling the {@code super} method (the parent
-     * of this classloader is null).
+     * delegates classloading to them (excluding the bootstrap classloader).
      *
      * @return the classloaders to delegate to, in delegation order.
      */
@@ -352,10 +350,7 @@ public class ClassGraphClassLoader extends ClassLoader {
 
     /**
      * Whether the bootstrap classloader should be searched before the classloaders returned by
-     * {@link #getResourceDelegationOrder()}. This is the case when the classpath and the classloaders were not
-     * overridden, since then the first entry of the environment classloader delegation order is a null
-     * {@link ClassLoader}, standing for the bootstrap classloader. If the classpath or the classloaders were
-     * overridden, the bootstrap classloader is only searched as a last resort.
+     * {@link #getResourceDelegationOrder()}.
      *
      * @return true if the bootstrap classloader should be searched first.
      */
@@ -364,8 +359,7 @@ public class ClassGraphClassLoader extends ClassLoader {
     }
 
     /**
-     * Add resource URLs to a map from URL string to URL, so that the URLs are deduplicated but stay in the order
-     * they were added in.
+     * Add resource URLs to a map from URL string to URL, preserving insertion order.
      *
      * @param resources
      *            the resource URLs to add (may be null).
@@ -387,10 +381,6 @@ public class ClassGraphClassLoader extends ClassLoader {
 
     /**
      * Open the bootstrap classloader's copy of a resource.
-     *
-     * <p>
-     * N.B. {@code super.getResourceAsStream(path)} is not called, since {@link ClassLoader#getResourceAsStream}
-     * calls the overridden {@link #getResource(String)} method, which would repeat the whole search.
      *
      * @param path
      *            the resource path.

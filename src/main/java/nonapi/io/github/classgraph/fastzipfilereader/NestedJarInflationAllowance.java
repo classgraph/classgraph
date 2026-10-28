@@ -34,32 +34,14 @@ import java.io.InputStream;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * The number of bytes that the deflated jarfiles nested within a toplevel zipfile may still inflate to, all
- * together and at any depth of nesting. It starts at {@value #MAX_INFLATION_RATIO} times the length of the toplevel
- * zipfile, or {@value #MIN_MAX_BYTES} bytes if that is more, and is shared by the toplevel zipfile and every
- * zipfile inflated out of it. Nothing is given back, since an inflated zipfile is kept until the
- * {@link NestedJarHandler} is closed.
- *
- * <p>
- * Without a limit, a small crafted jarfile could fill the heap or the temporary directory, since deflate compresses
- * repeated bytes about a thousand times, and that factor multiplies with each level of nesting. The limit covers
- * all the nested jarfiles together rather than each one separately, since a limit for each one alone would be
- * defeated by splitting the content among many entries, or among many entries that share the same compressed bytes.
- * A real nested jarfile holds content that is already compressed, so it inflates to about 1.0 to 1.5 times its
- * compressed size: of 611 deflated nested archives measured, the highest was 2.8, for a 22-byte jarfile.
+ * Tracks the remaining byte allowance for inflating deflated jarfiles nested within a top-level zipfile, to prevent
+ * zip-bomb exhaustion of heap or temporary disk space.
  */
 final class NestedJarInflationAllowance {
-    /**
-     * The number of times the length of a toplevel zipfile that the jarfiles nested within it may inflate to, all
-     * together.
-     */
+    /** Maximum ratio of total inflated nested jarfile bytes to the top-level zipfile length. */
     static final long MAX_INFLATION_RATIO = 100L;
 
-    /**
-     * The number of bytes that the jarfiles nested within a toplevel zipfile may always inflate to, all together,
-     * however short the toplevel zipfile is, so that a small jarfile holding a large file that compresses very well,
-     * such as a sparse database or disk image used as a test fixture, is not refused.
-     */
+    /** Minimum byte allowance for inflated nested jarfiles, regardless of top-level zipfile length. */
     static final long MIN_MAX_BYTES = 256L * 1024 * 1024;
 
     /** The path of the toplevel zipfile, for the error message. */
@@ -87,14 +69,14 @@ final class NestedJarInflationAllowance {
     }
 
     /**
-     * Wrap the stream that a nested jarfile is inflated from, so that each byte read from it is taken from this
-     * allowance, and a read that would take more than is left throws {@link IOException}.
+     * Wrap an {@link InputStream} so that each read deducts from this allowance and throws {@link IOException} if
+     * the allowance is exceeded.
      *
      * @param inflatedInputStream
      *            the stream that inflates the nested jarfile.
      * @param nestedJarPath
      *            the path of the nested jarfile, for the error message.
-     * @return the wrapped stream. Closing it closes {@code inflatedInputStream}.
+     * @return the wrapped stream.
      */
     InputStream limit(final InputStream inflatedInputStream, final String nestedJarPath) {
         return new LimitedInputStream(inflatedInputStream, nestedJarPath);

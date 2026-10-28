@@ -442,26 +442,17 @@ public class NestedJarHandler {
     /** The separator between random temp filename part and leafname. */
     public static final String TEMP_FILENAME_LEAF_SEPARATOR = "---";
 
-    /**
-     * The prefix that every ClassGraph temporary filename begins with. A leafname is only read as a temporary
-     * filename if it starts with this, so that a file genuinely named "a---b.jar" keeps its whole name.
-     */
+    /** The prefix for temporary filenames. */
     public static final String TEMP_FILENAME_PREFIX = "ClassGraph--";
 
     /** True if {@link #close(LogNode)} has been called. */
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
-    /**
-     * True if a file could not be unmapped as its slice closed, so that only the garbage collector can unmap it.
-     */
+    /** True if a memory-mapped file could not be unmapped when its slice was closed. */
     // #939
     private final AtomicBoolean filesAwaitingUnmapping = new AtomicBoolean(false);
 
-    /**
-     * The slices of the files that could not be unmapped as they closed, keyed by the file each slice reads. A
-     * temporary file that a slice in here reads cannot be deleted on Windows until the file is unmapped, so its
-     * delete waits for the unmap rather than being given up on.
-     */
+    /** Slices of files that could not be unmapped when closed, keyed by file. */
     // #939
     private final Map<File, FileSlice> slicesAwaitingUnmapping = new ConcurrentHashMap<>();
 
@@ -469,9 +460,8 @@ public class NestedJarHandler {
     public InterruptionChecker interruptionChecker;
 
     /**
-     * The number of nanoseconds with no progress after which a thread opening a jarfile stops waiting for another
-     * thread that is already opening it, or {@link Long#MAX_VALUE} to wait indefinitely. Progress is anything
-     * reported to {@link InterruptionChecker#progress()}, such as the bytes of a download arriving.
+     * Maximum time in nanoseconds with no progress to wait for another thread to open a jarfile, or
+     * {@link Long#MAX_VALUE} to wait indefinitely.
      */
     private final long openWaitTimeoutNanos;
 
@@ -484,7 +474,7 @@ public class NestedJarHandler {
     /** The connect timeout and the read timeout of a URL connection, in milliseconds. */
     private static final int HTTP_TIMEOUT = 5000;
 
-    /** The most redirects that are followed for one URL. (The JDK's default for {@code http.maxRedirects}.) */
+    /** Maximum number of HTTP redirects to follow for a URL. */
     private static final int MAX_REDIRECTS = 20;
 
     // -------------------------------------------------------------------------------------------------------------
@@ -514,8 +504,8 @@ public class NestedJarHandler {
      * @param reflectionUtils
      *            the {@link ReflectionUtils} instance
      * @param openWaitTimeoutNanos
-     *            the number of nanoseconds with no progress after which a thread opening a jarfile stops waiting
-     *            for another thread that is already opening it, or {@link Long#MAX_VALUE} to wait indefinitely
+     *            maximum nanoseconds with no progress to wait for another thread to open a jarfile, or
+     *            {@link Long#MAX_VALUE} to wait indefinitely
      */
     public NestedJarHandler(final ScanSpec scanSpec, final InterruptionChecker interruptionChecker,
             final ReflectionUtils reflectionUtils, final long openWaitTimeoutNanos) {
@@ -526,19 +516,8 @@ public class NestedJarHandler {
     }
 
     /**
-     * Get the value for a key from one of the singleton maps of this handler, waiting if another thread is
-     * creating the value until the timeout given to the constructor has passed with no progress reported to the
-     * {@link InterruptionChecker}. That thread may be stuck reading a jarfile from a filesystem or network, and the
-     * waiting thread may be the thread that called the scan, which is the thread that applies the worker timeout
-     * to the other threads, so without a limit the whole scan could hang. A thread that is downloading or
-     * extracting a jarfile slowly but steadily reports its progress, so the wait for it goes on for as long as
-     * that progress continues.
-     *
-     * <p>
-     * On timeout, the timeout is recorded in the {@link InterruptionChecker} as well as thrown as an
-     * {@link IOException}. The caller treats an {@link IOException} as a jarfile that cannot be read, and skips
-     * the classpath element, but the jarfile may be fine, so the scan must fail at its next check rather than give
-     * incomplete results.
+     * Get or create the value for a key from a singleton map, waiting up to {@link #openWaitTimeoutNanos} of
+     * inactivity if another thread is creating it.
      *
      * @param <K>
      *            the key type
@@ -552,14 +531,13 @@ public class NestedJarHandler {
      *            the log
      * @return the non-null value
      * @throws IOException
-     *             if the value could not be created, or another thread was creating it and made no progress for
-     *             the timeout
+     *             if the value could not be created or waiting timed out
      * @throws InterruptedException
      *             if the thread was interrupted
      * @throws NullSingletonException
-     *             if creating the value failed, on this call or an earlier one
+     *             if creating the value returned null
      * @throws NewInstanceException
-     *             if creating the value threw an exception, on this call or an earlier one
+     *             if creating the value threw an exception
      */
     public <K, V> V getSingleton(final SingletonMap<K, V, IOException> singletonMap, final K key,
             final LogNode log)
@@ -590,28 +568,14 @@ public class NestedJarHandler {
         return path.substring(path.lastIndexOf('/') + 1);
     }
 
-    /**
-     * Characters that may not appear in a filename. Windows rejects every ASCII control character, and also
-     * {@code " * / < > ? \ |}, whereas Linux and macOS reject only {@code /}. Windows accepts {@code :}, but treats
-     * it as the start of an NTFS alternate data stream rather than as part of the filename. The remaining
-     * characters are legal everywhere, but are replaced anyway so that a temporary filename can be pasted into a
-     * shell command or a log message without quoting.
-     */
+    /** Characters that are unsafe or invalid in filenames across platforms. */
     private static final Pattern UNSAFE_FILENAME_CHARS = Pattern.compile("[\\x00-\\x1f\"*/:<>?\\\\|&= ]");
 
-    /** Characters outside ASCII, replaced only when the platform cannot encode them in a filename. */
+    /** Non-ASCII characters, replaced when the platform filename encoding cannot represent them. */
     private static final Pattern NON_ASCII_CHARS = Pattern.compile("\\P{ASCII}");
 
     /**
-     * Sanitize filename, by replacing any character that is not valid in a filename on every supported platform
-     * with an underscore. Zip entry names may contain almost any byte, whereas filenames may not, so the temporary
-     * file that a nested jar is extracted to cannot simply be named after the zip entry it came from.
-     *
-     * <p>
-     * A surrogate that is not part of a pair is not a character at all, and cannot be encoded in a filename on any
-     * platform, so it is replaced too, whereas a surrogate pair is kept. This is done by code point rather than with
-     * {@code \p{Cs}} in {@link #UNSAFE_FILENAME_CHARS}, because the JDK 8 regex matcher also tries a match at the
-     * second half of a surrogate pair, where {@code \p{Cs}} matches and splits the pair.
+     * Sanitize a filename by replacing unsafe characters and unpaired surrogates with underscores.
      *
      * @param filename
      *            the filename
@@ -631,35 +595,19 @@ public class NestedJarHandler {
         return buf.toString();
     }
 
-    /**
-     * The most characters of a path that are kept in the name of its temporary file. A filename is limited to 255
-     * bytes on Linux and macOS, and to 255 UTF-16 characters on Windows. A UTF-16 character takes at most 3 bytes
-     * in UTF-8, so this leaves room for the prefix and the random number that
-     * {@link Files#createTempFile(String, String, java.nio.file.attribute.FileAttribute...)} adds.
-     */
+    /** Maximum number of characters of a path retained in the base name of a temporary file. */
     private static final int MAX_TEMP_FILENAME_BASE_LENGTH = 64;
 
     /**
-     * Create a temporary file that only its owner can read, which {@link #close(LogNode)} deletes.
-     * {@link File#deleteOnExit()} is not used: the JDK keeps every path passed to it until the JVM exits, even
-     * after the file has been deleted, so a long-running JVM that scans repeatedly would accumulate them without
-     * limit.
-     *
-     * <p>
-     * The file is named after {@code filePathBase}, or its leafname, with any character that is not valid in a
-     * filename replaced, and with all but the last {@value #MAX_TEMP_FILENAME_BASE_LENGTH} characters removed if
-     * it is longer than that. If the encoding that filenames are stored in cannot represent some character of what
-     * remains, every non-ASCII character is replaced too.
+     * Create a temporary file readable only by its owner, tracked for deletion by {@link #close(LogNode)}.
      *
      * @param filePathBase
      *            The path to derive the temporary filename from.
      * @param onlyUseLeafname
-     *            If true, only use the leafname of filePathBase to derive the temporary filename.
+     *            If true, only use the leafname of {@code filePathBase} to derive the temporary filename.
      * @return The temporary {@link File}.
      * @throws IOException
-     *             If the temporary file could not be created, including when the JDK could not set up its temporary
-     *             directory, and, before JDK 16, when the {@code java.io.tmpdir} system property is not set or
-     *             cannot be represented in the encoding used for filenames.
+     *             If the temporary file could not be created.
      */
     public File makeTempFile(final String filePathBase, final boolean onlyUseLeafname) throws IOException {
         String filenameBase = sanitizeFilename(onlyUseLeafname ? leafname(filePathBase) : filePathBase);
@@ -691,18 +639,15 @@ public class NestedJarHandler {
     }
 
     /**
-     * Create a temporary file that only its owner can read, unlike {@link File#createTempFile(String, String)},
-     * whose file can be read by every local user under the usual umask of 022. On Windows the file takes the access
-     * control list of the temporary directory.
+     * Create a temporary file readable only by its owner.
      *
      * @param filenameBase
-     *            The sanitized name to end the temporary filename with.
+     *            The sanitized name suffix for the temporary filename.
      * @return The temporary {@link File}.
      * @throws IOException
-     *             If the temporary file could not be created, including when the JDK could not set up its temporary
-     *             directory.
+     *             If the temporary file could not be created.
      * @throws InvalidPathException
-     *             If the temporary filename cannot be represented in the encoding that filenames are stored in.
+     *             If the temporary filename cannot be represented in the filesystem's filename encoding.
      */
     private static File createTempFileReadableOnlyByOwner(final String filenameBase) throws IOException {
         try {
@@ -718,29 +663,11 @@ public class NestedJarHandler {
     }
 
     /**
-     * Before JDK 16, check the {@code java.io.tmpdir} system property before calling
+     * Verify on JDK &lt; 16 that the {@code java.io.tmpdir} system property is set to a valid path before calling
      * {@link Files#createTempFile(String, String, java.nio.file.attribute.FileAttribute...)}.
      *
-     * <p>
-     * That method, like {@code Files.createTempDirectory}, resolves the temporary directory once, in the static
-     * initializer of the helper class that both use. If the initializer throws, the first of those calls in the
-     * JVM throws {@link ExceptionInInitializerError}, and every later one throws {@link NoClassDefFoundError}, for
-     * the life of the JVM. From JDK 16 (JDK-8245194), the initializer uses the value that the property had when
-     * the JVM started, so changing the property later has no effect, and this check is not made. Before JDK 16, the
-     * initializer uses the value the property has when it runs, during the first call to
-     * {@code Files.createTempFile} or {@code Files.createTempDirectory} in the JVM. That call may be ClassGraph's,
-     * so on those JDKs a cleared property, or a value that is not a valid path, gives an {@link IOException} here,
-     * which leaves the helper class usable by the rest of the application once the property is set to a valid
-     * value again. If the property was cleared, or set to a value that is not a valid path, after the initializer
-     * ran, the JDK would still create the file, but ClassGraph cannot tell whether the initializer has run, so that
-     * case gives an {@link IOException} too. If a security manager does not let ClassGraph read the property, the
-     * check is skipped, so if the property is then not set or not a valid path, ClassGraph's call breaks
-     * {@code Files.createTempFile} for the rest of the JVM, as any other first call would. The check is also made
-     * when the JDK version is not known (when {@link VersionFinder#JAVA_MAJOR_VERSION} is 0), since on JDK 16 and
-     * later it can at worst give an {@link IOException} for a value the JDK would ignore.
-     *
      * @throws IOException
-     *             If the property is not set, or is not a valid path.
+     *             If the property is not set or is not a valid path.
      */
     private static void checkTempDirPropertyBeforeJdk16() throws IOException {
         final String tempDirName;
@@ -762,24 +689,11 @@ public class NestedJarHandler {
     }
 
     /**
-     * Remove any temporary files created during the scan, as requested by
-     * {@link io.github.classgraph.ClassGraph#removeTemporaryFilesAfterScan()}.
-     *
-     * <p>
-     * If no temporary files were created -- which is the case whenever no nested jars were encountered, i.e. for
-     * an ordinary jar or directory classpath -- this does nothing, so that the {@link ScanResult} returned by the
-     * scan remains fully usable. Previously this always called {@link #close(LogNode)}, which closes every open
-     * {@link Slice} and the inflater {@link Recycler}, so calling {@code removeTemporaryFilesAfterScan()} left the
-     * returned {@link ScanResult} unable to read any resource or load any class from a jar, even though
-     * {@link ScanResult#isClosed()} still reported {@code false} (#916).
-     *
-     * <p>
-     * If temporary files <i>were</i> created, they back open slices of the extracted nested jars, so they cannot
-     * be deleted without closing those slices first -- the whole handler is still torn down in that case.
+     * Remove any temporary files created during the scan, closing this handler if temporary files exist.
      *
      * @param log
      *            the log
-     * @return true if the handler was closed (i.e. if temporary files existed and had to be removed)
+     * @return true if temporary files existed and the handler was closed
      */
     public boolean removeTemporaryFiles(final LogNode log) {
         final Set<File> tempFilesCurr = tempFiles;
@@ -822,9 +736,7 @@ public class NestedJarHandler {
     }
 
     /**
-     * Mark a {@link Slice} as closed. Does nothing once {@link #close(LogNode)} has been called: a slice can be
-     * closed after the {@link ScanResult} has been closed (for example when a {@link io.github.classgraph.Resource}
-     * that was still open is then closed), and closing something twice has to be harmless.
+     * Mark a {@link Slice} as closed.
      *
      * @param slice
      *            the {@link Slice} to close.
@@ -837,9 +749,7 @@ public class NestedJarHandler {
     }
 
     /**
-     * Record that a file could not be unmapped as its slice closed, leaving it to the garbage collector to unmap
-     * the file, so that {@link #close(LogNode)} knows to ask for a collection, and knows which slice to ask to
-     * delete the file once it is unmapped, if it is a temporary file that could not be deleted.
+     * Record that a file could not be unmapped when its slice was closed.
      *
      * @param slice
      *            the slice whose file could not be unmapped.
@@ -872,19 +782,16 @@ public class NestedJarHandler {
     }
 
     /**
-     * Read a jar from a URL into RAM, or into a temporary file if it is larger than the maximum buffered jar RAM
-     * size. A URL that names a {@link Path} in an installed filesystem is opened as that {@link Path} rather than
-     * read through the URL. An http or https redirect is followed, as long as
-     * {@link #redirectTarget(URL, String, Set)} allows it.
+     * Download a jar from a URL to a RAM buffer or temporary file, or open it as a {@link Path} if backed by an
+     * installed filesystem.
      *
      * @param jarURL
      *            the jar URL
      * @param log
      *            the log
-     * @return the jar, as a {@link PhysicalZipFile}.
+     * @return the downloaded or opened {@link PhysicalZipFile}.
      * @throws IOException
-     *             If the jar could not be read, the jar URL is malformed, a redirect could not be followed, or the
-     *             temporary file could not be created or written.
+     *             If the jar could not be downloaded or opened.
      * @throws InterruptedException
      *             if the thread was interrupted
      */
@@ -992,11 +899,11 @@ public class NestedJarHandler {
     }
 
     /**
-     * Whether an HTTP response code is a redirect that should be followed.
+     * Check whether an HTTP response code is a redirect that should be followed.
      *
      * @param responseCode
      *            the HTTP response code.
-     * @return true for 301, 302, 303, 307 and 308. (300 and 305 are left alone, as HttpURLConnection leaves them.)
+     * @return true for 301, 302, 303, 307, and 308.
      */
     private static boolean isRedirect(final int responseCode) {
         switch (responseCode) {
@@ -1012,18 +919,17 @@ public class NestedJarHandler {
     }
 
     /**
-     * Find the URL that a redirect points to, and check that it may be fetched. A redirect may only go to an http
-     * or https URL, may not go from https to http, and may only go to a scheme that has been enabled.
+     * Resolve and validate a redirect target URL.
      *
      * @param url
      *            the URL that was redirected.
      * @param location
-     *            the value of the redirect's {@code Location} header, which may be relative to {@code url}.
+     *            the redirect {@code Location} header value.
      * @param allowedURLSchemes
-     *            the URL schemes that have been enabled, or null if none has.
-     * @return the URL to fetch next.
+     *            the enabled URL schemes, or null if none.
+     * @return the target URL.
      * @throws IOException
-     *             if the location is not a valid URL, or the redirect may not be followed.
+     *             if the location is invalid or the redirect is not allowed.
      */
     static URL redirectTarget(final URL url, final String location, final Set<String> allowedURLSchemes)
             throws IOException {
@@ -1048,10 +954,7 @@ public class NestedJarHandler {
         return redirectURL;
     }
 
-    /**
-     * A {@link URLConnection} that can be closed, so that it does not hold an HTTP connection or a jar open past
-     * the point where it is needed.
-     */
+    /** An {@link AutoCloseable} wrapper for {@link URLConnection}. */
     private static class CloseableUrlConnection implements AutoCloseable {
         /** The connection. */
         public final URLConnection conn;
@@ -1159,19 +1062,11 @@ public class NestedJarHandler {
         return new InputStream() {
             // Gen Inflater instance with nowrap set to true (needed by zip entries)
             private final AtomicBoolean closed = new AtomicBoolean();
-            /**
-             * The staging buffer that deflated bytes are read into from rawInputStream, and then handed to the
-             * inflater as its input. This must never be used as the destination of an inflate() call: the
-             * inflater keeps a reference to its input array, so inflating into this array would overwrite
-             * deflated bytes that the inflater has not consumed yet.
-             */
+            /** Staging buffer for deflated bytes read from rawInputStream. */
             private final byte[] buf = new byte[INFLATE_BUF_SIZE];
-            /** A separate destination buffer for the single-byte read() method. */
+            /** Scratch buffer for single-byte read(). */
             private final byte[] singleByteBuf = new byte[1];
-            /**
-             * True once the end of rawInputStream has been reached, and the dummy byte required by the
-             * "nowrap" option has been handed to the inflater.
-             */
+            /** True once the trailing dummy byte required by nowrap mode has been supplied to the inflater. */
             private boolean suppliedDummyByte;
             private static final int INFLATE_BUF_SIZE = 8192;
 
@@ -1287,10 +1182,7 @@ public class NestedJarHandler {
                 return inflater.finished() ? 0 : 1;
             }
 
-            /**
-             * Mark is not supported by this stream, so this is a no-op, as required by the
-             * {@link InputStream} contract when {@link #markSupported()} returns false.
-             */
+            /** No-op (mark is not supported). */
             @Override
             public synchronized void mark(final int readlimit) {
                 // No-op
@@ -1685,9 +1577,7 @@ public class NestedJarHandler {
         }
     }
 
-    /**
-     * System.runFinalization() -- deprecated in JDK 18, so accessed by reflection.
-     */
+    /** {@code System.runFinalization()} method (deprecated in JDK 18, accessed via reflection). */
     private static volatile Method runFinalizationMethod;
 
     /** Call {@code System.runFinalization()}, if it is available in this JDK. */

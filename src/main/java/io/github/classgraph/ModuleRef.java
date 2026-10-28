@@ -224,7 +224,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
      * only the module name and not the module jar location.
      *
      * @return The module location as a File, i.e. {@code new File(getReference().location())}. Returns null for
-     *         modules that do not have a location, or for modules whole location is a "jrt:" URI.
+     *         modules that do not have a location, or for modules whose location is a "jrt:" URI.
      */
     public File getLocationFile() {
         if (locationFile == null && location != null && "file".equals(location.getScheme())) {

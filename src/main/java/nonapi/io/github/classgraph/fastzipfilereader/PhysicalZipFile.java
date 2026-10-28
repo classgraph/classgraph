@@ -63,10 +63,7 @@ class PhysicalZipFile {
     /** The nested jar handler. */
     NestedJarHandler nestedJarHandler;
 
-    /**
-     * The number of bytes that the deflated jarfiles nested within this zipfile may still inflate to: this
-     * zipfile's own, if it is a toplevel zipfile, or else that of the zipfile it was inflated out of.
-     */
+    /** The inflation byte allowance for deflated jarfiles nested within this zipfile. */
     final NestedJarInflationAllowance nestedJarInflationAllowance;
 
     /**
@@ -147,8 +144,7 @@ class PhysicalZipFile {
      *            the source URL the InputStream was opened from, or the zip entry path of this entry in the parent
      *            zipfile
      * @param inflatedOutOf
-     *            for a deflated nested jarfile, the allowance of the zipfile it is inflated out of, which
-     *            inputStream takes each byte read from it from, and which this zipfile shares; else null.
+     *            the inflation allowance of the parent zipfile if this is a deflated nested jarfile, else null.
      * @param nestedJarHandler
      *            the nested jar handler
      * @param log
@@ -183,9 +179,8 @@ class PhysicalZipFile {
     /**
      * Get the {@link File} this PhysicalZipFile is read from.
      *
-     * @return the {@link File} this PhysicalZipFile is read from, which is the temporary file it was spilled to if
-     *         it was read from an {@link InputStream} (a URL, or a deflated nested jar) that was too large to hold in
-     *         RAM, or null if it was read into RAM, or opened from a {@link Path}.
+     * @return the {@link File} this PhysicalZipFile is read from (or the spilled temporary file), or null if
+     *         memory-backed or opened from a {@link Path}.
      */
     public File getFile() {
         return file;

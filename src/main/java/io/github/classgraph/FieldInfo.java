@@ -102,7 +102,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Deprecated -- use {@link #getModifiersStr()} instead.
+     * Deprecated; use {@link #getModifiersStr()} instead.
      *
      * @deprecated Use {@link #getModifiersStr()} instead.
      * @return The field modifiers, as a string.
@@ -171,9 +171,8 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     }
 
     /**
-     * Run the type annotation decorators on the given parsed field type. Any individual type annotation that
-     * cannot be matched to the type (e.g. an unresolvable nested type, or a compiler bug) is skipped rather than
-     * being allowed to abort parsing of the whole field type. (#897)
+     * Apply the type annotation decorators to the given parsed field type, skipping any type annotation that
+     * cannot be matched to the type.
      *
      * @param fieldType
      *            the parsed field type signature or descriptor to decorate.
@@ -422,8 +421,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Append a string representation of the field to a buffer. The modifiers can be omitted, so that the same code
-     * can render a record component, which has the same shape as a field but no modifiers of its own.
+     * Append a string representation of the field to a buffer.
      *
      * @param includeModifiers
      *            if true, include the field's modifiers

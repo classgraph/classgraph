@@ -71,18 +71,10 @@ public final class FileUtils {
     /** The Unsafe object. */
     private static Object theUnsafe;
 
-    /**
-     * True if the reflective handles above have been initialized. Volatile, and only ever assigned while holding
-     * the lock on {@link FileUtils}, so that the double-checked locking in {@link #lookupCleanMethod} is
-     * correctly synchronized: a thread that reads true here is guaranteed to see the fully-initialized handles.
-     */
+    /** True if the reflective handles above have been initialized. */
     private static volatile boolean initialized;
 
-    /**
-     * The current directory path (only reads the current directory once, the first time this field is accessed, so
-     * will not reflect subsequent changes to the current directory). Volatile, so that the lazy initialization in
-     * {@link #currDirPath()} is not a data race.
-     */
+    /** The cached current directory path, initialized on first access. */
     private static volatile String currDirPath;
 
     /**
@@ -145,12 +137,10 @@ public final class FileUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Sanitize a path on the host against "zip slip" vulnerability, by removing path segments if ".." is found in
-     * the URL, but without allowing navigation above the path hierarchy root. Each nested jar separator '!' starts
-     * a new path hierarchy root; which '!' characters are separators is decided by testing the filesystem (see
-     * {@link JarUtils#indexOfNestedJarSeparator(String)}). Also removes "." and empty path segments ("//"). To
-     * sanitize a path within a directory or archive, where '!' is always an ordinary character, use
-     * {@link #sanitizeRelativePath(String, boolean)}.
+     * Sanitize a path on the host against "zip slip" vulnerability by collapsing {@code ".."}, {@code "."}, and
+     * empty path segments without allowing navigation above the path hierarchy root (each nested jar separator
+     * {@code '!'} starts a new root). To sanitize a path within a directory or archive where {@code '!'} is always
+     * an ordinary character, use {@link #sanitizeRelativePath(String, boolean)}.
      *
      * @param path
      *            The path to sanitize.
@@ -167,12 +157,9 @@ public final class FileUtils {
     }
 
     /**
-     * Sanitize a path on the host against "zip slip" vulnerability, by removing path segments if ".." is found in
-     * the URL, but without allowing navigation above the path hierarchy root. Each nested jar separator '!' starts
-     * a new path hierarchy root; which '!' characters are separators is decided by testing the filesystem (see
-     * {@link JarUtils#indexOfNestedJarSeparator(String)}). Also removes "." and empty path segments ("//"). To
-     * sanitize a path within a directory or archive, where '!' is always an ordinary character, use
-     * {@link #sanitizeRelativePath(String, boolean)}.
+     * Sanitize a path on the host against "zip slip" vulnerability by collapsing {@code ".."}, {@code "."}, and
+     * empty path segments without allowing navigation above the path hierarchy root (each nested jar separator
+     * {@code '!'} starts a new root).
      *
      * @param path
      *            The path to sanitize.
@@ -181,15 +168,8 @@ public final class FileUtils {
      * @param removeFinalSlash
      *            If true, remove any '/' character(s) from the end of the returned path.
      * @param collapseParentSegmentsInFirstSection
-     *            If true, a ".." segment before the first nested jar separator removes the segment before it, as it
-     *            does in every later section. If false, a ".." segment there is left in the path for the platform
-     *            to resolve. Pass false only for the first section of a path that names a file on disk, where the
-     *            two can differ: on Linux and macOS, after a symlinked directory, ".." names the parent of the
-     *            directory the symlink points at, not the parent of the symlink, so collapsing it here would name a
-     *            different file than the one the path reaches (on Windows the path APIs collapse it lexically, so
-     *            the two agree there). Every later section is a path within an archive, which has no symlinks and
-     *            no filesystem to ask, so ".." there is always collapsed -- that is what stops a "zip slip" entry
-     *            name from escaping the archive.
+     *            If true, collapse {@code ".."} segments before the first nested jar separator; if false, leave
+     *            them for the platform to resolve.
      * @return The sanitized path.
      */
     public static String sanitizeEntryPath(final String path, final boolean removeInitialSlash,
@@ -206,15 +186,8 @@ public final class FileUtils {
     }
 
     /**
-     * Sanitize a path relative to the root of a directory or archive, such as a zip entry name or a resource path,
-     * against "zip slip" vulnerability: drop {@code "."} and empty path segments ("//"), remove the preceding
-     * segment for each {@code ".."} segment without allowing navigation above the root, and remove any initial '/'
-     * character(s).
-     *
-     * <p>
-     * Unlike {@link #sanitizeEntryPath(String, boolean, boolean)}, this treats every '!' as an ordinary character,
-     * since a path within a root is not a path on the host, and so contains no nested jar separator. The filesystem
-     * is never read.
+     * Sanitize a path relative to the root of a directory or archive against "zip slip" vulnerability, treating
+     * every {@code '!'} as an ordinary character and removing any initial {@code '/'} character(s).
      *
      * @param relativePath
      *            The path to sanitize.
@@ -378,11 +351,7 @@ public final class FileUtils {
     public static final int CLASSFILE_EXTENSION_LENGTH = CLASSFILE_EXTENSION.length();
 
     /**
-     * Check if a path is the path of a classfile, i.e. whether it ends with a {@code ".class"} extension.
-     *
-     * <p>
-     * The extension is matched ignoring case, since a classfile that has been through a filesystem or archiving
-     * tool that upper-cases filenames still declares the same class, and can still be read.
+     * Check if a path ends with a {@code ".class"} extension (ignoring case).
      *
      * @param path
      *            A file path.
@@ -400,11 +369,8 @@ public final class FileUtils {
     }
 
     /**
-     * Check whether the path of a classfile, without its {@code ".class"} extension, is a class name in internal
-     * form: a sequence of segments separated by {@code '/'}, none of them empty, and none of them containing
-     * {@code '.'}, {@code ';'} or {@code '['} (JVMS 4.2.1). A classfile at any other path holds no class that the
-     * JVM can load from there, and a {@code '.'} in the path would give the same class name as a different path:
-     * {@code "x.Y.class"} and {@code "x/Y.class"} both give {@code "x.Y"}.
+     * Check whether the path of a classfile, without its {@code ".class"} extension, is a valid class name in
+     * internal form (JVMS 4.2.1).
      *
      * @param classfilePath
      *            the path of a classfile, as accepted by {@link #isClassfile(String)}, with {@code '/'} as the
@@ -441,10 +407,6 @@ public final class FileUtils {
 
     /**
      * Lower-case the {@code ".class"} extension of the path of a classfile.
-     *
-     * <p>
-     * Accept and reject criteria for classfiles are built from class names, so they name a classfile with a
-     * lower-case extension, and the extension of a path has to be lower-cased before it is matched against them.
      *
      * @param classfilePath
      *            the path of a classfile, as accepted by {@link #isClassfile(String)}.
@@ -677,8 +639,7 @@ public final class FileUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Canonicalize a {@link File}, resolving symlinks (and, on Windows, junctions and 8.3 short names), so that a
-     * file reached through two different paths is given the same canonical path everywhere in ClassGraph. See
+     * Canonicalize a {@link File}, resolving symlinks (and, on Windows, junctions and 8.3 short names). See
      * {@link #canonicalize(Path)}.
      *
      * @param file
@@ -698,36 +659,14 @@ public final class FileUtils {
     }
 
     /**
-     * Canonicalize a {@link Path}, resolving symlinks (and, on Windows, junctions and 8.3 short names), so that a
-     * file reached through two different paths is given the same canonical path everywhere in ClassGraph.
-     *
-     * <p>
-     * {@link Path#toRealPath(java.nio.file.LinkOption...)} is used rather than {@link File#getCanonicalFile()},
-     * since on Windows the latter does not resolve a symlink or a junction, whereas on Linux and macOS it does,
-     * so the same layout would otherwise be canonicalized one way on Windows and another way everywhere else.
-     * (Both methods do expand a Windows 8.3 short name, such as {@code C:\Users\RUNNER~1} for
-     * {@code C:\Users\runneradmin}.)
-     *
-     * <p>
-     * {@link Path#toRealPath(java.nio.file.LinkOption...)} requires the file to exist, so for a path that does not
-     * exist, the closest ancestor directory that does exist is canonicalized, and the rest of the path is appended
-     * to it. Only the part of the path that exists can be resolved, so the result is the best that can be done:
-     * the same path as if the missing part of it were created.
-     *
-     * <p>
-     * A {@code ".."} segment is resolved by the platform as far as the platform can reach, and only lexically
-     * beyond that. On Linux and macOS the two do not agree, since the filesystem resolves such a segment: after a
-     * symlinked directory, {@code ".."} names the parent of the directory the symlink points at, not the parent of
-     * the symlink. (On Windows the path APIs collapse it lexically, so there is nothing to disagree about there.)
-     * Nothing below the closest existing ancestor exists, so nothing there can be a symlink, which is what makes it
-     * safe to resolve the rest lexically.
+     * Canonicalize a {@link Path}, resolving symlinks (and, on Windows, junctions and 8.3 short names) for the
+     * existing prefix of the path and normalizing any non-existent suffix lexically.
      *
      * @param path
      *            A {@link Path}.
      * @return the canonical form of the path.
      * @throws IOException
-     *             never: a path that cannot be canonicalized is resolved lexically instead. The exception is still
-     *             declared so that callers that catch it continue to compile.
+     *             if the path could not be canonicalized.
      */
     public static Path canonicalize(final Path path) throws IOException {
         try {
@@ -970,9 +909,7 @@ public final class FileUtils {
 
     /**
      * Check whether {@link #closeDirectByteBuffer(ByteBuffer, ReflectionUtils, LogNode)} can unmap a
-     * {@link MappedByteBuffer} on this JDK. It cannot when the cleaner method is missing, or when a
-     * SecurityManager denies access to it. It also cannot on JDK 22 and later, where a file is unmapped by
-     * closing the arena that mapped it instead.
+     * {@link MappedByteBuffer} on this JDK (JDK 8-21 when cleaner access is available).
      *
      * @param reflectionUtils
      *            The reflection utils.
@@ -992,12 +929,12 @@ public final class FileUtils {
     }
 
     /**
-     * Close a {@code DirectByteBuffer} -- in particular, will unmap a {@link MappedByteBuffer}.
+     * Close a {@code DirectByteBuffer}, in particular unmapping a {@link MappedByteBuffer}.
      *
      * @param byteBuffer
      *            The {@link ByteBuffer} to close/unmap.
      * @param reflectionUtils
-     *            The reflection utils (the cleaner method has to be looked up and invoked reflectively).
+     *            The reflection utils.
      * @param log
      *            The log.
      * @return True if the byteBuffer was closed/unmapped.
@@ -1033,17 +970,11 @@ public final class FileUtils {
     private static final String ARENA_CLASS_NAME = "java.lang.foreign.Arena";
 
     /**
-     * Open a new shared {@code java.lang.foreign.Arena} (JDK 22+), which can be used to allocate direct
-     * {@link ByteBuffer}s ({@link #allocateDirectByteBufferUsingArena(Object, long, ReflectionUtils)}) and to
-     * memory-map files to {@link ByteBuffer}s
-     * ({@link #mapFileUsingArena(Object, FileChannel, long, long, ReflectionUtils)}). Closing the arena
-     * ({@link #closeArena(Object, ReflectionUtils, LogNode)}) frees or unmaps all {@link ByteBuffer}s obtained
-     * from it, which on JDK 22+ replaces the use of the terminally-deprecated {@code Unsafe::invokeCleaner}
-     * method (#939).
+     * Open a new shared {@code java.lang.foreign.Arena} (JDK 22+) for allocating or memory-mapping direct
+     * {@link ByteBuffer}s that are freed or unmapped when the arena is closed.
      *
      * @param reflectionUtils
-     *            the reflection utils (the {@code java.lang.foreign} API has to be invoked using reflection,
-     *            since ClassGraph needs to compile and run on JDK 8+)
+     *            the reflection utils
      * @return a new shared {@code Arena} instance, or null if the arena API is not available (JDK older than 22).
      */
     public static Object openArena(final ReflectionUtils reflectionUtils) {
@@ -1136,11 +1067,7 @@ public final class FileUtils {
 
     /**
      * Close an arena obtained from {@link #openArena(ReflectionUtils)}, freeing any direct {@link ByteBuffer}s
-     * allocated from it and unmapping any files mapped with it. A thread that is in the middle of an access to one
-     * of those buffers does not stop the arena from closing: the close waits for that access to finish, and the
-     * access then throws {@link IllegalStateException} instead of returning. Apart from a second close, what makes
-     * closing fail is an I/O operation in progress on a buffer in the arena (such as a channel write from the
-     * buffer), which holds the arena open.
+     * allocated from it and unmapping any files mapped with it.
      *
      * @param arena
      *            the arena to close.
@@ -1172,18 +1099,8 @@ public final class FileUtils {
     private static final int REFERENCE_PROCESSING_TIMEOUT_MILLIS = 100;
 
     /**
-     * Ask the garbage collector to run, and wait for the references that the collection found to be processed, so
-     * that a mapping that nothing can reach any more is more likely to have been released by the time this
-     * returns.
-     *
-     * <p>
-     * This is best effort, and cannot be made reliable: a file is unmapped while the reference to its mapped
-     * buffer is processed, and nothing can observe that a particular reference has been processed. That is why a
-     * file is unmapped explicitly rather than left to this -- this is only for what an explicit unmapping cannot
-     * reach: an address range that has to be freed before a mapping can be retried, a buffer that could not be
-     * unmapped explicitly, and a temporary file that Windows would not let ClassGraph delete. A JVM started with
-     * {@code -XX:+DisableExplicitGC} ignores the request to collect altogether, in which case this returns once
-     * the wait times out, having done nothing.
+     * Request garbage collection and wait briefly for reference processing so that unreachable memory mappings are
+     * more likely to be released before returning.
      */
     // #939
     public static void freeUnreachableBuffers() {

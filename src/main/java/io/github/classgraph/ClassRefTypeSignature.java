@@ -104,15 +104,9 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     }
 
     /**
-     * Get the name of the class, formed from the base name and any suffixes (suffixes are for inner class nesting,
-     * and are separated by '$'), but without any type arguments. For example,
-     * {@code "xyz.Cls<String>.InnerCls<Integer>"} is returned as {@code "xyz.Cls$InnerCls"}. The intent of this
-     * method is that if you replace '.' with '/', and then add the suffix ".class", you end up with the path of the
-     * classfile relative to the package root.
-     *
-     * <p>
-     * For comparison, {@link #toString()} also uses '$' to separate suffixes, but includes type arguments, e.g.
-     * {@code "xyz.Cls<java.lang.String>$InnerCls<java.lang.Integer>"}.
+     * Get the fully-qualified name of the class, formed from the base name and any inner class suffixes separated
+     * by {@code '$'}, without any type arguments (e.g. {@code "xyz.Cls<String>.InnerCls<Integer>"} is returned as
+     * {@code "xyz.Cls$InnerCls"}).
      *
      * @return The fully-qualified name of the class, including suffixes but without type arguments.
      */

@@ -37,25 +37,11 @@ import java.nio.charset.StandardCharsets;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 
 /**
- * Decoder for zip entry names.
- *
- * <p>
- * Zip entry names are not stored in the "modified UTF-8" encoding that the Java classfile format uses: bit 11 of an
- * entry's general purpose bit flag (the "language encoding flag") declares that the name is standard UTF-8, and
- * when that bit is clear, the zip specification (APPNOTE.TXT, section 4.4.4) calls for IBM Code Page 437.
- *
- * <p>
- * Standard UTF-8 encodes a character outside the Basic Multilingual Plane as a single four-byte sequence, whereas
- * modified UTF-8 encodes it as a surrogate pair of three-byte sequences, so decoding a standard UTF-8 name with a
- * modified UTF-8 decoder fails outright for any name containing an emoji or another supplementary-plane character.
+ * Decoder for zip entry names (UTF-8 when bit 11 of the general purpose bit flag is set, otherwise UTF-8 with
+ * fallback to IBM Code Page 437).
  */
 final class ZipEntryNameCodec {
-    /**
-     * The characters that IBM Code Page 437 maps bytes 0x80 to 0xff to. (Bytes 0x00 to 0x7f map to the same
-     * characters as ASCII.) This table is inlined rather than obtained from {@link java.nio.charset.Charset}, since
-     * the "IBM437" charset lives in the {@code jdk.charsets} module, which need not be present in a custom runtime
-     * image.
-     */
+    /** Characters mapped by IBM Code Page 437 for bytes 0x80 to 0xff. */
     private static final String CP437_HIGH = "" //
             + "Çüéâäàåç" //
             + "êëèïîìÄÅ" //
@@ -109,22 +95,12 @@ final class ZipEntryNameCodec {
     }
 
     /**
-     * Decode a zip entry name.
-     *
-     * <p>
-     * A name whose UTF-8 flag is set is decoded as UTF-8, with any malformed sequence replaced by U+FFFD rather
-     * than rejected, so that one bad name cannot render a whole archive unreadable.
-     *
-     * <p>
-     * A name whose UTF-8 flag is clear is still decoded as UTF-8 if it is valid UTF-8, because writers that do not
-     * set the flag nevertheless commonly write UTF-8, and because a name consisting only of ASCII (which is almost
-     * all of them) decodes identically either way. Only a name that is not valid UTF-8 is decoded as CP437, which
-     * cannot fail, since every byte value maps to a character.
+     * Decode a zip entry name as UTF-8 if {@code isUtf8} is true or the bytes are valid UTF-8, otherwise as CP437.
      *
      * @param nameBytes
      *            the bytes of the name
      * @param isUtf8
-     *            whether bit 11 of the entry's general purpose bit flag is set, declaring the name to be UTF-8
+     *            whether bit 11 of the entry's general purpose bit flag is set
      * @return the decoded name
      */
     static String decodeEntryName(final byte[] nameBytes, final boolean isUtf8) {

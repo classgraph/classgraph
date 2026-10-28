@@ -54,12 +54,7 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
     /** The underlying resource to close when {@link ClassfileReader#close()} is called. */
     private Resource resourceToClose;
 
-    /**
-     * The stream the content is read through: either the stream that the {@link Slice} opened, which inflates the
-     * slice if it is a deflated zip entry, or a stream that the caller opened and passed in. Null if the content is
-     * read through {@link #randomAccessReader} or straight out of an {@link ArraySlice}'s array, and null once this
-     * reader has been closed.
-     */
+    /** The {@link InputStream} for reading deflated or stream-backed content, or null. */
     private InputStream inflaterInputStream;
 
     /**
@@ -77,44 +72,22 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
     /** The current read index within the slice. */
     private int currIdx;
 
-    /**
-     * The length of the classfile that its {@link Slice} declares, but no more than {@link #MAX_CLASSFILE_LENGTH},
-     * or -1 if the classfile is read from an {@link InputStream} of unknown length. The buffer is not grown past it.
-     */
+    /** Declared classfile length capped at {@link #MAX_CLASSFILE_LENGTH}, or -1 if unknown. */
     private int classfileLengthHint = -1;
 
-    /**
-     * Initial buffer size. For most classfiles, only the first 16-64kb needs to be read (we don't read the
-     * bytecodes).
-     */
+    /** Initial buffer size (16 KB). */
     private static final int INITIAL_BUF_SIZE = 16384;
 
-    /**
-     * Read this many bytes each time there is a buffer underrun. This is smaller than 8k by 8 bytes to prevent the
-     * doubling of the array size when the last chunk doesn't quite fit within the 16kb of INITIAL_BUF_SIZE, since
-     * the number of bytes that can be requested is up to 8 (for longs). Otherwise we could request to read to (8kb
-     * * 2 + 8), which would double the size of the buffer to 32kb, but if we only need to read between 8kb and
-     * 16kb, then we unnecessarily copied the buffer content one extra time.
-     */
+    /** Number of bytes read on each buffer underrun (8 KB minus 8 bytes for 64-bit alignment slack). */
     private static final int BUF_CHUNK_SIZE = 8192 - 8;
 
-    /**
-     * The largest number of bytes of a classfile that are read. A classfile is buffered up to the furthest point
-     * that has been read or skipped to, and the lengths of the parts that are skipped are read out of the classfile
-     * itself, so without a limit one attribute that declares a length of almost 2GB makes the scanner inflate and
-     * buffer that much, from a deflated jar entry of a few megabytes. The largest classfile among the 1.28 million
-     * in a large Maven repository is 1.1MB, so a classfile that would need more than this is treated as corrupt.
-     */
+    /** Maximum classfile length buffered (64 MB). */
     private static final int MAX_CLASSFILE_LENGTH = 64 * 1024 * 1024;
 
-    /**
-     * The largest buffer that is allocated in one go from the length hint, rather than by doubling. A zip entry can
-     * declare any uncompressed size it likes, so believing a declared length far enough to allocate it would let
-     * every classfile of a small jar ask for the whole of {@link #MAX_CLASSFILE_LENGTH}.
-     */
+    /** Maximum buffer size allocated upfront from a declared length hint (16 MB). */
     private static final int MAX_DECLARED_LENGTH_TO_ALLOCATE = 16 * 1024 * 1024;
 
-    /** The message of the {@link IOException} thrown when a read runs past the end of the classfile. */
+    /** Error message thrown when reading past the end of the classfile. */
     private static final String END_OF_CLASSFILE = "Tried to read past the end of the classfile";
 
     /**

@@ -45,9 +45,8 @@ public final class CollectionUtils {
     }
 
     /**
-     * Sort a collection if it is not empty (to prevent {@link ConcurrentModificationException} if an immutable
-     * empty list that has been returned more than once is being sorted in one thread and iterated through in
-     * another thread -- #334).
+     * Sort a list if it has more than one element (avoids {@link ConcurrentModificationException} on shared empty
+     * immutable lists).
      *
      * @param <T>
      *            the element type
@@ -61,9 +60,8 @@ public final class CollectionUtils {
     }
 
     /**
-     * Sort a collection if it is not empty (to prevent {@link ConcurrentModificationException} if an immutable
-     * empty list that has been returned more than once is being sorted in one thread and iterated through in
-     * another thread -- #334).
+     * Sort a list if it has more than one element (avoids {@link ConcurrentModificationException} on shared empty
+     * immutable lists).
      *
      * @param <T>
      *            the element type

@@ -57,12 +57,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     /** The uncompressed size of the zip entry, in bytes. */
     public final long uncompressedSize;
 
-    /**
-     * The last modified millis since the epoch, or 0L if it is unknown. Volatile, since it caches the conversion of
-     * the MSDOS date and time, and the entries of a zipfile are shared between the threads reading it: a long field
-     * that is not volatile may be written in two halves, so a thread that read a value another thread was caching
-     * could read half of one value and half of another.
-     */
+    /** The last modified time in epoch millis, or 0L if unknown. */
     private volatile long lastModifiedTimeMillis;
 
     /** The last modified time in MSDOS format, if {@link FastZipEntry#lastModifiedTimeMillis} is 0L. */
@@ -72,18 +67,11 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     private final int lastModifiedDateMSDOS;
 
     /**
-     * The high 16 bits of the external file attributes of this entry, which is the Unix mode of the entry if the
-     * zipfile was written on a Unix-like system, or 0 if it was not. (The low 16 bits, which hold the MS-DOS
-     * attributes, are not read: the only thing this is used for is the entry's POSIX permissions.)
+     * The high 16 bits of the external file attributes (the Unix mode if written on a Unix-like system, else 0).
      */
     public final int fileAttributes;
 
-    /**
-     * The {@link Slice} for the zip entry's raw data (which can be either stored or deflated). Volatile, so that a
-     * {@link Slice} created by one thread is safely published to any other thread that reads this field (two
-     * threads racing to initialize this field each end up with an equivalent {@link Slice}, which is harmless,
-     * since a sub-slice does not own any resources).
-     */
+    /** The {@link Slice} for the zip entry's raw data (stored or deflated). */
     private volatile Slice slice;
 
     /**
@@ -196,10 +184,10 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     }
 
     /**
-     * A copy of this entry with its version prefix left in place, for a jarfile that turned out not to declare
-     * {@code Multi-Release: true} in its manifest.
+     * Return a copy of this entry with its version prefix unresolved (for a jarfile that does not declare
+     * {@code Multi-Release: true} in its manifest).
      *
-     * @return a copy of this entry whose unversioned name is the name it is stored under.
+     * @return a copy of this entry whose unversioned name is the stored entry name.
      */
     FastZipEntry withVersionPrefixUnresolved() {
         return new FastZipEntry(parentLogicalZipFile, locHeaderPos, entryName, isDeflated, compressedSize,
@@ -210,10 +198,9 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Lazily get zip entry slice -- this is deferred until zip entry data needs to be read, in order to avoid
-     * randomly seeking within zipfile for every entry as the central directory is read.
+     * Lazily get the zip entry slice.
      *
-     * @return the {@link Slice} covering the entry's raw data, which is still deflated if the entry is deflated.
+     * @return the {@link Slice} covering the entry's raw data (still deflated if the entry is deflated).
      * @throws IOException
      *             If an I/O exception occurs.
      */

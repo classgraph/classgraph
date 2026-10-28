@@ -29,7 +29,7 @@
 package nonapi.io.github.classgraph.utils;
 
 /**
- * File utilities.
+ * String utilities.
  */
 public final class StringUtils {
     /**

@@ -60,73 +60,43 @@ public class FileSlice extends Slice {
     /** The file length. */
     private final long fileLength;
 
-    /**
-     * The file channel of {@link #raf}, or null once closed. Only set on the toplevel file slice, which owns the
-     * file channel. Volatile, since every slice of the file reads it, and it is replaced when a thread that was
-     * interrupted while reading it closes it.
-     */
+    /** The file channel of {@link #raf} on the top-level file slice, or null once closed. */
     private volatile FileChannel fileChannel;
 
-    /**
-     * The lock that the toplevel slice's {@link #raf} and {@link #fileChannel} are replaced and set to null under,
-     * which every slice of the file shares.
-     */
+    /** Lock guarding {@link #raf} and {@link #fileChannel} on the top-level slice. */
     private final Object fileChannelLock;
 
-    /**
-     * The mapped byte buffer, if the file was memory-mapped, or null once closed. Only set on the toplevel file
-     * slice, which owns the mapping. Volatile, since every slice of the file reads it, but only the toplevel slice
-     * writes it.
-     */
+    /** The mapped byte buffer on the top-level file slice if memory-mapped, or null. */
     private volatile ByteBuffer backingByteBuffer;
 
-    /**
-     * The {@code java.lang.foreign.Arena} (JDK 22+) used to memory-map the file, if any. Typed as {@link Object},
-     * since ClassGraph needs to compile and run on JDK 8+. Closing the arena unmaps {@link #backingByteBuffer},
-     * without needing to call the terminally-deprecated {@code Unsafe::invokeCleaner} method (#939). Only set on
-     * the toplevel file slice, which owns the mapping, and only on JDK 22 or later, where arenas exist.
-     */
+    /** The {@code java.lang.foreign.Arena} (JDK 22+) used to memory-map the file on the top-level slice, if any. */
     private Object arena;
 
-    /**
-     * The toplevel file slice, which owns the memory mapping, or {@code this} if this is the toplevel slice.
-     */
+    /** The top-level file slice that owns the file handle and memory mapping. */
     private final FileSlice topLevelFileSlice;
 
     /** True if {@link #close} has been called. */
     private final AtomicBoolean isClosed = new AtomicBoolean();
 
-    /**
-     * The number of views of the memory mapping that the caller could still read, and that therefore have to be
-     * released before the file can be unmapped. Only views that outlive the call that produced them are counted: a
-     * buffer handed to the caller of {@link io.github.classgraph.Resource#read()} is one, whereas a read that
-     * copies bytes out of the mapping and returns is over before it returns. Only used on the toplevel file slice,
-     * which owns the mapping.
-     */
+    /** Count of active caller-held views of the memory mapping on the top-level file slice. */
     // #939
     private final AtomicInteger openViews = new AtomicInteger();
 
-    /** True once the toplevel slice has closed, after which no new view of the mapping is handed out. */
+    /** True once the top-level slice has been closed. */
     // #939
     private volatile boolean mappingReleased;
 
-    /** True once the file has been unmapped. Read and written only while holding the lock on this object. */
+    /** True once the file has been unmapped (guarded by {@code this}). */
     // #939
     private boolean unmapped;
 
-    /**
-     * An action to run once the file has been unmapped, or null if there is none. Read and written only while
-     * holding the lock on this object.
-     */
+    /** Action to run once the file has been unmapped, or null (guarded by {@code this}). */
     // #939
     private Runnable onUnmapped;
 
     /**
-     * Needed because the JDK team changed several API methods to return ByteBuffer rather than Buffer
-     * in JDK 9, which caused some methods to throw NoSuchMethodError in a way that cannot be statically
-     * detected (see #284). This is implemented as a method rather than as an in-place cast so that IDEs
-     * are unlikely to remove the cast operations as (as they assume) statically superfluous, which
-     * re-introduces the same runtime crash every time it happens.
+     * Widen a {@link ByteBuffer} reference to {@link Buffer} to avoid {@link NoSuchMethodError} across JDK 8 and
+     * JDK 9+ (where buffer position/limit methods received covariant return types).
      *
      * @param buf
      *            the {@link ByteBuffer} to widen to {@link Buffer}
@@ -256,24 +226,11 @@ public class FileSlice extends Slice {
     }
 
     /**
-     * Memory-map the whole file to a {@link ByteBuffer}.
-     *
-     * <p>
-     * A mapping outlives the call that reads from it -- a {@link RandomAccessByteBufferReader} keeps a duplicate
-     * for the life of the reader, and {@link #read()} hands a slice of it to the caller -- so a mapping can still
-     * be being read when the {@link io.github.classgraph.ScanResult} that owns it is closed. On JDK 22 and later
-     * it is released by closing the arena the file was mapped in. If another thread is in the middle of an access
-     * to the mapping as the arena closes, such as a bulk copy out of it, the close waits for that access to
-     * finish, and the access then throws a recoverable {@link IllegalStateException} instead of returning, as does
-     * any later access. Below JDK 22 there are no arenas, and the only method that can unmap a file,
-     * {@code Unsafe::invokeCleaner}, frees the address range whether or not anything is still reading it, so the
-     * file is unmapped there only once every view of the mapping that the caller could still read has been
-     * released -- see {@link #close()}.
+     * Memory-map the file to a {@link ByteBuffer}.
      *
      * @return the mapped byte buffer.
      * @throws IOException
-     *             if an I/O exception occurred while mapping the file (mapping may succeed if retried after
-     *             garbage collection).
+     *             if an I/O exception occurred while mapping the file.
      */
     private ByteBuffer mapFile() throws IOException {
         return arena == null ? fileChannel.map(FileChannel.MapMode.READ_ONLY, 0L, fileLength)
@@ -322,19 +279,13 @@ public class FileSlice extends Slice {
     }
 
     /**
-     * Get the {@link FileChannel} to read the file through. Called on the toplevel slice before every read.
-     *
-     * <p>
-     * A file channel is closed by a read on a thread that has been interrupted, or that is interrupted during the
-     * read, and every slice of the file reads through the same channel. So that one interrupted thread cannot stop
-     * every other thread from reading the file, a thread that has been interrupted is not allowed to read the
-     * channel, and a channel that was closed by an interruption during a read is reopened.
+     * Get the {@link FileChannel} for reading the file, reopening it if it was closed by an interrupted thread.
      *
      * @return the {@link FileChannel}
      * @throws InterruptedIOException
      *             if this thread has been interrupted
      * @throws IOException
-     *             if {@link #close()} has been called, or if the channel had to be reopened and could not be
+     *             if {@link #close()} has been called, or if the channel could not be reopened
      */
     private FileChannel fileChannel() throws IOException {
         if (Thread.currentThread().isInterrupted()) {
@@ -440,12 +391,12 @@ public class FileSlice extends Slice {
     }
 
     /**
-     * Take a view of the memory mapping of this file, so that the file is not unmapped while the caller can still
-     * read the buffer it was handed by {@link #read()}.
+     * Acquire a view of the memory mapping so the file is not unmapped while the caller reads the buffer returned
+     * by {@link #read()}.
      *
-     * @return the action that releases the view, which the caller must run once it can no longer read the buffer.
+     * @return an action that releases the view.
      * @throws IOException
-     *             if the file has already been unmapped, so that there is nothing left to read.
+     *             if the file has already been unmapped.
      */
     // #939
     @Override
@@ -467,11 +418,9 @@ public class FileSlice extends Slice {
     }
 
     /**
-     * Take a view of the memory mapping of this file, so that it is not unmapped while the view is open. Called
-     * only on the toplevel file slice, which owns the mapping.
+     * Acquire a view of the memory mapping on the top-level file slice.
      *
-     * @return true if a view was taken, or false if the mapping has already been released, in which case there is
-     *         nothing left to read and nothing to release.
+     * @return true if a view was acquired, or false if the mapping has already been released.
      */
     // #939
     private boolean acquireView() {
@@ -499,10 +448,7 @@ public class FileSlice extends Slice {
     }
 
     /**
-     * Run an action once this file has been unmapped, or immediately if it has been unmapped already. Used to
-     * delete a temporary file whose delete had to wait for the file to be unmapped: Windows refuses to delete a
-     * file that is still mapped, and a file that a view of its mapping holds open is not unmapped until that view
-     * is released, which can be after the scan has closed.
+     * Run an action once this file has been unmapped, or immediately if already unmapped.
      *
      * @param action
      *            the action to run.
@@ -609,28 +555,7 @@ public class FileSlice extends Slice {
         return super.hashCode();
     }
 
-    /**
-     * Close the slice, releasing any memory mapping of the file.
-     *
-     * <p>
-     * On JDK 22 and later this unmaps the file by closing the arena that mapped it, and does so even if another
-     * thread is still reading it. If that thread is in the middle of an access to the mapping, such as a bulk copy
-     * out of it, the close waits for the access to finish before it unmaps the file, and the access then throws
-     * {@link IllegalStateException} instead of returning, which the readers translate into {@link IOException}. An
-     * arena that will not close leaves the file mapped for the rest of the life of the JVM, so that too is left to
-     * the garbage collector to do what it can with.
-     *
-     * <p>
-     * Below JDK 22 there is no arena, and the only method that can unmap a file, {@code Unsafe::invokeCleaner},
-     * frees the address range whether or not anything is still reading it -- a thread that reads one byte
-     * afterwards takes a SIGSEGV that kills the JVM. So the file is unmapped here only if no view of the mapping
-     * is open; if one is, the last {@link #releaseView()} unmaps it instead, and if it cannot be unmapped at all,
-     * it is left to the garbage collector. A read that is already in flight on another thread when the slice is
-     * closed is not covered by either: every reader checks that the file is still mapped before it reads, but a
-     * close that lands between that check and the read itself can still pull the memory out from under it.
-     * Closing a {@link io.github.classgraph.ScanResult} while another thread is reading through it is a
-     * use-after-close either way, and is documented as one.
-     */
+    /** Close the slice, releasing the file handle and any memory mapping on the top-level slice. */
     @Override
     public void close() {
         if (!isClosed.getAndSet(true)) {

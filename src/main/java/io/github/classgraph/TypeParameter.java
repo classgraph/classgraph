@@ -44,10 +44,10 @@ public final class TypeParameter extends HierarchicalTypeSignature {
     /** The type parameter identifier. */
     final String name;
 
-    /** Class bound -- may be null. */
+    /** Class bound (may be null). */
     final ReferenceTypeSignature classBound;
 
-    /** Interface bounds -- may be empty. */
+    /** Interface bounds (may be empty). */
     final List<ReferenceTypeSignature> interfaceBounds;
 
     // -------------------------------------------------------------------------------------------------------------
@@ -91,7 +91,7 @@ public final class TypeParameter extends HierarchicalTypeSignature {
     /**
      * Get the type parameter interface bound(s).
      * 
-     * @return Get the type parameter interface bound(s), which may be the empty list.
+     * @return The type parameter interface bound(s), which may be the empty list.
      */
     public List<ReferenceTypeSignature> getInterfaceBounds() {
         return interfaceBounds;

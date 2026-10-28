@@ -69,16 +69,16 @@ public final class VersionFinder {
     /** Java version string. */
     public static final String JAVA_VERSION = getProperty("java.version");
 
-    /** Java major version -- 7 for "1.7", 8 for "1.8.0_244", 9 for "9", 11 for "11-ea", etc. */
+    /** Java major version (e.g. 7 for "1.7", 8 for "1.8.0_244", 9 for "9", 11 for "11-ea"). */
     public static final int JAVA_MAJOR_VERSION;
 
-    /** Java minor version -- 0 for "11.0.4" */
+    /** Java minor version (e.g. 0 for "11.0.4"). */
     public static final int JAVA_MINOR_VERSION;
 
-    /** Java update version -- 4 for "11.0.4", 391 for "1.8.0_391" */
+    /** Java update version (e.g. 4 for "11.0.4", 391 for "1.8.0_391"). */
     public static final int JAVA_SUB_VERSION;
 
-    /** Java is EA release -- true for "11-ea", etc. */
+    /** True if Java is an early-access release (e.g. "11-ea"). */
     public static final boolean JAVA_IS_EA_VERSION;
 
     static {
@@ -294,13 +294,9 @@ public final class VersionFinder {
     }
 
     /**
-     * Helper method to provide a XXE secured DocumentBuilder Factory.
-     *
-     * reference - https://gist.github.com/AlainODea/1779a7c6a26a5c135280bc9b3b71868f
+     * Create an XXE-secured {@link DocumentBuilderFactory}.
      * 
-     * reference - https://rules.sonarsource.com/java/tag/owasp/RSPEC-2755
-     * 
-     * @return DocumentBuilderFactory
+     * @return the secured {@link DocumentBuilderFactory}
      * @throws ParserConfigurationException
      *             if a requested feature could not be set on the factory
      */
@@ -320,11 +316,9 @@ public final class VersionFinder {
     }
 
     /**
-     * Helper method to provide a XXE secured XPathFactory Factory.
-     *
-     * reference - https://rules.sonarsource.com/java/tag/owasp/RSPEC-2755
+     * Create an XXE-secured {@link XPathFactory}.
      * 
-     * @return XPathFactory
+     * @return the secured {@link XPathFactory}
      * @throws XPathFactoryConfigurationException
      *             if secure processing could not be enabled on the factory
      */

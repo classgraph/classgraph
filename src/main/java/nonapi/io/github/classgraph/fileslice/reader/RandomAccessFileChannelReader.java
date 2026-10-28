@@ -43,23 +43,16 @@ import nonapi.io.github.classgraph.utils.StringUtils;
 /**
  * {@link RandomAccessReader} for a {@link File}. Reads in <b>little endian</b> order, as required by the zipfile
  * format.
- *
- * <p>
- * A {@link FileChannel} is closed by a read on a thread that has been interrupted, or that is interrupted during
- * the read, for every thread that reads it. A channel that several threads read can therefore be given to this
- * reader as a {@link FileChannelSource}, which this reader asks for the channel before every read, so that the
- * owner of the channel can reopen it. A read that fails because another thread closed the channel during the read
- * asks the source for the channel again, and carries on from where it stopped.
  */
 public class RandomAccessFileChannelReader implements RandomAccessReader {
-    /** Where a {@link RandomAccessFileChannelReader} gets the channel that it reads. */
+    /** Supplier of the {@link FileChannel} to read from. */
     public interface FileChannelSource {
         /**
-         * Get the channel to read. This is called before every read, so it should be fast.
+         * Get the channel to read.
          *
          * @return the channel to read.
          * @throws IOException
-         *             if there is no channel to read, because the file has been closed, say.
+         *             if the channel is closed and cannot be reopened.
          */
         FileChannel fileChannel() throws IOException;
     }
@@ -106,10 +99,10 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
     }
 
     /**
-     * Constructor for slicing a file channel that is got from a {@link FileChannelSource} before every read.
+     * Constructor for slicing a file channel obtained from a {@link FileChannelSource}.
      *
      * @param fileChannelSource
-     *            where to get the channel to read
+     *            the source of the channel to read
      * @param sliceStartPos
      *            the slice start pos
      * @param sliceLength

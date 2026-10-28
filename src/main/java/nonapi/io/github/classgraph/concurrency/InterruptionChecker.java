@@ -79,9 +79,8 @@ public class InterruptionChecker {
     }
 
     /**
-     * Set the {@link ExecutionException} that was thrown by a worker. An exception that was caused by an
-     * interruption is recorded as an interruption instead, since a worker that was interrupted was cancelled rather
-     * than broken.
+     * Record the {@link ExecutionException} thrown by a worker, or record an interruption if the cause was an
+     * {@link InterruptedException}.
      *
      * @param executionException
      *            the execution exception that was thrown
@@ -129,11 +128,9 @@ public class InterruptionChecker {
     }
 
     /**
-     * Check for interruption and return interruption status. (An exception thrown by a worker is not reported
-     * here, only by {@link #check()}, unless it was caused by an interruption, which is recorded as an
-     * interruption rather than as an exception.)
+     * Check for thread interruption and return the interruption status.
      *
-     * @return true if this thread or any other thread that shares this InterruptionChecker instance has been
+     * @return true if this thread or any other thread sharing this {@link InterruptionChecker} has been
      *         interrupted.
      */
     public boolean checkAndReturn() {

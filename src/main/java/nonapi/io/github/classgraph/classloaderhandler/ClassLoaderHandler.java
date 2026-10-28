@@ -34,25 +34,10 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
- * A ClassLoader handler.
+ * A handler for extracting classpath entries and delegation order from a {@link ClassLoader}.
  *
  * <p>
- * Implementations must have a no-argument constructor, and are instantiated once each by
- * {@link ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry}. Implementations must be stateless, since a
- * single instance is shared across all scans.
- *
- * <p>
- * If a method of a handler throws a {@link RuntimeException} or a {@link LinkageError}, the exception is logged and
- * the scan goes on without that handler's help for that classloader, so a handler that fails does not stop the
- * other classloaders from being read. A handler whose {@link #canHandle(Class, LogNode)} throws is taken not to
- * handle the class. If {@link #findClassLoaderOrder(ClassLoader, ClassLoaderOrder, LogNode)} throws, the
- * classloader is placed after the classloaders the handler had already delegated to, unless it was already
- * placed. If {@link #getPackageRootPrefixes()} or
- * {@link #findClasspathOrder(ClassLoader, ClasspathOrder, ScanSpec, LogNode)} throws, the classpath entries the
- * handler added for the classloader before the exception are kept.
- *
- * <p>
- * If you create a custom ClassLoaderHandler, please consider submitting it to the ClassGraph open source project.
+ * Implementations must be stateless, since a single instance is shared across all scans.
  */
 interface ClassLoaderHandler {
     /**
@@ -93,15 +78,9 @@ interface ClassLoaderHandler {
     void findClasspathOrder(ClassLoader classLoader, ClasspathOrder classpathOrder, ScanSpec scanSpec, LogNode log);
 
     /**
-     * The automatic package root prefixes (e.g. {@code "BOOT-INF/classes/"}) to look for and strip within classpath
+     * Get the automatic package root prefixes (e.g. {@code "BOOT-INF/classes/"}) to strip within classpath
      * elements obtained from this classloader, or {@link ClassLoaderHandlerRegistry#NO_PACKAGE_ROOT_PREFIXES} if
-     * this classloader's classpath elements always have their classes at the root.
-     *
-     * <p>
-     * Package roots must only be declared here if the classloader really can produce classpath elements in that
-     * layout, since a package root prefix that is also a legal package name (e.g. {@code "classes/"}) can
-     * otherwise cause a real package of that name to be misread as a package root, when there is no classfile
-     * beneath it or the first one cannot be read (#929).
+     * none apply.
      *
      * @return the package root prefixes.
      */

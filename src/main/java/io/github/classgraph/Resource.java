@@ -80,7 +80,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      * @param classpathElement
      *            the classpath element this resource was obtained from.
      * @param length
-     *            the length the length of the resource.
+     *            the length of the resource.
      */
     public Resource(final ClasspathElement classpathElement, final long length) {
         this.classpathElement = classpathElement;
@@ -265,14 +265,10 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      * {@link #readCloseable()}.
      *
      * <p>
-     * If the resource is stored uncompressed in a jarfile that was memory-mapped (which requires
-     * {@link ClassGraph#enableMemoryMapping()}), the returned {@link ByteBuffer} is a view of that mapping, which
-     * the {@link ScanResult} releases when it is closed, so the buffer must not be read after that. This is the one
-     * place where reading after the close is not reported as an {@link IOException}: the buffer is handed straight
-     * to the caller, with nothing in between to turn the failure into one. What such a read does instead depends
-     * on how the JDK releases the mapping: on JDK 22 or later the file is unmapped as the {@link ScanResult}
-     * closes, and reading the buffer throws {@link IllegalStateException}; below JDK 22 the buffer itself keeps
-     * the mapping alive, so the read quietly returns the file content.
+     * The returned {@link ByteBuffer} must not be accessed after the {@link ScanResult} is closed. In particular,
+     * when {@link ClassGraph#enableMemoryMapping()} is enabled, the returned buffer may be a view of a
+     * memory-mapped jarfile that is unmapped when the {@link ScanResult} is closed (which causes subsequent
+     * accesses to throw {@link IllegalStateException} on JDK 22+).
      *
      * @return The allocated or mapped {@link ByteBuffer} for the resource file content.
      * @throws IOException
@@ -327,8 +323,8 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      *
      * @return The length of the resource. This only reliably returns a valid value after calling {@link #open()},
      *         {@link #read()}, or {@link #load()} (and for {@link #open()}, only if the underlying jarfile has
-     *         length information for corresponding {@link ZipEntry} -- some jarfiles may not have length
-     *         information in their zip entries). Returns -1L if the length is unknown.
+     *         length information for the corresponding {@link ZipEntry}, as some jarfiles omit length
+     *         information from their zip entries). Returns -1L if the length is unknown.
      */
     public long getLength() {
         return length;
@@ -341,13 +337,9 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      * modules.
      *
      * <p>
-     * Note: The MS-DOS timestamp of a zip entry is a local date and time, and does not record which time zone it
-     * is in. We arbitrarily assume that it is in UTC, so if the zipfile was written in another time zone, you will
-     * need to correct for the offset yourself. (java.util.zip.ZipFile assumes instead that it is in the default
-     * time zone of the JVM reading it.) MS-DOS time also counts seconds in steps of two, so it can be up to two
-     * seconds earlier than the time the file was written. An entry that also has an extended timestamp extra
-     * field or an Info-ZIP Unix extra field, which are in UTC to the second, gets its time from that field, and
-     * needs no correction.
+     * Note: If a zip entry has an extended timestamp or Info-ZIP Unix extra field, its UTC timestamp (with
+     * one-second precision) is used. Otherwise, the standard MS-DOS zip entry timestamp (which has two-second
+     * precision and no time zone) is interpreted as UTC.
      *
      * @return The millis since the epoch indicating the date / time that this file resource was last modified.
      *         Returns 0L if the last modified date is unknown.

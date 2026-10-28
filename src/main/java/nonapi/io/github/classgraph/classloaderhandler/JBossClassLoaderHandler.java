@@ -109,12 +109,8 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Returns the absolute path of a JAR file from a given root object using the JBoss VFS mechanism. This works
-     * for Versions of JBoss/Wildfly that contain the following change:
-     * <a href="https://issues.redhat.com/browse/WFLY-18544">WFLY-18544</a>
-     * <a href="https://issues.redhat.com/browse/JBEAP-25879">JBEAP-25879</a>
-     * <a href="https://issues.redhat.com/browse/JBEAP-25677">JBEAP-25677</a>
-     * 
+     * Return the physical {@link File} of a JAR file from a JBoss VFS root object via {@code VFS.getMount}.
+     *
      * @param root
      *            The root object to get the JAR path from.
      * @param classpathOrderOut
@@ -151,16 +147,12 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Get the access to the JBoss VFS class. Tries to load VFS first from the classloader of the provided root
-     * object if it's an object from org.jboss.vfs. If the root object is not from org.jboss.vfs, VFS will be tried
-     * to be loaded from the current thread class loader. It might be unnecessary to load VFS from the current
-     * thread context, because this means that the root object is not from org.jboss.vfs and VFS will not help
-     * here... but as a defensive approach we really try to get VFS access here.
+     * Load the {@code org.jboss.vfs.VFS} class using the classloader of the given root object or the current
+     * thread's context classloader.
      *
      * @param root
-     *            The root VirtualFile of JBoss VFS. Used to load the VFS via the classloader of the root. Can not
-     *            be null.
-     * @return The Class object representing the JBoss VFS class, or null if it couldn't be found.
+     *            The root VirtualFile of JBoss VFS (non-null).
+     * @return The {@code org.jboss.vfs.VFS} class, or null if it could not be loaded.
      */
     private static Class<?> getJBossVFSAccess(final Object root) {
         Class<?> jbossVFS = null;
@@ -201,12 +193,9 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Returns the absolute path of a JAR file from a given root object using the 'classic' VFS read mechanism. This
-     * works for Versions of JBoss/Wildfly prior to this change:
-     * <a href="https://issues.redhat.com/browse/WFLY-18544">WFLY-18544</a>
-     * <a href="https://issues.redhat.com/browse/JBEAP-25879">JBEAP-25879</a>
-     * <a href="https://issues.redhat.com/browse/JBEAP-25677">JBEAP-25677</a>
-     * 
+     * Return the path of a JAR file or directory from a JBoss VFS root object using {@code getPhysicalFile} or
+     * {@code getPathName}.
+     *
      * @param root
      *            The root object to get the JAR path from.
      * @param classpathOrderOut
@@ -329,10 +318,6 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
 
     /**
      * Get the automatic package root prefixes for classpath elements obtained from this classloader.
-     *
-     * <p>
-     * No narrower set of prefixes is known for this classloader, so this returns the default set that is used for a
-     * general-purpose classloader, {@link ClassLoaderHandlerRegistry#DEFAULT_PACKAGE_ROOT_PREFIXES}.
      *
      * @return the package root prefixes.
      */

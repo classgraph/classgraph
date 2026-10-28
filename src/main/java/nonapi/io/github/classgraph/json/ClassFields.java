@@ -49,16 +49,8 @@ import nonapi.io.github.classgraph.reflection.ReflectionUtils;
  */
 class ClassFields {
     /**
-     * The list of fields that can be (de)serialized (non-final, non-transient, non-synthetic, accessible), and
-     * their corresponding resolved (concrete) types.
-     * 
-     * <p>
-     * For arrays, the {@link Type} will be a {@code Class<?>} reference where {@link Class#isArray()} is true, and
-     * {@link Class#getComponentType()} is the element type (the element type will itself be an array-typed
-     * {@code Class<?>} reference for multi-dimensional arrays).
-     * 
-     * <p>
-     * For generics, the {@link Type} will be an implementation of {@link ParameterizedType}.
+     * Serializable fields and their resolved types (array {@code Class<?>} for arrays, {@link ParameterizedType}
+     * for generic types).
      */
     final List<FieldTypeInfo> fieldOrder = new ArrayList<>();
 

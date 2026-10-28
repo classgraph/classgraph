@@ -51,10 +51,7 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
     /** Instances that have been allocated but are unused. */
     private final Queue<T> unusedInstances = new ConcurrentLinkedQueue<>();
 
-    /**
-     * True once {@link #forceClose()} has been called. Unlike {@link #close()}, a force-close is terminal: the pool
-     * is gone for good, so an instance handed back afterwards is closed rather than pooled.
-     */
+    /** True once {@link #forceClose()} has been called. */
     private volatile boolean forceClosed;
 
     /** Constructor. */
@@ -112,13 +109,8 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
     }
 
     /**
-     * Recycle an object for reuse by a subsequent call to {@link #acquire()}. If the object is an instance of
-     * {@link Resettable}, then {@link Resettable#reset()} will be called on the instance before recycling it.
-     *
-     * <p>
-     * After {@link #forceClose()} has been called, this method closes the instance instead of pooling it, and never
-     * throws: an instance is normally handed back by the {@code close()} method of whatever borrowed it, and a
-     * {@code close()} method must not fail just because the pool it came from was closed first.
+     * Recycle an instance for reuse by {@link #acquire()}, calling {@link Resettable#reset()} if it implements
+     * {@link Resettable}, or closing it if {@link #forceClose()} has been called.
      *
      * @param instance
      *            the instance to recycle.
@@ -170,13 +162,8 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
     }
 
     /**
-     * Free all unused instances. Calls {@link AutoCloseable#close()} on any unused instances that implement
+     * Free all unused instances, calling {@link AutoCloseable#close()} on any that implement
      * {@link AutoCloseable}.
-     * 
-     * <p>
-     * The {@link Recycler} may continue to be used to acquire new instances after calling this close method, and
-     * then this close method may be called again in future, i.e. the effect of calling this method is to simply
-     * clear out the recycler of unused instances, closing any {@link AutoCloseable} instances.
      */
     @Override
     public void close() {
@@ -186,15 +173,8 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
     }
 
     /**
-     * Force-close this {@link Recycler}, by forcibly moving any instances that have been acquired but not yet
-     * recycled into the unused instances list, then calling {@link #close()} to close any {@link AutoCloseable}
-     * instances and discard all instances.
-     *
-     * <p>
-     * Unlike {@link #close()}, this is terminal: an instance handed back to {@link #recycle(Object)} afterwards is
-     * closed rather than pooled, since nothing would ever drain the pool again. Whatever owns the recycler is
-     * responsible for making sure that nothing calls {@link #acquire()} after this point, since an instance
-     * acquired afterwards is only closed if it is handed back.
+     * Force-close this {@link Recycler}, moving all active instances into the unused list and closing all
+     * {@link AutoCloseable} instances.
      */
     public void forceClose() {
         // Set this before draining, so that anything racing to recycle an instance closes it rather than adding it

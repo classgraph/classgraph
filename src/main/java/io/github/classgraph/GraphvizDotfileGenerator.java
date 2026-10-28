@@ -97,10 +97,7 @@ final class GraphvizDotfileGenerator {
     }
 
     /**
-     * Append a space to the buffer, so that the item appended next is separated from the item before it. Nothing
-     * is appended if there is no item before it in the same table cell or the same parameter list, i.e. if the
-     * buffer ends with the tag that opened the cell or with the opening parenthesis of a parameter list, or if the
-     * buffer already ends with a space.
+     * Append a space to the buffer if it does not already end with a space, {@code '>'}, or {@code '('}.
      *
      * @param buf
      *            the buffer to append to

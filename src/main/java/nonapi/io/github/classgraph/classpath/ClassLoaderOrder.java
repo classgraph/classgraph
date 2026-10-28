@@ -44,12 +44,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** A class to find all unique classloaders. */
 public class ClassLoaderOrder {
-    /**
-     * The {@link ClassLoader} order, with the handlers to run for each classloader. This is a list rather than a
-     * map keyed by classloader, because two classloaders that are equal are still two classloaders, and a map would
-     * keep only one of them (see the note on {@link #added}). Nothing is added twice, since {@link #added} guards
-     * that.
-     */
+    /** The {@link ClassLoader} order, paired with the handlers for each classloader. */
     private final List<Entry<ClassLoader, List<ClassLoaderHandlerRegistryEntry>>> classLoaderOrder = //
             new ArrayList<>();
 
@@ -138,8 +133,8 @@ public class ClassLoaderOrder {
     }
 
     /**
-     * Check whether a ClassLoaderHandler can handle a given {@link ClassLoader} class, treating a handler that
-     * throws as one that cannot, so that one failing handler does not stop every classloader from being read.
+     * Check whether a {@link ClassLoaderHandlerRegistryEntry} can handle a given {@link ClassLoader} class,
+     * returning false if the handler throws an exception.
      *
      * @param ent
      *            the registry entry of the handler.
@@ -182,14 +177,6 @@ public class ClassLoaderOrder {
 
     /**
      * Recursively delegate to another {@link ClassLoader}.
-     *
-     * <p>
-     * The classloader is not placed in the order here: its handler places it, by calling
-     * {@link #add(ClassLoader, LogNode)} either before or after it delegates to the classloader's parent,
-     * according to whether the classloader resolves classes parent-first or parent-last. That is what puts the
-     * classpath elements in the order that classes are resolved in, which is the order that class masking
-     * depends on. If a handler throws, it is skipped, and the classloader is placed after the classloaders the
-     * handler had already delegated to, unless it was already placed.
      *
      * @param classLoader
      *            the class loader

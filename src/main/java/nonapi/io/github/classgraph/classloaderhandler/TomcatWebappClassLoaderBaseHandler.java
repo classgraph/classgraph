@@ -40,10 +40,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** Extract classpath entries from the Tomcat/Catalina WebappClassLoaderBase. */
 class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
-    /**
-     * The path within a webapp's resources that its classloader loads from: {@code StandardRoot} looks up every
-     * classloader resource {@code "x"} as the webapp resource {@code "/WEB-INF/classes/x"}.
-     */
+    /** The path within a webapp's resources from which its classloader loads classes and resources. */
     private static final String CLASSLOADER_RESOURCES_PATH = "/WEB-INF/classes";
 
     /** The superclass of the {@code WebResourceSet}s that serve resources from a jarfile or a WAR file. */
@@ -143,27 +140,11 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Add the part of a single Catalina {@code WebResourceSet} that the webapp's classloader loads from, if any.
-     *
-     * <p>
-     * A resource set serves the files under a path within its directory or archive (its internal path) at a path
-     * within the webapp's resources (its mount), and the classloader loads only what is served under
-     * {@code "/WEB-INF/classes"}. So:
-     * <ul>
-     * <li>A resource set mounted at {@code "/WEB-INF/classes"}, as every jarfile in {@code WEB-INF/lib} is, is on
-     * the classpath as a whole.
-     * <li>A resource set mounted above {@code "/WEB-INF/classes"}, as the webapp's own directory or WAR file is,
-     * is on the classpath only as far as its {@code WEB-INF/classes} dir. The rest of the webapp, e.g.
-     * {@code index.jsp} or {@code WEB-INF/web.xml}, is not on the classpath.
-     * <li>A resource set mounted anywhere else, e.g. static content mounted at {@code "/static"}, is not on the
-     * classpath. Neither is a resource set marked as serving static content only, as the
-     * {@code META-INF/resources} dir of each resource jar is.
-     * </ul>
+     * Add the classpath element contributed by a Catalina {@code WebResourceSet}, if mounted at or above
+     * {@code "/WEB-INF/classes"} and not static-only.
      *
      * @param webResourceSet
-     *            the {@code WebResourceSet}, one of {@code DirResourceSet}, {@code FileResourceSet},
-     *            {@code JarResourceSet}, {@code JarWarResourceSet}, {@code WarResourceSet} or
-     *            {@code EmptyResourceSet}.
+     *            the {@code WebResourceSet}.
      * @param classLoader
      *            the classloader the {@code WebResourceSet} was found in.
      * @param classpathOrder
@@ -223,10 +204,6 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
 
     /**
      * Get the automatic package root prefixes for classpath elements obtained from this classloader.
-     *
-     * <p>
-     * There are none: every place that the webapp's classloader loads from, {@code WEB-INF/classes} included, is
-     * listed as a classpath element of its own, with its classes at its root.
      *
      * @return the package root prefixes.
      */

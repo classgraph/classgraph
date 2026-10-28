@@ -44,15 +44,8 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /**
- * What a classpath search needs to know about the thread that started it: the classes in the call stack, so that
- * the caller's own classloaders and module layers are searched; the thread's context classloader; and whether the
- * thread is holding a class loading lock, which decides whether the scan can safely load classes on a worker thread
- * (#933).
- *
- * <p>
- * This has to be read on the thread that called ClassGraph, since that is the thread whose caller, whose context
- * classloader and whose locks are being asked about, and it has to be read before any of the work is handed to
- * another thread.
+ * Call stack, context classloader, and class-loading lock information captured from the calling thread when a scan
+ * is initiated.
  */
 public class CallStackInfo {
     /** The name the compiler gives a static initializer block. */
@@ -74,10 +67,9 @@ public class CallStackInfo {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the context classloader of the thread that started the search.
+     * Get the context classloader of the calling thread.
      *
-     * @return The context classloader, or null if the thread has none. This is the first classloader that a search
-     *         tries, since a context classloader can be set as an override on a per-thread basis.
+     * @return The context classloader, or null if the thread has none.
      */
     public ClassLoader getContextClassLoader() {
         return contextClassLoader;
@@ -93,19 +85,10 @@ public class CallStackInfo {
     }
 
     /**
-     * Get the innermost stack frame that is holding a lock that the classloader would also need in order to load a
-     * class on another thread.
+     * Get the innermost stack frame holding a class initialization or class loading lock, if any.
      *
-     * <p>
-     * There are two such frames. A static initializer holds the initialization lock of the class it is
-     * initializing, which the JVM does not release until the initializer returns. A {@link ClassLoader} method that
-     * is loading a class holds that classloader's loading lock for the name of the class it is loading, and most
-     * classloaders take a lock of their own as well.
-     *
-     * @return The stack frame that is holding the lock, in the form
-     *         {@code com.xyz.Example.<clinit>(Example.java:20)}, or null if the thread that this info was read on
-     *         was not holding a class loading lock. Only the innermost such frame is kept, and only so that the
-     *         verbose log can say which frame stopped the scan from using worker threads.
+     * @return The stack frame holding the lock (e.g. {@code com.xyz.Example.<clinit>(Example.java:20)}), or null if
+     *         none.
      */
     public String getFrameHoldingClassLoadingLock() {
         return frameHoldingClassLoadingLock;
@@ -130,7 +113,7 @@ public class CallStackInfo {
         this.frameHoldingClassLoadingLock = frameHoldingClassLoadingLock;
     }
 
-    /** What one walk of the call stack found. */
+    /** Call stack frames collected during a stack walk. */
     private static class Frames {
         /** Constructor. */
         private Frames() {
@@ -144,8 +127,7 @@ public class CallStackInfo {
     }
 
     /**
-     * Determine whether a stack frame is holding a lock that the classloader would also need in order to load a
-     * class on another thread.
+     * Determine whether a stack frame holds a class initialization or class loading lock.
      *
      * @param declaringClass
      *            The class that declares the method that the stack frame is in.
@@ -161,7 +143,7 @@ public class CallStackInfo {
     /**
      * Walk the call stack via the StackWalker API (JRE 9+).
      *
-     * @return what the walk found, or null if the call stack could not be read.
+     * @return the collected frames, or null if the call stack could not be read.
      */
     private static Frames walkCallStackViaStackWalker() {
         try {
@@ -247,15 +229,8 @@ public class CallStackInfo {
     }
 
     /**
-     * Find the innermost frame that is holding a class loading lock, for the JREs where the call stack is read by a
-     * method that gives the classes in the stack but not the name of the method in each frame.
-     *
-     * <p>
-     * The method names come from {@link Thread#getStackTrace()}, which gives the name of the class that declares
-     * each method but not the {@link Class} itself, and resolving a class by name while a class loading lock is
-     * held is exactly what must not be done here. The classes that were read from the call stack are used instead:
-     * every class that declares a frame of this stack is one of them, so a frame's class can be identified by
-     * matching its name, without loading anything.
+     * Find the innermost stack frame holding a class loading lock using {@link Thread#getStackTrace()} and the
+     * classes already captured from the call stack.
      *
      * @param callStack
      *            The classes in the call stack.
@@ -288,7 +263,7 @@ public class CallStackInfo {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Read what a classpath search needs to know about the current thread.
+     * Read the call stack, context classloader, and lock state of the current thread.
      *
      * @param reflectionUtils
      *            the reflection utils instance

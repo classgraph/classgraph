@@ -52,16 +52,12 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     private AnnotationParameterValueList annotationParamValues;
 
     /**
-     * Set to true once any Object[] arrays of boxed values or strings in annotationParamValues have been lazily
-     * converted to arrays of their element type. Volatile, so that a thread that sees this flag set also sees the
-     * converted values.
+     * Set to true once any {@code Object[]} arrays of boxed values or strings in {@link #annotationParamValues}
+     * have been lazily converted to arrays of their element type.
      */
     private transient volatile boolean annotationParamValuesHasBeenConvertedToPrimitive;
 
-    /**
-     * The annotation param values with defaults, or null if not yet built. Two threads may build the list at once,
-     * and each stores an equal list. Volatile, so that a thread that reads the list also sees its contents.
-     */
+    /** The annotation parameter values including defaults, or null if not yet built. */
     private transient volatile AnnotationParameterValueList annotationParamValuesWithDefaults;
 
     /** Default constructor for deserialization. */
@@ -271,30 +267,16 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     }
 
     /**
-     * Load the {@link Annotation} class corresponding to this {@link AnnotationInfo} object, by calling
-     * {@code getClassInfo().loadClass()}, then create a new instance of the annotation, with the annotation
-     * parameter values obtained from this {@link AnnotationInfo} object, possibly overriding default annotation
-     * parameter values obtained from calling {@link AnnotationInfo#getClassInfo()} then
-     * {@link ClassInfo#getAnnotationDefaultParameterValues()}.
+     * Load the {@link Annotation} class corresponding to this {@link AnnotationInfo} object by calling
+     * {@code getClassInfo().loadClass()}, then create a new dynamic proxy instance of the annotation with the
+     * parameter values from this {@link AnnotationInfo} object (and default values from the annotation class for
+     * any unspecified parameters).
      *
      * <p>
-     * Note that the returned {@link Annotation} will have some sort of {@link InvocationHandler} proxy type, such
-     * as {@code io.github.classgraph.features.$Proxy4} or {@code com.sun.proxy.$Proxy6}. This is an unavoidable
-     * side effect of the fact that concrete {@link Annotation} instances cannot be instantiated directly.
-     * (ClassGraph uses <a href=
-     * "http://hg.openjdk.java.net/jdk7/jdk7/jdk/file/9b8c96f96a0f/src/share/classes/sun/reflect/annotation/AnnotationParser.java#l255">the
-     * same approach that the JDK uses to instantiate annotations from a map</a>.) However, proxy instances are
-     * <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/reflect/Proxy.html">handled
-     * specially</a> when it comes to casting and {@code instanceof}: you are able to cast the returned proxy
-     * instance to the annotation type, and {@code instanceof} checks against the annotation class will succeed.
+     * The returned proxy instance can be cast to the annotation type, and {@code instanceof} checks against the
+     * annotation class will succeed.
      *
-     * <p>
-     * Of course another option you have for getting the concrete annotations, rather than instantiating the
-     * annotations on a {@link ClassInfo} object via this method, is to call {@link ClassInfo#loadClass()}, and read
-     * the annotations directly from the returned {@link Class} object.
-     *
-     * @return The new {@link Annotation} instance, as a dynamic proxy object that can be cast to the expected
-     *         annotation type.
+     * @return The new {@link Annotation} proxy instance.
      */
     public Annotation loadClassAndInstantiate() {
         final Class<? extends Annotation> annotationClass = getClassInfo().loadClass(Annotation.class);
@@ -481,10 +463,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     }
 
     /**
-     * Get the {@link ClassInfo} object for the annotation class, as {@link #getClassInfo()} does, but without
-     * throwing if the {@link ScanResult} has been closed, so that {@link #equals(Object)}, {@link #hashCode()} and
-     * {@link #compareTo(AnnotationInfo)} keep working after it is closed. The map of class names is not cleared
-     * when the {@link ScanResult} is closed.
+     * Get the {@link ClassInfo} object for the annotation class without throwing if the {@link ScanResult} has been
+     * closed.
      *
      * @return the annotation class, or null if the {@link ScanResult} has not been set or the annotation class was
      *         not encountered during scanning.
@@ -495,15 +475,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     }
 
     /**
-     * Lazily convert any Object[] arrays of boxed values or strings in the parameter values given at the
-     * annotation use site to arrays of their element type, if the {@link ScanResult} has been set. If the
-     * annotation class was not scanned, the element type of each array is worked out from its elements.
-     *
-     * <p>
-     * Each value is converted under its own lock, so once this method returns, this thread sees every value fully
-     * converted. {@link #equals(Object)}, {@link #hashCode()} and {@link #compareTo(AnnotationInfo)} call this
-     * before they read the values, since a value that another thread is converting can be read as a partly
-     * filled array or as null.
+     * Lazily convert any {@code Object[]} arrays of boxed values or strings in the parameter values to arrays of
+     * their element type, if the {@link ScanResult} has been set.
      *
      * @param classInfo
      *            the annotation class, or null if it was not encountered during scanning.
@@ -517,8 +490,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     }
 
     /**
-     * Convert wrapper arrays to primitive arrays. Called for a nested annotation, which may be compared after the
-     * {@link ScanResult} has been closed.
+     * Convert wrapper arrays to primitive arrays.
      */
     void convertWrapperArraysToPrimitiveArrays() {
         if (annotationParamValues != null) {

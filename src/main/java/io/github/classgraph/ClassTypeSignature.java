@@ -58,10 +58,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     /** The superinterface signatures. */
     private final List<ClassRefTypeSignature> superinterfaceSignatures;
 
-    /**
-     * The throws signatures (usually null). These are only present in Scala classes, if the class is marked up with
-     * {@code @throws}, and they violate the classfile spec (#495), but we parse them anyway.
-     */
+    /** The throws signatures (usually null; may be present in classes compiled by the Scala compiler). */
     private final List<ClassRefOrTypeVariableSignature> throwsSignatures;
 
     // -------------------------------------------------------------------------------------------------------------
@@ -78,7 +75,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      * @param superinterfaceSignatures
      *            The superinterface signature(s).
      * @param throwsSignatures
-     *            the throws signatures (these are actually invalid, but can be added by Scala: #495). Usually null.
+     *            the throws signatures (usually null).
      */
     private ClassTypeSignature(final ClassInfo classInfo, final List<TypeParameter> typeParameters,
             final ClassRefTypeSignature superclassSignature,
@@ -93,7 +90,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Constructor used to create synthetic class type descriptor (#662).
+     * Constructor used to create a synthetic class type descriptor.
      *
      * @param classInfo
      *            The class.
@@ -163,8 +160,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Gets the throws signatures. These are invalid according to the classfile spec (so this method is currently
-     * non-public), but may be added by the Scala compiler. (See bug #495.)
+     * Get the throws signatures (usually null).
      *
      * @return the throws signatures
      */

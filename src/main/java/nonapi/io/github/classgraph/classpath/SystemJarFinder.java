@@ -70,8 +70,7 @@ public final class SystemJarFinder {
     }
 
     /**
-     * Add and search a JRE path, adding any jars found to the given sets. (Package-private, so that this can be
-     * tested against a directory other than the JRE directory of the current JVM.)
+     * Add and search a JRE path, adding any jars found to the given sets.
      *
      * @param dir
      *            the JRE directory
@@ -136,31 +135,12 @@ public final class SystemJarFinder {
     }
 
     /**
-     * Determine whether a directory is the root of a JDK installation, by looking for files that are only shipped
-     * with a JDK, and never with a JRE.
-     *
-     * <p>
-     * This is needed because bundling a JRE into an application directory, alongside the application's own jars, is
-     * a common deployment layout:
-     *
-     * <pre>
-     * myapp/
-     *     jre/     &lt;-- the bundled JRE ({@code java.home} points here)
-     *     lib/     &lt;-- the application's own jars
-     * </pre>
-     *
-     * <p>
-     * Without this check, {@code myapp/} would be assumed to be a JDK root simply because {@code java.home} ends in
-     * {@code jre}, and every jar in {@code myapp/lib} would be classified as a JRE lib jar -- which causes those
-     * jars to be silently dropped from the classpath (see {@code ClasspathOrder#addClasspathEntry}), so none of the
-     * application's own classes are found (#816).
-     *
-     * <p>
-     * Only JDK 8 and earlier nest the JRE inside the JDK, so only JDK 8 and earlier markers need to be tested for.
+     * Determine whether a directory is the root of a JDK installation by checking for JDK-specific files
+     * ({@code lib/tools.jar} or {@code bin/javac}).
      *
      * @param dir
      *            the candidate JDK root directory.
-     * @return true if the directory looks like the root of a JDK installation.
+     * @return true if the directory is the root of a JDK installation.
      */
     // (package-private for testing)
     static boolean isJDKRoot(final File dir) {

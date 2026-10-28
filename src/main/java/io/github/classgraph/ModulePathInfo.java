@@ -39,8 +39,8 @@ import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.StringUtils;
 
 /**
- * Information on the module path. Note that this will only include module system parameters actually listed in
- * commandline arguments -- in particular this does not include classpath elements from the traditional classpath,
+ * Information on the module path. Note that this only includes module system parameters actually listed in
+ * commandline arguments: in particular, this does not include classpath elements from the traditional classpath,
  * or system modules.
  */
 public class ModulePathInfo {
@@ -50,7 +50,7 @@ public class ModulePathInfo {
      * the commandline.
      *
      * <p>
-     * Note that the modules the runtime adds by itself (such as the system modules) are not reached through this
+     * Note that modules added automatically by the runtime (such as system modules) are not included in this
      * module path. Call {@link ClassGraph#getModules()} or {@link ScanResult#getModules()} to get all modules
      * visible at runtime.
      */
@@ -135,16 +135,10 @@ public class ModulePathInfo {
     }
 
     /**
-     * Fill in module info from VM commandline parameters.
-     *
-     * <p>
-     * Synchronized rather than guarded by an atomic flag, so that a second thread calling this concurrently blocks
-     * until the first thread has finished populating the field sets. An atomic test-and-set would let the second
-     * thread return immediately and read the (plain, non-thread-safe) {@link LinkedHashSet} fields while the first
-     * thread was still adding to them.
+     * Populate module info from VM commandline parameters.
      *
      * @param reflectionUtils
-     *            the {@link ReflectionUtils} instance to read the commandline arguments with.
+     *            the {@link ReflectionUtils} instance used to read the commandline arguments.
      */
     synchronized void getRuntimeInfo(final ReflectionUtils reflectionUtils) {
         // Only call this reflective method if ModulePathInfo is specifically requested, to avoid illegal

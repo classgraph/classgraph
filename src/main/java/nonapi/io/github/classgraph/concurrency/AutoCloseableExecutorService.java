@@ -71,9 +71,8 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
     }
 
     /**
-     * Catch exceptions from both submit() and execute(), and record them in the {@link InterruptionChecker}, so
-     * that the other threads stop at their next {@link InterruptionChecker#check()}, which throws the recorded
-     * exception.
+     * Record uncaught exceptions from {@link #submit(Runnable)} and {@link #execute(Runnable)} in the
+     * {@link InterruptionChecker}.
      *
      * @param runnable
      *            the Runnable

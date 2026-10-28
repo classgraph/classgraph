@@ -108,8 +108,8 @@ class Scanner implements Callable<ScanResult> {
     private final int numParallelTasks;
 
     /**
-     * The number of nanoseconds with no progress after which a thread waiting for other threads gives up, or
-     * {@link Long#MAX_VALUE} to wait indefinitely.
+     * The number of nanoseconds with no progress after which a worker thread times out, or {@link Long#MAX_VALUE}
+     * to wait indefinitely.
      */
     private final long workerTimeoutNanos;
 
@@ -136,7 +136,7 @@ class Scanner implements Callable<ScanResult> {
      * @param performScan
      *            If true, performing a scan. If false, only fetching the classpath.
      * @param callStackInfo
-     *            what was read from the thread that asked for the scan, read by that thread before the scan started
+     *            the call stack information captured on the calling thread before the scan started
      * @param scanSpec
      *            the scan spec
      * @param executorService
@@ -144,8 +144,7 @@ class Scanner implements Callable<ScanResult> {
      * @param numParallelTasks
      *            the num parallel tasks
      * @param workerTimeoutNanos
-     *            the number of nanoseconds with no progress after which a thread waiting for other threads gives
-     *            up, or {@link Long#MAX_VALUE} to wait indefinitely
+     *            the worker timeout in nanoseconds, or {@link Long#MAX_VALUE} to wait indefinitely
      * @param scanResultProcessor
      *            the scan result processor
      * @param failureHandler
@@ -583,7 +582,7 @@ class Scanner implements Callable<ScanResult> {
 
     /**
      * Create a WorkUnitProcessor for opening traditional classpath entries (which are mapped to
-     * {@link ClasspathElementDir} or {@link ClasspathElementZip} -- {@link ClasspathElementModule} is handled
+     * {@link ClasspathElementDir} or {@link ClasspathElementZip}; {@link ClasspathElementModule} is handled
      * separately).
      *
      * @param allClasspathEltsOut
@@ -1025,8 +1024,7 @@ class Scanner implements Callable<ScanResult> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Remove resources that refer to the same file as a resource found earlier in the classpath / module path, so
-     * that one file is not returned twice. (#704)
+     * Remove resources that refer to the same file as a resource found earlier in the classpath or module path.
      *
      * @param classpathElementOrder
      *            the classpath element order

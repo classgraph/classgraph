@@ -48,9 +48,7 @@ public class ModuleReaderProxy implements Closeable {
     private final String moduleName;
 
     /**
-     * Holder for the reflective handles needed to call {@code Stream#collect(Collectors.toList())}. Both values
-     * are resolved together and published as a single immutable object, so that a reader can never observe one
-     * of them set and the other still null. (#913)
+     * Holder for the reflective handles needed to call {@code Stream#collect(Collectors.toList())}.
      */
     private static final class Collectors {
         /** The {@code java.util.stream.Collector} class, or null if it could not be resolved. */
@@ -76,18 +74,10 @@ public class ModuleReaderProxy implements Closeable {
         }
     }
 
-    /**
-     * Lazily-initialized, immutable, shared {@link Collectors} handles. Volatile, and only ever assigned while
-     * holding the lock on {@link ModuleReaderProxy}, so that the double-checked locking in the constructor is
-     * correctly synchronized. The resolved values do not depend on which {@link ReflectionUtils} instance
-     * resolved them -- they are just JRE classes and a stateless collector -- so sharing them between
-     * {@link ModuleReaderProxy} instances is safe. (#913)
-     */
+    /** Lazily-initialized shared {@link Collectors} handles. */
     private static volatile Collectors collectors;
 
-    /**
-     * The shared {@link Collectors} handles, read once at construction so that {@link #list()} sees a stable value.
-     */
+    /** The shared {@link Collectors} handles. */
     private final Collectors collectorsRef;
 
     /** The {@link ReflectionUtils} instance to reflectively call the {@code ModuleReader} methods with. */
@@ -157,8 +147,7 @@ public class ModuleReaderProxy implements Closeable {
     }
 
     /**
-     * Get the list of resources accessible to a ModuleReader, logging to the given {@link LogNode} if the
-     * {@code ModuleReader} does not honor its contract.
+     * Get the list of resources accessible to a ModuleReader.
      *
      * @param log
      *            the log, or null for no logging.
