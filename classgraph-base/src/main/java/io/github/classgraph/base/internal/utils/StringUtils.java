@@ -79,10 +79,8 @@ public final class StringUtils {
     }
 
     /**
-     * Escape a string so that it can be shown surrounded by double quotes, using Java escape sequences for quotes,
-     * backslashes, and every character outside the printable ASCII range -- which is what
-     * {@link java.lang.annotation.Annotation#toString()} escapes, so that a string rendered by ClassGraph reads the
-     * same way as one rendered by the JDK.
+     * Escape a string for inclusion inside double quotes, using Java escape sequences for quotes, backslashes, and
+     * non-printable-ASCII characters.
      *
      * @param unsafeStr
      *            The string to escape.
@@ -120,8 +118,8 @@ public final class StringUtils {
     }
 
     /**
-     * Escape a character so that it can be shown surrounded by single quotes, using Java escape sequences for
-     * single quotes, backslashes, and every character outside the printable ASCII range.
+     * Escape a character for inclusion inside single quotes, using Java escape sequences for single quotes,
+     * backslashes, and non-printable-ASCII characters.
      *
      * @param unsafeChr
      *            The character to escape.
@@ -144,10 +142,7 @@ public final class StringUtils {
     }
 
     /**
-     * Append a constant value to a buffer as it would be written in Java source: a string in double quotes and a
-     * character in single quotes, both escaped, a {@code long} with an {@code L} suffix, a {@code float} with an
-     * {@code f} suffix, and NaN and the infinities, which have no literal form, as the constant that names them,
-     * such as {@code Float.NaN}. Any other value is appended with {@link String#valueOf(Object)}.
+     * Append a constant value to a buffer formatted as a Java source literal.
      *
      * @param val
      *            The value.
@@ -184,20 +179,19 @@ public final class StringUtils {
     }
 
     /**
-     * Read a string in the "modified UTF-8" format that the Java classfile format stores its strings in.
+     * Read a modified UTF-8 string from a byte array.
      *
      * @param arr
-     *            the array to read the string from
+     *            The array to read the string from.
      * @param startOffset
      *            The start offset of the string within the array.
      * @param numBytes
      *            The number of bytes of the modified UTF-8 encoding of the string.
-     * @return The string.
+     * @return The decoded string.
      * @throws UTFDataFormatException
-     *             If the bytes are not valid modified UTF-8. This is the exception that
-     *             {@link java.io.DataInputStream#readUTF()} throws for the same format.
+     *             If the bytes are not valid modified UTF-8.
      * @throws IllegalArgumentException
-     *             If {@code startOffset} or {@code numBytes} is negative, or the range is not within the array.
+     *             If {@code startOffset} or {@code numBytes} is negative, or the range is out of bounds.
      */
     public static String readStringModifiedUtf8(final byte[] arr, final int startOffset, final int numBytes)
             throws UTFDataFormatException {
@@ -256,11 +250,11 @@ public final class StringUtils {
     }
 
     /**
-     * The exception for a string that is not valid modified UTF-8.
+     * Construct a {@link UTFDataFormatException} for a malformed modified UTF-8 sequence starting at
+     * {@code byteIdx}.
      *
      * @param byteIdx
-     *            the index, relative to the start of the string, of the first byte of the character that could not
-     *            be decoded.
+     *            the byte index of the malformed character relative to the start of the string.
      * @return the exception.
      */
     private static UTFDataFormatException malformed(final int byteIdx) {
@@ -268,18 +262,19 @@ public final class StringUtils {
     }
 
     /**
-     * Turn a type descriptor read from a classfile into the form a user would write, by optionally replacing '/'
-     * with '.', and optionally removing the prefix "L" and the suffix ";".
+     * Normalize a classfile type descriptor by optionally replacing {@code '/'} with {@code '.'} and stripping a
+     * leading {@code 'L'} and trailing {@code ';'}.
      *
      * @param typeDescriptor
      *            The type descriptor.
      * @param replaceSlashWithDot
-     *            If true, replace '/' with '.'.
+     *            If {@code true}, replace {@code '/'} with {@code '.'}.
      * @param stripLSemicolon
-     *            If true, strip the leading 'L' and the final ';' character.
+     *            If {@code true}, strip the leading {@code 'L'} and trailing {@code ';'}.
      * @return The normalized type descriptor.
      * @throws IllegalArgumentException
-     *             If {@code stripLSemicolon} is true but the string does not start with 'L' and end with ';'.
+     *             If {@code stripLSemicolon} is {@code true} and the string does not start with {@code 'L'} and end
+     *             with {@code ';'}.
      */
     public static String normalizeTypeDescriptor(final String typeDescriptor, final boolean replaceSlashWithDot,
             final boolean stripLSemicolon) throws IllegalArgumentException {

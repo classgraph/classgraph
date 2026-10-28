@@ -31,11 +31,7 @@ package io.github.classgraph;
 import java.io.Serial;
 
 /**
- * An unchecked exception that is thrown when an error state occurs or an unhandled exception is caught during
- * scanning.
- *
- * <p>
- * (Extends {@link RuntimeException}, so the more generic exception may be caught.)
+ * An unchecked exception thrown when an error occurs or an unhandled exception is caught during scanning.
  */
 public final class ClassGraphException extends RuntimeException {
     /** serialVersionUID. */

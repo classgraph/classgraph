@@ -31,7 +31,6 @@ package io.github.classgraph.vfs.internal.zip;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -45,14 +44,7 @@ import io.github.classgraph.vfs.internal.slice.PathSlice;
 import io.github.classgraph.vfs.internal.slice.Slice;
 
 /**
- * A physical zipfile, backed by a {@link File} (which may be mmap'd using a {@link FileChannel}), a {@link Path},
- * or a byte array in RAM.
- *
- * <p>
- * A zipfile that had to be spilled to a temporary file -- a deflated nested jarfile too large to inflate into RAM,
- * or a jarfile downloaded from a URL that was too large to buffer -- owns that temporary file through its
- * {@link PathSlice}, and the {@link io.github.classgraph.vfs.VfsRoot} that opened the zipfile owns the zipfile in
- * turn, so closing that root deletes the file.
+ * A physical zipfile backed by a {@link File}, a {@link Path}, or an in-memory byte array (via {@link Slice}).
  */
 public final class PhysicalZipFile {
     /** The {@link Path} backing this {@link PhysicalZipFile}, if any. */
@@ -61,21 +53,20 @@ public final class PhysicalZipFile {
     /** The {@link File} backing this {@link PhysicalZipFile}, if any. */
     private final @Nullable File file;
 
-    /** The path to the zipfile. */
+    /** The path or display name of the zipfile. */
     private final String pathStr;
 
     /** The {@link Slice} for the zipfile. */
     final Slice slice;
 
     /**
-     * The number of bytes that the deflated jarfiles nested within this zipfile may still inflate to: this
-     * zipfile's own, if it is a toplevel zipfile, or else that of the zipfile it was inflated out of.
+     * The inflation allowance shared by this zipfile and all deflated nested jarfiles inflated from it.
      */
     final NestedJarInflationAllowance nestedJarInflationAllowance;
 
     /**
-     * The number of bytes to give back to {@link #nestedJarInflationAllowance} when this zipfile is closed: its
-     * length, if it was inflated out of another zipfile, or else zero. Set to zero once given back.
+     * The number of bytes to return to {@link #nestedJarInflationAllowance} when this zipfile is closed (non-zero
+     * only if this zipfile was inflated from an enclosing zipfile).
      */
     private final AtomicLong bytesToGiveBack;
 
@@ -122,20 +113,19 @@ public final class PhysicalZipFile {
     }
 
     /**
-     * Construct a {@link PhysicalZipFile} by reading from the {@link InputStream} to an array in RAM, or spill to
-     * disk if the {@link InputStream} is too long.
+     * Construct a {@link PhysicalZipFile} by reading from {@code inputStream} into an in-memory byte array, or
+     * spilling to a temporary file if it exceeds the configured RAM buffer size.
      *
      * @param inputStream
-     *            the input stream. Read to its end, but not closed -- the caller retains ownership of it.
+     *            the input stream (read to EOF, not closed by this constructor).
      * @param inputStreamLengthHint
-     *            the number of bytes to read from inputStream, or -1 if unknown.
+     *            the expected stream length in bytes, or -1 if unknown.
      * @param pathStr
-     *            the source URL the InputStream was opened from, or the zip entry path of this entry in the parent
-     *            zipfile
+     *            the source URL or zip entry path from which {@code inputStream} was opened.
      * @param vfs
-     *            the {@link Vfs} that is opening this jarfile
+     *            the {@link Vfs} opening this jarfile.
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or null to skip logging.
      * @throws IOException
      *             if an I/O exception occurs.
      */
@@ -145,24 +135,22 @@ public final class PhysicalZipFile {
     }
 
     /**
-     * Construct a {@link PhysicalZipFile} by reading from the {@link InputStream} to an array in RAM, or spill to
-     * disk if the {@link InputStream} is too long.
+     * Construct a {@link PhysicalZipFile} by reading from {@code inputStream} into an in-memory byte array, or
+     * spilling to a temporary file if it exceeds the configured RAM buffer size.
      *
      * @param inputStream
-     *            the input stream. Read to its end, but not closed -- the caller retains ownership of it.
+     *            the input stream (read to EOF, not closed by this constructor).
      * @param inputStreamLengthHint
-     *            the number of bytes to read from inputStream, or -1 if unknown.
+     *            the expected stream length in bytes, or -1 if unknown.
      * @param pathStr
-     *            the source URL the InputStream was opened from, or the zip entry path of this entry in the parent
-     *            zipfile
+     *            the source URL or zip entry path from which {@code inputStream} was opened.
      * @param inflatedOutOf
-     *            for a deflated nested jarfile, the allowance of the zipfile it is inflated out of, which
-     *            inputStream has taken each byte read from it from, and which this zipfile shares, and gives its
-     *            length back to when it is closed; else null.
+     *            for a deflated nested jarfile, the enclosing zipfile's {@link NestedJarInflationAllowance} to
+     *            which this zipfile's length will be returned on {@link #close()}; or null for a toplevel zipfile.
      * @param vfs
-     *            the {@link Vfs} that is opening this jarfile
+     *            the {@link Vfs} opening this jarfile.
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or null to skip logging.
      * @throws IOException
      *             if an I/O exception occurs.
      */
@@ -186,12 +174,8 @@ public final class PhysicalZipFile {
     }
 
     /**
-     * Release this zipfile: close the slice it is read through, releasing the file handle and the memory mapping
-     * behind it, and delete the temporary file it was extracted to, if it was extracted to one. A zipfile inflated
-     * out of another gives its length back to {@link #nestedJarInflationAllowance}, once. Called by the root that
-     * owns this zipfile -- the one it was opened for, handed it in a {@link JarOpener.OpenedJar} -- when that root
-     * is closed. Nothing else closes it: the jarfiles that read through it, including any stored nested jarfile
-     * read in place as a byte range of it, do not own it.
+     * Close the backing {@link Slice} (releasing any file channel, memory mapping, or temporary file) and return
+     * any inflated bytes to {@link #nestedJarInflationAllowance}.
      *
      * @throws IOException
      *             if the slice could not be closed.
@@ -202,14 +186,11 @@ public final class PhysicalZipFile {
     }
 
     /**
-     * Release this zipfile, because nothing will ever be able to reach it: the operation that opened it failed.
-     * Without this, the file handle, memory mapping and temporary file behind it would not be released even when
-     * the {@link Vfs} is closed, since the {@link Vfs} releases only what the roots it opened own, and no root owns
-     * this zipfile.
+     * Close this zipfile when opening fails before ownership can be transferred to a caller, adding any close
+     * exception as a suppressed exception on {@code failure}.
      *
      * @param failure
-     *            the failure that stopped this zipfile from being handed over, for any failure to release it to be
-     *            recorded within.
+     *            the exception that prevented opening from completing.
      */
     void releaseUnreachable(final Throwable failure) {
         try {
@@ -232,22 +213,17 @@ public final class PhysicalZipFile {
     /**
      * Get the {@link File} this zipfile is read from.
      *
-     * @return the {@link File} this zipfile was opened from, or the temporary file it was spilled to if it was read
-     *         from a stream that was too long to hold in RAM -- or null if it was opened from a {@link Path}, or
-     *         read from a stream into RAM.
+     * @return the {@link File} this zipfile was opened from, the temporary file it was spilled to, or null if
+     *         opened from a {@link Path} or buffered in RAM.
      */
     public @Nullable File getFile() {
         return file;
     }
 
     /**
-     * Get the path or name of this zipfile, which log messages and entry paths use. This does not identify the
-     * zipfile: two zipfiles read from streams under the same name, such as the same nested jar of two different
-     * outer jars, have the same name.
+     * Get the path or display name of this zipfile.
      *
-     * @return the path of the file or {@link Path} this zipfile was opened from, or, if it was read from a stream,
-     *         the name it was read under: the URL it was downloaded from, or the name of the zip entry it was
-     *         inflated from. (A temporary file that a stream was spilled to does not change this name.)
+     * @return the file path, source URL, or nested zip entry name under which this zipfile was opened.
      */
     public String getPathString() {
         return pathStr;

@@ -45,19 +45,13 @@ import org.jspecify.annotations.Nullable;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 
 /**
- * The verbose log that ClassGraph writes what it is doing to: a tree of log entries that may be added in any order,
- * from any thread, and that reads back in a sane order, since each entry is nested under the entry it belongs to.
+ * A thread-safe hierarchical log tree used by ClassGraph for verbose logging.
  *
  * <p>
- * A log entry is added by calling one of the {@code log} methods, each of which returns the node that was added, so
- * that the entries belonging to it can be nested under it in turn. The order of the children of a node is the order
- * they were added in, unless a sort key is given, in which case they are ordered by sort key, so that a log written
- * by several threads at once still reads the same way every time.
- *
- * <p>
- * The whole tree is written to the {@code io.github.classgraph.ClassGraph} logger at {@code INFO} level by
- * {@link #flush()}, which ClassGraph calls at the end of a scan. The output is meant to be read by a person working
- * out why something was or was not found, and is not a stable format to parse.
+ * Calling any {@code log} method appends a child node and returns it so sub-entries can be nested under it. Sibling
+ * entries are ordered by insertion order, or by sort key if one is provided. Calling {@link #flush()} on the root
+ * node writes the formatted tree to the {@code io.github.classgraph.ClassGraph} {@link Logger} at {@code INFO}
+ * level.
  */
 public final class LogNode implements ClassGraphLog {
     // Turn off log4j2 message lookups (CVE-2021-44228) for log4j 2.10-2.14.1 if ClassGraph's java.util.logging
@@ -68,77 +62,62 @@ public final class LogNode implements ClassGraphLog {
         System.getProperties().putIfAbsent("log4j2.formatMsgNoLookups", "true");
     }
 
-    /**
-     * The name of the logger that verbose log output is written to. This is a documented, user-visible name that
-     * callers configure their logging framework with, so it is spelled out here rather than derived from a class
-     * literal -- the class it names lives in a different module.
-     */
+    /** The name of the logger to which verbose log output is written. */
     private static final String LOGGER_NAME = "io.github.classgraph.ClassGraph";
 
-    /** The name that log entries are tagged with. */
+    /** The tag prefix for log entries. */
     private static final String LOG_ENTRY_TAG = "ClassGraph";
 
     /** The logger. */
     private static final Logger log = Logger.getLogger(LOGGER_NAME);
 
-    /**
-     * The timestamp at which the log node was created (relative to some arbitrary system timepoint).
-     */
+    /** The creation timestamp in nanoseconds ({@link System#nanoTime()}). */
     private final long timeStampNano = System.nanoTime();
 
-    /** The timestamp at which the log node was created, in epoch millis. */
+    /** The creation timestamp in epoch milliseconds. */
     private final long timeStampMillis = System.currentTimeMillis();
 
-    /** The log message, or null if there is no message for this log node. */
+    /** The log message, or {@code null} if none. */
     private final @Nullable String msg;
 
-    /** The stacktrace, if this log entry was due to an exception. */
+    /** The formatted stack trace, if an exception was logged. */
     private final @Nullable String stackTrace;
 
-    /**
-     * The time between when this log entry was created and addElapsedTime() was called.
-     */
+    /** The elapsed time in nanoseconds recorded by {@link #addElapsedTime()}. */
     private long elapsedTimeNanos;
 
-    /** The parent LogNode. */
+    /** The parent log node, or {@code null} if this is the root node. */
     private @Nullable LogNode parent;
 
-    /** The child nodes of this log node. */
+    /** The child nodes of this log node, keyed by sort key. */
     private final Map<String, LogNode> children = new ConcurrentSkipListMap<>();
 
     /** The sort key prefix for deterministic ordering of log entries. */
     private final String sortKeyPrefix;
 
-    /** The sort key suffix for this log entry, used to make sort keys unique. */
+    /** Counter used to assign a unique suffix to each sort key. */
     private static final AtomicInteger sortKeyUniqueSuffix = new AtomicInteger(0);
 
-    /**
-     * The timestamp formatter, in the system time zone. Uses {@link Locale#US}, so that logs read the same way
-     * whatever the default locale is.
-     */
+    /** Timestamp formatter using the system time zone and {@link Locale#US}. */
     private static final DateTimeFormatter dateTimeFormatter = DateTimeFormatter
             .ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZ", Locale.US).withZone(ZoneId.systemDefault());
 
-    /**
-     * If true, each log entry is written out as soon as it is added, as well as being added to the tree. Every node
-     * of a tree has the same value, since a child is created with the value of its parent.
-     */
+    /** Whether log entries are emitted immediately as well as added to the tree. */
     private final boolean logInRealtime;
 
     /**
-     * Create a non-toplevel log node. The order may also be made deterministic by specifying a sort key for log
-     * entries.
+     * Create a non-root log node.
      *
      * @param sortKey
      *            the sort key
      * @param msg
      *            the log message
      * @param elapsedTimeNanos
-     *            the elapsed time in nanos
+     *            the elapsed time in nanoseconds
      * @param exception
-     *            the exception that was thrown
+     *            the exception that was thrown, or {@code null}
      * @param logInRealtime
-     *            if true, write out each log entry as soon as it is added
+     *            whether to write each log entry immediately as it is added
      */
     private LogNode(final String sortKey, final @Nullable String msg, final long elapsedTimeNanos,
             final @Nullable Throwable exception, final boolean logInRealtime) {
@@ -155,18 +134,17 @@ public final class LogNode implements ClassGraphLog {
         }
     }
 
-    /** Create a toplevel log node, whose entries are written out when it is flushed. */
+    /** Create a root log node whose entries are written when {@link #flush()} is called. */
     public LogNode() {
         this(false);
     }
 
     /**
-     * Create a toplevel log node.
+     * Create a root log node.
      *
      * @param logInRealtime
-     *            if true, each log entry of the tree is also written out as soon as it is added, rather than only
-     *            when the tree is flushed. This can help debug situations where the log is never written out, e.g.
-     *            deadlocks, or where you need to see the log right up to the point where you hit a breakpoint.
+     *            if {@code true}, log entries are also written immediately as they are added rather than only when
+     *            {@link #flush()} is called.
      */
     public LogNode(final boolean logInRealtime) {
         this("", "", /* elapsedTimeNanos = */ -1L, /* exception = */ null, logInRealtime);
@@ -175,9 +153,7 @@ public final class LogNode implements ClassGraphLog {
         logJavaInfo();
     }
 
-    /**
-     * Log the Java version and the Java home directory.
-     */
+    /** Log OS and Java runtime information. */
     private void logJavaInfo() {
         log("Operating system: " + System.getProperty("os.name") + " " + System.getProperty("os.version") + " "
                 + System.getProperty("os.arch"));
@@ -248,9 +224,9 @@ public final class LogNode implements ClassGraphLog {
     }
 
     /**
-     * Build the log output. Call this on the toplevel log node.
+     * Format this log tree as a string.
      *
-     * @return the log output
+     * @return the formatted log output
      */
     @Override
     public String toString() {
@@ -259,10 +235,7 @@ public final class LogNode implements ClassGraphLog {
         return buf.toString();
     }
 
-    /**
-     * Call this once the work corresponding with a given log entry has completed if you want to show the time taken
-     * after the log entry.
-     */
+    /** Record the time elapsed since this log entry was created. */
     public void addElapsedTime() {
         elapsedTimeNanos = System.nanoTime() - timeStampNano;
     }
@@ -471,11 +444,8 @@ public final class LogNode implements ClassGraphLog {
     }
 
     /**
-     * Write the log out to the {@code io.github.classgraph.ClassGraph} {@link Logger} at {@code INFO} level, and
-     * clear the log contents. (Where the log ends up is therefore up to the JDK logging configuration, which by
-     * default writes to stderr.) Only call this on the toplevel log node, when threads do not have access to
-     * references of internal log nodes so that they cannot add more log entries inside the tree, otherwise log
-     * entries may be lost.
+     * Write the log tree to the {@code io.github.classgraph.ClassGraph} {@link Logger} at {@code INFO} level and
+     * clear all child entries. Must only be called on the root log node after concurrent logging has completed.
      */
     public void flush() {
         if (parent != null) {

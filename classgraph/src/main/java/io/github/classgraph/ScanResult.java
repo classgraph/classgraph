@@ -92,30 +92,23 @@ public final class ScanResult implements AutoCloseable {
     final Map<String, ClassInfo> classNameToClassInfo;
 
     /**
-     * The map from class name to {@link ClassInfo}, for the {@link ClassInfo} objects made after the scan for
-     * classes that are not in {@link #classNameToClassInfo}: an array class, or a class that is named only in a
-     * type signature. They are kept apart so that looking up a type cannot change what
-     * {@link #getClassInfo(String)} or {@link #getAllClasses()} returns.
+     * The map from class name to {@link ClassInfo} for classes created after the scan (array classes or classes
+     * referenced only in type signatures).
      */
     final Map<String, ClassInfo> classNameToClassInfoMadeAfterScan = new ConcurrentHashMap<>();
 
     /** The map from package name to {@link PackageInfo}. */
     private @Nullable Map<String, PackageInfo> packageNameToPackageInfo;
 
-    /**
-     * The {@link ModuleInfo} of every classpath element that holds a module, in scan order. Two classpath elements
-     * can have the same module name, so there can be more than one {@link ModuleInfo} with a given name.
-     */
+    /** The {@link ModuleInfo} of every classpath element that holds a module, in scan order. */
     private @Nullable List<ModuleInfo> moduleInfoInScanOrder;
 
     /** The map from module name to the first {@link ModuleInfo} of that name in scan order. */
     private @Nullable Map<String, ModuleInfo> moduleNameToModuleInfo;
 
     /**
-     * The file, directory and jarfile resources timestamped during a scan, along with their timestamp at the time
-     * of the scan. For jarfiles, the timestamp represents the timestamp of all files within the jar. Null if this
-     * {@link ScanResult} came from {@code ClassGraph#getClasspathScanResult}, which only determines the classpath
-     * and never scans, so there is nothing to timestamp, or if this {@link ScanResult} has been closed.
+     * The file, directory, and jarfile resources timestamped during a scan, mapped to their timestamp at the time
+     * of the scan, or null if not recorded or closed.
      */
     private @Nullable Map<File, Long> fileToLastModified;
 
@@ -127,8 +120,7 @@ public final class ScanResult implements AutoCloseable {
 
     /**
      * The names of the container annotations of every {@link java.lang.annotation.Repeatable} annotation found by
-     * the scan. The type annotation lists of type signatures are built after the scan, and use this to unpack
-     * containers the way the declaration annotation lists are unpacked when the scan result is made.
+     * the scan.
      */
     final Set<String> containerAnnotationNames;
 
@@ -139,8 +131,7 @@ public final class ScanResult implements AutoCloseable {
     private static final String CLOSED_MESSAGE = "Cannot use a ScanResult after it has been closed";
 
     /**
-     * Get the classpath order, for use in code paths that are only reachable before this {@link ScanResult} is
-     * closed.
+     * Get the classpath order.
      *
      * @return the classpath order
      * @throws IllegalStateException
@@ -155,8 +146,7 @@ public final class ScanResult implements AutoCloseable {
     }
 
     /**
-     * Get the map from package name to {@link PackageInfo}, for use in code paths that are only reachable before
-     * this {@link ScanResult} is closed.
+     * Get the map from package name to {@link PackageInfo}.
      *
      * @return the map from package name to {@link PackageInfo}
      * @throws IllegalStateException
@@ -171,8 +161,7 @@ public final class ScanResult implements AutoCloseable {
     }
 
     /**
-     * Get the {@link ModuleInfo} of every classpath element that holds a module, in scan order, for use in code
-     * paths that are only reachable before this {@link ScanResult} is closed.
+     * Get the {@link ModuleInfo} of every classpath element that holds a module, in scan order.
      *
      * @return the {@link ModuleInfo} objects in scan order
      * @throws IllegalStateException
@@ -187,8 +176,7 @@ public final class ScanResult implements AutoCloseable {
     }
 
     /**
-     * Get the map from module name to the first {@link ModuleInfo} of that name in scan order, for use in code
-     * paths that are only reachable before this {@link ScanResult} is closed.
+     * Get the map from module name to the first {@link ModuleInfo} of that name in scan order.
      *
      * @return the map from module name to {@link ModuleInfo}
      * @throws IllegalStateException
@@ -541,17 +529,14 @@ public final class ScanResult implements AutoCloseable {
     // Classpath / module path
 
     /**
-     * Returns the list of File objects for the unique classpath elements (directories or jarfiles) that were
-     * scanned, in classloader resolution order.
+     * Returns the list of {@link File} objects for the unique classpath elements (directories or jarfiles) that
+     * were scanned, in classloader resolution order.
      *
      * <p>
-     * Only the classpath elements that were actually scanned are listed: a classpath element is scanned only if it
-     * was enabled with {@link ClassGraph#enableClasspath()}, {@link ClassGraph#enableClassLoaders(ClassLoader...)}
-     * or {@link ClassGraph#enableClasspathEntries(Object...)}, and was not narrowed out by an {@code accept} or
-     * {@code reject} method. A classpath element that has no {@link File}, as described for
-     * {@link Resource#getClasspathElementFile()}, is left out, but {@link #getClasspathURIs()} lists it if it has a
-     * location URI. A jarfile downloaded from a URL into a temporary file is listed by that file, which is deleted
-     * when this {@link ScanResult} is closed.
+     * Only scanned classpath elements backed by a {@link File} are included (see
+     * {@link Resource#getClasspathElementFile()}); call {@link #getClasspathURIs()} to include elements that have a
+     * location URI but no local {@link File}. A jarfile downloaded from a URL to a temporary file is represented by
+     * that temporary file, which is deleted when this {@link ScanResult} is closed.
      *
      * @return The unique classpath elements that were scanned.
      * @throws IllegalStateException
@@ -630,14 +615,14 @@ public final class ScanResult implements AutoCloseable {
     }
 
     /**
-     * Get the {@link ModuleReference} for each module that was scanned, in the order it was scanned in.
+     * Get the {@link ModuleReference} for each module that was scanned, in scan order.
      *
      * <p>
-     * Only the modules that were actually scanned are listed: a module is scanned only if its kind was enabled with
-     * {@link ClassGraph#enableSystemModules()} or {@link ClassGraph#enableNonSystemModules()}, it is in a layer
-     * that is searched (see {@link ClassGraph#enableModuleLayers(ModuleLayer...)}), and it was not narrowed out by
-     * {@link ClassGraph#acceptModules(String...)} or {@link ClassGraph#rejectModules(String...)}. A module that was
-     * merely looked in, in order to complete the class graph above an accepted class, is not listed here.
+     * Only modules that were enabled ({@link ClassGraph#enableSystemModules()},
+     * {@link ClassGraph#enableNonSystemModules()}, {@link ClassGraph#enableModuleLayers(ModuleLayer...)}) and
+     * accepted ({@link ClassGraph#acceptModules(String...)}, {@link ClassGraph#rejectModules(String...)}) are
+     * included; unscanned modules read only to resolve superclasses, interfaces, or annotations of accepted classes
+     * are excluded.
      *
      * @return the {@link ModuleReference} for each module that was scanned.
      * @throws IllegalStateException
@@ -659,11 +644,10 @@ public final class ScanResult implements AutoCloseable {
      * {@code --patch-module}, {@code --add-exports}, {@code --add-opens}, and {@code --add-reads}.
      *
      * <p>
-     * Note that the returned {@link ModulePathInfo} object is an immutable snapshot of JVM command-line arguments,
-     * and is the same instance that {@link ModulePathInfo#current()} returns. It reports what the commandline asked
-     * for, whether or not any of it was scanned, and does not include traditional classpath entries, system
-     * modules, or jar manifest attributes. Use {@link #getModuleReferences()} to get the modules that were actually
-     * scanned.
+     * Note that the returned {@link ModulePathInfo} object is an immutable snapshot of JVM command-line arguments
+     * (the same instance returned by {@link ModulePathInfo#current()}), and does not include traditional classpath
+     * entries, system modules, or jar manifest attributes. Use {@link #getModuleReferences()} to get the modules
+     * that were actually scanned.
      *
      * @return The {@link ModulePathInfo}.
      * @throws IllegalStateException
@@ -754,19 +738,13 @@ public final class ScanResult implements AutoCloseable {
     /**
      * Get the list of all resources found in any classpath element, <i>whether in accepted packages or not (as long
      * as the resource is not rejected)</i>, that have the given path, relative to the package root of the classpath
-     * element. May match several resources, up to one per classpath element. A path that the scan skips whatever
-     * the accept criteria are is not found: a path within a multi-release versioned section that the scan ignores,
-     * and a path within a directory that is also on the classpath as a classpath element of its own, whose files
-     * are found by their path relative to that classpath element instead.
+     * element. May match several resources, up to one per classpath element.
      *
      * <p>
-     * Each call returns new {@link Resource} objects, which are not the ones that {@link #getAllResources()} and
-     * {@link #getResourcesWithPath(String)} return, so a resource found here can be opened while the accepted
-     * resource with the same path is open. Close each resource found here when done with it.
-     *
-     * <p>
-     * After normalization, the path is matched with exact letter case, on every operating system and for every kind
-     * of classpath element, so a path this method finds is a path a classloader will also find.
+     * Each call returns new {@link Resource} objects that are independent of those returned by
+     * {@link #getAllResources()} and {@link #getResourcesWithPath(String)}. Close each returned resource when
+     * finished with it. After normalization, the path is matched with exact letter case across all platforms and
+     * classpath element types.
      *
      * @param resourcePath
      *            A complete resource path, relative to the classpath entry package root. The path is normalized
@@ -1080,16 +1058,14 @@ public final class ScanResult implements AutoCloseable {
     // Classes
 
     /**
-     * Get the {@link ClassInfo} object for the named class, or null if there is none.
+     * Get the {@link ClassInfo} object for the named class, or null if not found.
      *
      * <p>
-     * There is a {@link ClassInfo} object for each class found in the accepted packages, and also for each external
-     * class, which is a class outside them that the scan came across (see
-     * {@link ClassGraph#enableExternalClasses()} for which classes these are, including every class that a class it
-     * read refers to, if {@link ClassGraph#enableInterClassDependencies()} was called). So unlike
-     * {@link #getAllClasses()}, this can return an external class even if
-     * {@link ClassGraph#enableExternalClasses()} was not called, and {@link ClassInfo#isExternalClass()} then
-     * returns true.
+     * Returns a {@link ClassInfo} for any scanned class in an accepted package, as well as any external class
+     * encountered during scanning (see {@link ClassGraph#enableExternalClasses()}, and
+     * {@link ClassGraph#enableInterClassDependencies()} for classes referenced by scanned classes). Unlike
+     * {@link #getAllClasses()}, this method can return an external class even if
+     * {@link ClassGraph#enableExternalClasses()} was not called ({@link ClassInfo#isExternalClass()} will be true).
      *
      * @param className
      *            The fully-qualified name of the class, in the same form as {@link Class#getName()}: {@code '.'}
@@ -1133,7 +1109,7 @@ public final class ScanResult implements AutoCloseable {
     }
 
     /**
-     * Get all {@code record} classes found during the scan (JDK 14+).
+     * Get all {@code record} classes found during the scan.
      *
      * @return A list of all {@code record} classes found during the scan, or the empty list if none.
      * @throws IllegalStateException
@@ -1959,8 +1935,8 @@ public final class ScanResult implements AutoCloseable {
     /**
      * Determine whether the classpath contents have been modified since the last scan. Checks the timestamps of
      * files and jarfiles encountered during the previous scan to see if they have changed. Does not perform a full
-     * scan, so cannot detect the addition of directories that newly match accept criteria -- you need to perform a
-     * full scan to detect those changes.
+     * scan, so cannot detect the addition of directories that newly match accept criteria (a full scan is required
+     * to detect those changes).
      *
      * @return true if the classpath contents have been modified since the last scan.
      * @throws IllegalStateException
@@ -2025,20 +2001,10 @@ public final class ScanResult implements AutoCloseable {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Close this {@link ScanResult}, releasing the memory it holds, closing any open jarfiles, and deleting any
-     * temporary files that jars were extracted or downloaded to. Nothing else releases these, so a program that
-     * scans without closing its {@link ScanResult}s holds the open jarfiles and memory-mapped buffers until it
-     * exits, and leaves the temporary files behind after it exits.
-     *
-     * <p>
-     * Every file that was memory mapped is unmapped by this, including one that a
-     * {@link io.github.classgraph.vfs.CloseableByteBuffer} the caller has not closed is still a view of: such a
-     * buffer is closed by this, so that nothing the caller left open can hold a mapping open, and every temporary
-     * file can be deleted here -- see {@link Vfs#close()}, which also describes the one exception, a mapping that
-     * an I/O operation in another thread is still using as this runs. A stream from {@link Resource#open()} that
-     * the caller has not closed is closed by this too, which releases the file handle it holds. Reading a
-     * {@link java.nio.ByteBuffer} reference taken from such a wrapper before this close is undefined; see
-     * {@link io.github.classgraph.vfs.CloseableByteBuffer#getByteBuffer()}.
+     * Close this {@link ScanResult}, releasing its memory, closing any open jarfiles, streams, and
+     * {@link io.github.classgraph.vfs.CloseableByteBuffer} instances (unmapping any memory-mapped buffers), and
+     * deleting any temporary files created for extracted or downloaded jars (see {@link Vfs#close()} and
+     * {@link io.github.classgraph.vfs.CloseableByteBuffer#getByteBuffer()}).
      */
     @Override
     public void close() {
@@ -2100,10 +2066,8 @@ public final class ScanResult implements AutoCloseable {
     /**
      * Close all {@link ScanResult} instances that have not yet been closed. Note that this will close all open
      * {@link ScanResult} instances for any class that uses the classloader that the {@link ScanResult} class is
-     * cached in -- so if you call this method, you need to ensure that the lifecycle of the classloader matches the
-     * lifecycle of your application, or that two concurrent applications don't share the same classloader,
-     * otherwise one application might close another application's {@link ScanResult} instances while they are still
-     * in use.
+     * cached in; if you call this method, ensure that the lifecycle of the classloader matches the lifecycle of
+     * your application and that concurrent applications do not share the same classloader.
      */
     public static void closeAll() {
         for (final WeakReference<ScanResult> nonClosedWeakReference : new ArrayList<>(nonClosedWeakReferences)) {

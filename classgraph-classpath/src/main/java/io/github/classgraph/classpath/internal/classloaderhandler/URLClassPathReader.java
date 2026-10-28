@@ -40,40 +40,11 @@ import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.classpath.ClasspathOrder;
 
 /**
- * Reads the classpath entries out of a {@code jdk.internal.loader.URLClassPath}.
- *
- * <p>
- * A {@code URLClassPath} is the search path of both {@link java.net.URLClassLoader} and the JDK's own builtin
- * classloaders, and it records its entries in three separate fields, no one of which holds all of them:
- *
- * <ul>
- * <li>{@code path} holds the search path the {@code URLClassPath} was constructed with, plus everything appended to
- * it since. {@code getURLs()} returns a copy of this, and it is therefore the only one of the three that any public
- * API exposes.
- * <li>{@code unopenedUrls} holds the entries of {@code path} that have not been opened yet, and additionally the
- * entries expanded from the {@code Class-Path} manifest attribute of jars that have been opened. Those expansions
- * are never added to {@code path}.
- * <li>{@code loaders} holds a loader for each entry that has been opened, in search order, including the
- * {@code Class-Path} expansions, which are removed from {@code unopenedUrls} as they are opened. Each loader's
- * {@code getBaseURL()} method returns the URL of its entry. (The {@code lmap} field holds the same loaders, but it
- * is keyed by Strings rather than URLs, and is a hash map, so it is not in search order.)
- * </ul>
- *
- * <p>
- * A {@code Class-Path} expansion is therefore listed in {@code unopenedUrls} before it is opened and in
- * {@code loaders} afterwards, and in {@code path} at no point, so all three have to be read to see everything.
- * (ClassGraph expands the {@code Class-Path} manifest attribute itself, so in practice these expansions are
- * duplicates of entries it already has -- they are read so that nothing is missed if a {@code URLClassPath} is
- * given entries by some other route.)
- *
- * <p>
- * The two fields that no public API exposes can only be read if the {@code jdk.internal.loader} package is open,
- * and, for a {@link java.net.URLClassLoader}, whose {@code ucp} field is declared in {@code java.net}, only if that
- * package is open too. Neither is open by default, so in practice these entries are only found if Narcissus is on
- * the classpath or is a resolved module.
+ * Reads classpath entries from a {@code jdk.internal.loader.URLClassPath} instance (its {@code path},
+ * {@code unopenedUrls}, and {@code loaders} fields).
  */
 final class URLClassPathReader {
-    /** The name of the class whose fields are read here. */
+    /** The class name of {@code jdk.internal.loader.URLClassPath}. */
     private static final String URL_CLASS_PATH_CLASS_NAME = "jdk.internal.loader.URLClassPath";
 
     /** Not instantiable. */
@@ -82,13 +53,11 @@ final class URLClassPathReader {
     }
 
     /**
-     * Get the {@code jdk.internal.loader.URLClassPath} of a classloader, which is held in a field named {@code ucp}
-     * by both {@link java.net.URLClassLoader} and the JDK's own builtin classloaders.
+     * Returns the {@code jdk.internal.loader.URLClassPath} held in the {@code ucp} field of {@code classLoader}.
      *
      * @param classLoader
      *            the classloader.
-     * @return the {@code URLClassPath}, or null if the classloader does not have one, or if the field could not be
-     *         read.
+     * @return the {@code URLClassPath}, or {@code null} if not present or inaccessible.
      */
     static @Nullable Object getUcp(final ClassLoader classLoader) {
         final var ucp = ReflectionUtils.getFieldVal(false, classLoader, "ucp");
@@ -98,16 +67,16 @@ final class URLClassPathReader {
     }
 
     /**
-     * Add all the classpath entries of a {@code URLClassPath} to the classpath order.
+     * Adds all classpath entries of a {@code URLClassPath} to {@code classpathOrder}.
      *
      * @param ucp
      *            the {@code URLClassPath}, as returned by {@link #getUcp(ClassLoader)}.
      * @param classLoader
-     *            the classloader the {@code URLClassPath} was obtained from.
+     *            the classloader that owns {@code ucp}.
      * @param classpathOrder
-     *            the classpath order to add to.
+     *            the classpath order to populate.
      * @param log
-     *            the log node, or null to skip logging.
+     *            the log node, or {@code null} to skip logging.
      */
     static void addAllClasspathEntries(final Object ucp, final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final @Nullable ClassGraphLog log) {
@@ -116,17 +85,17 @@ final class URLClassPathReader {
     }
 
     /**
-     * Add the classpath entries of a {@code URLClassPath} that its {@code getURLs()} method does not return, i.e.
-     * those held only in the {@code unopenedUrls} and {@code loaders} fields.
+     * Adds classpath entries from the {@code unopenedUrls} and {@code loaders} fields of a {@code URLClassPath}
+     * that are not returned by {@code getURLs()}.
      *
      * @param ucp
      *            the {@code URLClassPath}, as returned by {@link #getUcp(ClassLoader)}.
      * @param classLoader
-     *            the classloader the {@code URLClassPath} was obtained from.
+     *            the classloader that owns {@code ucp}.
      * @param classpathOrder
-     *            the classpath order to add to.
+     *            the classpath order to populate.
      * @param log
-     *            the log node, or null to skip logging.
+     *            the log node, or {@code null} to skip logging.
      */
     static void addUnlistedClasspathEntries(final Object ucp, final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final @Nullable ClassGraphLog log) {

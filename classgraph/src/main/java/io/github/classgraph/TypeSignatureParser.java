@@ -34,9 +34,7 @@ import java.util.List;
 import io.github.classgraph.base.internal.utils.StringUtils;
 
 /**
- * The recursive descent parser that the type signature classes read JVM type signatures with. It holds the string
- * being parsed and the position within it, and provides the primitive operations the grammar rules are written in
- * terms of: peeking at, consuming and accumulating characters, and reporting where parsing failed.
+ * Parser for JVM type descriptors and type signatures.
  */
 class TypeSignatureParser {
     /** The string being parsed. */
@@ -51,11 +49,7 @@ class TypeSignatureParser {
     /** The type variable signatures parsed so far, which a method signature links back to once it is parsed. */
     private final List<TypeVariableSignature> typeVariableSignatures = new ArrayList<>();
 
-    /**
-     * The deepest that type argument lists may be nested, as in {@code List<List<String>>}, which nests them two
-     * deep. javac never comes close to this, but the parser is recursive, so a corrupt or crafted signature nested
-     * a few hundred deep could otherwise overflow the stack of a thread with a small stack.
-     */
+    /** Maximum nesting depth for type argument lists. */
     static final int MAX_TYPE_ARGUMENT_NESTING_DEPTH = 100;
 
     /** How many type argument lists enclose the current position. */
@@ -115,8 +109,7 @@ class TypeSignatureParser {
     }
 
     /**
-     * Record that parsing has entered a type argument list. Every recursive step of the grammar passes through a
-     * type argument list, so limiting how deeply they nest also limits how deeply the parser recurses.
+     * Record that parsing has entered a type argument list.
      *
      * @throws TypeSignatureParseException
      *             If type argument lists are nested more than {@link #MAX_TYPE_ARGUMENT_NESTING_DEPTH} deep.

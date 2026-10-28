@@ -41,17 +41,15 @@ import org.jspecify.annotations.Nullable;
 import io.github.classgraph.vfs.internal.zip.FastZipEntry;
 import io.github.classgraph.vfs.reader.RandomAccessOrSequentialReader;
 
-/** One entry of a zipfile or jarfile. */
+/** An entry in a zipfile or jarfile. */
 final class ArchiveEntry extends VfsEntry {
-    /** The zip entry. */
+    /** The underlying zip entry. */
     private final FastZipEntry zipEntry;
 
-    /** The name of this entry, relative to the archive's package root. */
+    /** The entry path relative to the archive's package root. */
     private final String name;
 
-    /**
-     * The POSIX file permissions, in the order of the Unix mode bits, from {@code 0400} down to {@code 0001}.
-     */
+    /** POSIX file permissions ordered from {@code 0400} down to {@code 0001}. */
     private static final PosixFilePermission[] POSIX_FILE_PERMISSION_BITS = { PosixFilePermission.OWNER_READ,
             PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE, PosixFilePermission.GROUP_READ,
             PosixFilePermission.GROUP_WRITE, PosixFilePermission.GROUP_EXECUTE, PosixFilePermission.OTHERS_READ,
@@ -61,11 +59,11 @@ final class ArchiveEntry extends VfsEntry {
      * Constructor.
      *
      * @param root
-     *            the archive this entry was read from.
+     *            the archive root containing this entry.
      * @param zipEntry
      *            the zip entry.
      * @param name
-     *            the name of this entry, relative to the archive's package root.
+     *            the entry path relative to the archive's package root.
      */
     ArchiveEntry(final ArchiveRoot root, final FastZipEntry zipEntry, final String name) {
         super(root);

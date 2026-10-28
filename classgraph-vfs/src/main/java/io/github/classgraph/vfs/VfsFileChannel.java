@@ -37,7 +37,6 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.NonWritableChannelException;
 import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
@@ -45,82 +44,62 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A read-only {@link FileChannel} over the content of one {@link VfsEntry}. It is returned both by
- * {@link VfsFileSystemProvider#newFileChannel} and by {@link VfsFileSystemProvider#newByteChannel}, since a
- * {@link FileChannel} is a {@link SeekableByteChannel}, and it is the object the root tracks, so that when the root
- * closes it, the channel the caller holds reports itself closed.
- *
- * <p>
- * Reads are not interruptible: the channel does not use {@link #begin()} and {@link #end(boolean)}, so interrupting
- * a thread that is reading does not close the channel.
+ * A read-only {@link FileChannel} over the content of a {@link VfsEntry}.
  */
 final class VfsFileChannel extends FileChannel {
-    /**
-     * State retained only while open. A close detaches the reader, its content buffer, and the owning root without
-     * waiting for a read to release this channel's monitor. An in-flight read keeps its own local reference.
-     */
+    /** Channel state retained while open, cleared atomically on close. */
     private final AtomicReference<@Nullable OpenState> state;
 
     /**
      * Resources owned by an open channel.
      *
      * @param content
-     *            the content and its release action.
+     *            the random-access content and its release action.
      * @param root
-     *            the root that tracks and closes the channel.
+     *            the owning {@link VfsRoot}.
      * @param owner
-     *            the filesystem view that also owns the channel's lifetime.
+     *            the owning {@link VfsFileSystem} view.
      * @param entry
-     *            the entry to stream for bounded-memory transfers.
+     *            the entry being read.
      */
     private record OpenState(VfsEntry.RandomAccessContent content, VfsRoot root, VfsFileSystem owner,
             VfsEntry entry) {
     }
 
-    /**
-     * The read position, which is allowed to be beyond the end of the content, where reads return end-of-file.
-     * Every method that reads or moves it is synchronized, since {@link FileChannel} allows only one operation on
-     * the position at a time.
-     */
+    /** Current channel read position, guarded by {@code this}. */
     private long position;
 
-    /** The size of the buffer {@link #transferTo(long, long, WritableByteChannel)} copies through. */
+    /** Buffer size in bytes for {@link #transferTo(long, long, WritableByteChannel)}. */
     private static final int TRANSFER_BUF_SIZE = 16384;
 
-    /**
-     * The stream that {@link #transferTo(long, long, WritableByteChannel)} reads through, kept between calls. A
-     * caller that copies the content a chunk at a time, or that calls again after a target took only part of a
-     * transfer, then continues from where the last transfer stopped, rather than inflating or streaming the content
-     * again from the beginning on every call. Null when there is none yet, and while a transfer is using it.
-     * {@link #implCloseChannel()} closes it.
-     */
+    /** Cached forward stream cursor for sequential {@link #transferTo(long, long, WritableByteChannel)} calls. */
     private final AtomicReference<@Nullable TransferCursor> transferCursor = new AtomicReference<>();
 
-    /** Serializes transfers, which share {@link #transferCursor}. */
+    /** Lock serializing {@link #transferTo(long, long, WritableByteChannel)} operations. */
     private final Object transferLock = new Object();
 
     /**
-     * A stream over the content, and the last buffer read from it, which still holds whatever part of it a target
-     * did not take.
+     * Forward stream and read buffer retained across sequential
+     * {@link #transferTo(long, long, WritableByteChannel)} calls.
      */
     private static final class TransferCursor {
-        /** The stream, which only reads forward. */
+        /** The underlying input stream. */
         final InputStream stream;
 
-        /** The bytes last read from the stream. */
+        /** Buffer holding the most recently read chunk. */
         final byte[] buffer = new byte[TRANSFER_BUF_SIZE];
 
-        /** The position in the content of the first byte in {@link #buffer}. */
+        /** Content offset of the first byte in {@link #buffer}. */
         long bufferPosition;
 
-        /** The number of bytes in {@link #buffer}. The stream is at {@code bufferPosition + bufferLength}. */
+        /** Number of valid bytes in {@link #buffer}. */
         int bufferLength;
 
         /**
          * Constructor.
          *
          * @param stream
-         *            a stream over the content, at its beginning.
+         *            an input stream positioned at the start of the entry.
          */
         TransferCursor(final InputStream stream) {
             this.stream = stream;
@@ -131,15 +110,13 @@ final class VfsFileChannel extends FileChannel {
      * Constructor.
      *
      * @param content
-     *            the content of the entry.
+     *            the random-access content of the entry.
      * @param root
-     *            the root the entry was read from. {@link #open(VfsEntry, VfsFileSystem)} registers this channel
-     *            with the root -- this constructor does not, so that the channel is not published before it is
-     *            built.
+     *            the owning {@link VfsRoot}.
      * @param owner
-     *            the filesystem view.
+     *            the owning {@link VfsFileSystem} view.
      * @param entry
-     *            the entry to stream for transfers.
+     *            the entry being read.
      */
     private VfsFileChannel(final VfsEntry.RandomAccessContent content, final VfsRoot root,
             final VfsFileSystem owner, final VfsEntry entry) {
@@ -147,17 +124,15 @@ final class VfsFileChannel extends FileChannel {
     }
 
     /**
-     * Open a read-only channel over the content of an entry. How much of the content is brought into memory to
-     * serve a read at an offset is decided by the entry -- see {@link VfsEntry#openRandomAccess()} -- since a
-     * caller that opens a channel rather than a stream is one that may not read the content straight through.
+     * Open a read-only {@link VfsFileChannel} over {@code entry}.
      *
      * @param entry
-     *            the entry.
+     *            the entry to open.
      * @param owner
-     *            the filesystem view that owns the returned handle.
-     * @return the channel, which the caller owns and must close.
+     *            the filesystem view that owns the returned channel.
+     * @return the opened channel.
      * @throws IOException
-     *             if the entry could not be read, or its root has been closed.
+     *             if the entry cannot be read, or if its root or filesystem view has been closed.
      */
     static VfsFileChannel open(final VfsEntry entry, final VfsFileSystem owner) throws IOException {
         final var root = entry.getRoot();
@@ -206,19 +181,15 @@ final class VfsFileChannel extends FileChannel {
     }
 
     /**
-     * Read from a given position, without moving the position of the channel. This is safe to do from several
-     * threads at once, which is what {@link FileChannel} promises: the reader keeps state of its own between reads,
-     * and is not safe to use from more than one thread at a time, so every read through this channel is serialized.
-     * There is one reader per open channel, so this does not serialize threads that are reading different files, or
-     * even the same file through channels of their own.
+     * Read bytes starting at {@code fromPosition} without modifying the channel's current position.
      *
      * @param dst
-     *            the buffer to read into.
+     *            the destination buffer.
      * @param fromPosition
-     *            the position to read from, which is allowed to be beyond the end of the content.
-     * @return the number of bytes read, or -1 at end of file.
+     *            the non-negative file offset to read from.
+     * @return the number of bytes read, or {@code -1} if {@code fromPosition} is at or past end-of-file.
      * @throws IOException
-     *             if the content could not be read.
+     *             if an I/O error occurs or the channel is closed.
      */
     @Override
     public synchronized int read(final ByteBuffer dst, final long fromPosition) throws IOException {
@@ -396,10 +367,10 @@ final class VfsFileChannel extends FileChannel {
     }
 
     /**
-     * Close the stream that transfers read through, if there is one.
+     * Close the cached transfer stream if present.
      *
      * @throws IOException
-     *             if the stream could not be closed.
+     *             if closing the stream fails.
      */
     private void closeTransferCursor() throws IOException {
         final var cursor = transferCursor.getAndSet(null);
@@ -430,10 +401,10 @@ final class VfsFileChannel extends FileChannel {
     }
 
     /**
-     * Check that this channel is still open.
+     * Throw {@link ClosedChannelException} if this channel is closed.
      *
      * @throws ClosedChannelException
-     *             if it is not.
+     *             if this channel is closed.
      */
     private void checkOpen() throws IOException {
         if (!isOpen()) {
@@ -442,11 +413,11 @@ final class VfsFileChannel extends FileChannel {
     }
 
     /**
-     * Capture the state for one operation, so concurrent closure cannot turn a content access into a null read.
+     * Return the active {@link OpenState}, or throw {@link ClosedChannelException} if closed.
      *
      * @return the open state.
      * @throws ClosedChannelException
-     *             if the channel has closed.
+     *             if the channel is closed.
      */
     private OpenState openState() throws ClosedChannelException {
         final var open = state.get();
@@ -456,11 +427,7 @@ final class VfsFileChannel extends FileChannel {
         return open;
     }
 
-    /**
-     * Release the content. {@link #close()} calls this at most once, whether the caller closes the channel or the
-     * root closes it. This does not take the monitor of the channel, so a close does not wait for a read that is in
-     * progress.
-     */
+    /** Release the channel's resources and unregister it from its root and filesystem view. */
     @Override
     protected void implCloseChannel() {
         // Stop the root tracking this channel, so that a caller that closes its channels does not accumulate them

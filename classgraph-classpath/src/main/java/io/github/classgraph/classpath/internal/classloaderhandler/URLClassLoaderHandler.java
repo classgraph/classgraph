@@ -39,12 +39,7 @@ import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
 
 /**
- * ClassLoaderHandler that is able to extract the URLs from a URLClassLoader.
- *
- * <p>
- * A handler for a {@link java.net.URLClassLoader} subclass extends this one and overrides only what its subclass
- * does differently, since only the handler that handles the most specific classloader class is used, so a subclass
- * handler cannot rely on this handler also running.
+ * Extracts classpath entries from {@link URLClassLoader}.
  */
 class URLClassLoaderHandler implements ClassLoaderHandler {
     /** Constructor. */

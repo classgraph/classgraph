@@ -60,45 +60,25 @@ import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.vfs.internal.ManifestParser;
 
 /**
- * A tree of files that was opened by a {@link Vfs}: a directory, a jarfile (which may be nested within other
- * jarfiles), or a module.
+ * A file tree opened by a {@link Vfs}: a directory ({@link DirRoot}), an archive ({@link ArchiveRoot}), or a module
+ * ({@link ModuleRoot}).
  *
  * <p>
- * Whichever of those it is, the entries are named the same way -- relative to the root, with {@code '/'} as the
- * separator -- and are read through the same {@link VfsEntry} methods, so code that walks a root does not have to
- * know which kind it is. The cases that do need to know can test for {@link DirRoot}, {@link ArchiveRoot} or
- * {@link ModuleRoot}, which are the only kinds there are.
+ * Entries are named relative to the root using {@code '/'} as the separator and accessed uniformly through
+ * {@link VfsEntry}. Iterating a root yields its entries in the same order as {@link #getEntries()}.
  *
  * <p>
- * A root is {@link AutoCloseable}: {@link #close()} releases what this root itself owns, and takes the root out of
- * the cache of the {@link Vfs} that opened it, without disturbing that {@link Vfs} or any other root it has opened
- * -- except the roots opened within this one, the roots of jarfiles nested within this root's jarfile and package
- * root views of it, which read through what this root owns, and so are closed with it. There is rarely a reason to
- * close a root by hand, since closing the {@link Vfs} closes every root it opened; closing one early is for a
- * long-lived {@link Vfs} that is done reading one root and wants what that root holds released now. A closed root
- * cannot be read: its methods throw {@link IOException}, just as every root's methods do once the {@link Vfs}
- * itself is closed.
- *
- * <p>
- * Iterating a root iterates its entries, in the same order as {@link #getEntries()}.
- *
- * <p>
- * Every method is safe to call from multiple threads at once, and {@link #close()} and {@link Vfs#close()} take
- * effect the moment they are called, so a thread that lists or reads entries after that -- even while the close is
- * still running -- gets an {@link IOException} rather than entries of storage that is being released.
+ * Closing a {@link Vfs} closes all roots it opened. Calling {@link #close()} on an individual root releases that
+ * root's resources (and any child roots opened within it, such as nested archives or package root views) and
+ * removes it from the {@link Vfs} cache while leaving the {@link Vfs} and other roots open. All methods are
+ * thread-safe, and operations on a closed root throw {@link IOException}.
  */
 public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseable
         permits ArchiveRoot, DirRoot, ModuleRoot {
     /** The {@link Vfs} that opened this root. */
     private final Vfs vfs;
 
-    /**
-     * The roots built within this one -- the root of a jarfile nested within this root's jarfile, or a package root
-     * view of it. A child is added by {@link #addChild(VfsRoot)} once it is fully built and adopted by the
-     * {@link Vfs}, never from its constructor. Closing this root closes each of them first, depth-first, so that
-     * resources are released from the innermost root outwards; a child that is closed by hand takes itself out of
-     * this set, pruning the tree at that point.
-     */
+    /** Child roots opened within this root (nested archives or package root views). */
     private final Set<VfsRoot> children = ConcurrentHashMap.newKeySet();
 
     /**
@@ -112,14 +92,10 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Add a root that was just built within this one to this root's children, so that closing this root closes it,
-     * and hand the child the action that takes it back out, so that closing the child prunes it from the tree. The
-     * child must be fully built before it is added, since a concurrent close of this root may close it as soon as
-     * it is in the set. The caller must check afterwards whether this root was closed, and close the child if so,
-     * since a close that took its snapshot of the children before the child was added does not see it.
+     * Register a child root opened within this root so it is closed when this root closes.
      *
      * @param child
-     *            the root that was just built within this one.
+     *            the child root.
      */
     void addChild(final VfsRoot child) {
         children.add(child);
@@ -138,55 +114,29 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Returns the name of what is backing this root, as reported by {@link java.nio.file.FileStore#type()} for a
-     * root read through {@link VfsFileSystem}.
+     * Returns the file store type reported by {@link java.nio.file.FileStore#type()} for {@link VfsFileSystem}.
      *
-     * @return {@code "directory"}, {@code "archive"} or {@code "module"}.
+     * @return {@code "directory"}, {@code "archive"}, or {@code "module"}.
      */
     abstract String fileStoreType();
 
     /**
-     * Returns the path of this root: the directory path, or the path of the jarfile with {@code "!/"} separating
-     * each nested jarfile from the one that encloses it, or the module name. The package root is not part of the
-     * path.
+     * Returns the path of this root: the canonical directory path, the canonical jarfile path (with {@code "!/"}
+     * separating nested jarfiles), or the module name, excluding any package root suffix.
      *
      * <p>
-     * A directory or jarfile is named by its canonical path, which is not always the path the root was opened from:
-     * a symlink, or, on Windows, an 8.3 short name, reaches the same directory or jarfile under another name.
-     *
-     * <p>
-     * A directory in a filesystem other than the default one is named by its URI, with the URI scheme removed,
-     * since the string form of such a path names nothing outside its own filesystem. A directory {@code "/dir"}
-     * within a mounted zipfile {@code "/a/b.zip"}, whose URI is {@code "jar:file:///a/b.zip!/dir"}, is named
-     * {@code "/a/b.zip!/dir"}, and the top directory {@code "/"} of that zipfile is named {@code "/a/b.zip!/"}.
+     * For a directory in a non-default filesystem, returns the URI with its scheme removed (for example,
+     * {@code "/a/b.zip!/dir"} for {@code "jar:file:///a/b.zip!/dir"}).
      *
      * @return the path of the root.
      */
     public abstract String getPath();
 
     /**
-     * Returns the last segment of {@link #getPath()}: the filename of the jarfile for an archive, the name of the
-     * directory for a directory, and the module name for a module. This is the shortest name that identifies the
-     * root to a person, and it is not unique -- two roots can easily have the same last segment.
+     * Returns the last segment of {@link #getPath()}: the innermost jarfile name for an archive (with any temporary
+     * extraction prefix stripped), the directory name for a directory, or the module name for a module.
      *
-     * <p>
-     * "Last segment" means the innermost thing the path names. For a jarfile nested within another jarfile, that is
-     * the innermost jarfile: the last segment of {@code "/a/outer.jar!/BOOT-INF/lib/inner.jar"} is
-     * {@code "inner.jar"}, not {@code "outer.jar"}. This differs from the way ClassGraph's accept and reject
-     * criteria match a jarfile's name, which stops at the first nested jar separator and so names a path inside a
-     * jarfile by the outermost jarfile.
-     *
-     * <p>
-     * For a root opened at a package root, this is the name of the jarfile or directory that contains the package
-     * root, rather than the name of the package root directory, because the package root is not part of
-     * {@link #getPath()}.
-     *
-     * <p>
-     * If the path is that of a temporary file that ClassGraph extracted a nested jarfile into, the temporary
-     * filename prefix is stripped, so the segment is the name of the jarfile that was extracted rather than the
-     * name it was extracted to.
-     *
-     * @return the last segment of the path of the root.
+     * @return the last segment of the root's path.
      */
     public String getLastSegment() {
         return PathSyntax.lastSegment(getPath());
@@ -197,44 +147,30 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      *
      * @return the {@link URI} of the root.
      * @throws IllegalStateException
-     *             if the {@link URI} could not be formed, which includes the case of a module that does not know
-     *             its own location.
+     *             if the {@link URI} could not be formed (for example, for a module without a known location).
      */
     public abstract URI getURI();
 
     /**
-     * Returns the {@link URI} of a path within this root: a {@code file:} URI for a file in a directory, a
-     * {@code jar:} URI for a path within a jarfile, and whatever the module names it as for a path within a module,
-     * which is a {@code jrt:} URI for a module of the running JDK. In a {@code jar:} URI, including one that a
-     * modular jarfile names a path by, a {@code '!'} that ends a directory name in the path of the jarfile is
-     * spelled {@code %21}, since the scheme would otherwise end the jarfile's path there. The path is
-     * percent-encoded here, so it is passed in unencoded, exactly as {@link VfsEntry#getRawPathFromRoot()} reports
-     * it.
+     * Returns the {@link URI} of a relative path within this root ({@code file:}, {@code jar:}, or module URI).
      *
      * <p>
-     * This is what {@link VfsEntry#getURI()} is built on, and is offered separately from it so that a path can be
-     * named by URI without an entry first being looked up: a directory, a package root, or a name that may not be
-     * there at all. For a directory or a jarfile the URI is formed from the path alone, and names the path whether
-     * or not anything is stored there. A module is the exception, since only the module itself can say how it names
-     * something, and it will only name a resource it actually contains.
+     * For a directory or archive, the URI is constructed from the path without checking whether an entry exists;
+     * for a module, the module must contain the resource.
      *
      * @param pathWithinRoot
-     *            the path, relative to this root, with {@code '/'} as the separator.
+     *            the unencoded path relative to this root, with {@code '/'} as the separator.
      * @return the {@link URI} of the path.
      * @throws IllegalStateException
-     *             if the {@link URI} could not be formed, which for a module includes the case of a path that the
-     *             module does not contain.
+     *             if the {@link URI} could not be formed (including when a module does not contain the path).
      */
     public abstract URI resolveURI(String pathWithinRoot);
 
     /**
-     * Returns the {@link URI} of a path within this root, as {@link #resolveURI(String)} does, but without asking
-     * whether anything is stored there, so that a directory or a missing name can be named even within a module.
-     * This is what {@link VfsPath#toUri()} names a path that has no entry by.
+     * Returns the {@link URI} of a path within this root without checking whether the entry exists.
      *
      * @param pathWithinRoot
-     *            the path, relative to this root, with {@code '/'} as the separator, or the empty string for the
-     *            top of the root.
+     *            the path relative to this root with {@code '/'} as the separator, or {@code ""} for the root.
      * @return the {@link URI} of the path.
      * @throws IllegalStateException
      *             if the {@link URI} could not be formed.
@@ -244,12 +180,11 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Returns the {@code "jar:"} URI of a jarfile, to which {@code "!/"} and the percent-encoded path of an entry
-     * are appended to name the entry.
+     * Returns the {@code "jar:"} URI prefix for a jarfile URI string, escaping any {@code "!/"} in a non-jar URI as
+     * {@code "%21/"}.
      *
      * @param jarfileURIStr
-     *            the URI of the jarfile: a {@code "file:"} URI, the {@code "http:"} or {@code "https:"} URL of a
-     *            remote jarfile, or the {@code "jar:"} URI of a jarfile nested within another jarfile.
+     *            the URI of the jarfile.
      * @return the {@code "jar:"} URI of the jarfile.
      */
     static String jarURIOf(final String jarfileURIStr) {
@@ -266,8 +201,8 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      *
      * @return the {@link URL} of the root.
      * @throws IllegalStateException
-     *             if the {@link URL} could not be formed, which includes the case of a {@link URI} whose scheme has
-     *             no protocol handler installed.
+     *             if the {@link URL} could not be formed (for example, if the URI scheme has no installed protocol
+     *             handler).
      */
     public URL getURL() {
         final var uri = getURI();
@@ -279,27 +214,22 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Returns the {@link File} backing this root.
+     * Returns the local {@link File} backing this root (the outermost jarfile for a nested jarfile, or the
+     * temporary file if spilled to disk).
      *
-     * <p>
-     * For a jarfile nested within another jarfile, this is the outermost jarfile. For a jarfile read from a stream
-     * or downloaded from a URL, this is the temporary file it was spilled to if it was too large to hold in RAM,
-     * which is deleted when the root is closed.
-     *
-     * @return the {@link File} of the directory, jarfile or module, or null if there is no such file: for a module
-     *         of the running JDK, a jarfile read from a stream or downloaded from a URL into RAM, or a path in a
-     *         filesystem other than the default filesystem.
+     * @return the backing {@link File}, or null if this root is not backed by a file in the default filesystem
+     *         (e.g. a system module, an in-memory jarfile, or a path in a custom filesystem).
      */
     public @Nullable File getFile() {
         return null;
     }
 
     /**
-     * Returns the {@link Path} backing this root. For a jarfile nested within another jarfile, this is the path of
-     * the outermost jarfile, as for {@link #getFile()}.
+     * Returns the {@link Path} backing this root (the outermost jarfile for a nested jarfile, or the temporary file
+     * if spilled to disk).
      *
-     * @return the {@link Path} of the directory, jarfile or module, or null if there is no such path: for a module
-     *         of the running JDK, or a jarfile read from a stream or downloaded from a URL into RAM.
+     * @return the backing {@link Path}, or null if this root has no backing {@link Path} (e.g. a system module or
+     *         an in-memory jarfile).
      */
     public @Nullable Path getNioPath() {
         return null;
@@ -315,27 +245,22 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Returns the package root within this root: the directory that {@link VfsEntry#getPathFromRoot()} is relative
-     * to, without a trailing {@code '/'}. This is the empty string unless the path this root was opened from ended
-     * in a {@code "!/"} section that named a directory rather than a nested jarfile, as it does for a Spring Boot
-     * application's {@code "app.jar!/BOOT-INF/classes"}.
+     * Returns the package root directory within this root (without a trailing {@code '/'}), or {@code ""} if none
+     * (for example, {@code "BOOT-INF/classes"} when opened from {@code "app.jar!/BOOT-INF/classes"}).
      *
-     * @return the package root, or the empty string if the whole root is the package root.
+     * @return the package root, or {@code ""} if this root is at the top of its container.
      */
     public String getPackageRoot() {
         return "";
     }
 
     /**
-     * Returns this root with its package root removed, so that the rest of the container it was opened within can
-     * be reached. For a Spring Boot application's {@code "app.jar!/BOOT-INF/classes"} that is the whole of
-     * {@code app.jar}, including the {@code "BOOT-INF/lib/"} directory of jarfiles the application depends on,
-     * which lies outside the package root and is therefore invisible from this root.
+     * Returns the enclosing root without any package root prefix, or this root itself if {@link #getPackageRoot()}
+     * is empty.
      *
-     * @return the container this root was opened within, or this root itself if it was not opened at a package
-     *         root, which is always the case for a directory and for a module.
+     * @return the container root.
      * @throws IOException
-     *             if this root, or the {@link Vfs} that opened it, has been closed.
+     *             if this root or its {@link Vfs} has been closed.
      */
     public VfsRoot getContainerRoot() throws IOException {
         checkNotClosed(getPath());
@@ -343,34 +268,25 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Returns the module name of this root: the name of the module for a module root, and the value of the
-     * {@code Automatic-Module-Name} manifest entry otherwise.
+     * Returns the module name of this root: the module's name for a {@link ModuleRoot}, or the
+     * {@code Automatic-Module-Name} manifest attribute otherwise.
      *
-     * @return the module name, or null if there is none.
+     * @return the module name, or null if none.
      * @throws IOException
-     *             if the manifest could not be read, or if the root, or the {@link Vfs} that opened it, has been
-     *             closed.
+     *             if the manifest could not be read, or if this root or its {@link Vfs} has been closed.
      */
     public @Nullable String getModuleName() throws IOException {
         return getManifestEntry(AUTOMATIC_MODULE_NAME_KEY);
     }
 
     /**
-     * Walk the entries under the package root, not including directories, offering each directory to the visitor
-     * before the entries in it so that unwanted ones can be skipped. This is the cheapest way to enumerate a root,
-     * since unlike {@link #getEntries()} it neither builds a list of every entry nor, for a directory tree, lists a
-     * directory whose entries the visitor does not want.
-     *
-     * <p>
-     * The entries of each directory are walked in the same order that {@link #getEntries()} reports them in. See
-     * {@link VfsVisitor#enterDirectory(String)} for how much a skipped directory skips, which differs between a
-     * directory tree and an archive.
+     * Walk the non-directory entries under the package root, offering each directory to
+     * {@link VfsVisitor#enterDirectory(String)} before visiting its entries.
      *
      * @param visitor
-     *            the visitor to hand the entries to.
+     *            the visitor.
      * @throws IOException
-     *             if the entries could not be listed, or if the root, or the {@link Vfs} that opened it, has been
-     *             closed.
+     *             if the entries could not be listed, or if this root or its {@link Vfs} has been closed.
      */
     public final void walk(final VfsVisitor visitor) throws IOException {
         Assert.notNull(visitor, "visitor");
@@ -378,17 +294,14 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Walk the entries under the package root, logging to the given log node rather than to the one the {@link Vfs}
-     * was given. This is for callers that write a log of their own, and want what the virtual filesystem logs
-     * nested under the part of it that it belongs to.
+     * Walk the non-directory entries under the package root, logging to the specified {@link LogNode}.
      *
      * @param visitor
-     *            the visitor to hand the entries to.
+     *            the visitor.
      * @param log
-     *            the log node, or null to not log.
+     *            the log node, or null to disable logging.
      * @throws IOException
-     *             if the entries could not be listed, or if the root, or the {@link Vfs} that opened it, has been
-     *             closed.
+     *             if the entries could not be listed, or if this root or its {@link Vfs} has been closed.
      */
     public final void walk(final VfsVisitor visitor, final @Nullable LogNode log) throws IOException {
         Assert.notNull(visitor, "visitor");
@@ -397,40 +310,31 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Walk the entries under the package root, once it is known that this root is open.
+     * Walk the entries under the package root (called after verifying that this root is open).
      *
      * @param visitor
-     *            the visitor to hand the entries to.
+     *            the visitor.
      * @param log
-     *            the log node, or null to not log.
+     *            the log node, or null.
      * @throws IOException
      *             if the entries could not be listed.
      */
     abstract void walkImpl(VfsVisitor visitor, @Nullable LogNode log) throws IOException;
 
     /**
-     * Returns the entries under the package root, not including directories.
+     * Returns all non-directory entries under the package root.
      *
      * <p>
-     * A jarfile's entries come back in the order they appear in its central directory, and a module's sorted by
-     * name. A directory tree's are walked from the top down, each directory's own files before its subdirectories,
-     * and the children of a directory sorted by name. For a jarfile, encrypted entries and entries stored with an
-     * unsupported compression method are left out, only the last of two entries with the same name is reported, and
-     * only the newest version of each entry that this JVM can run is reported, unless multi-release versioning was
-     * turned off with {@link VfsSpec#disableMultiReleaseVersions()}. For a module, an entry whose stored name has a
-     * leading {@code '/'}, a repeated separator, or a {@code "."} or {@code ".."} section in it is left out, since
-     * {@link #getEntry(String)} could not find it by that name.
-     *
-     * <p>
-     * For a directory, an entry may name a file that the process has no permission to read: the walk tells the
-     * files from the subdirectories with the metadata it already reads, rather than spending a second syscall per
-     * file on a permission check. Reading such an entry throws an {@link IOException}, and
-     * {@link #getEntry(String)} returns null for its name.
+     * Archive entries are returned in central directory order (omitting encrypted entries, entries with unsupported
+     * compression methods, duplicate names except the last, and superseded multi-release entries unless disabled
+     * via {@link VfsSpec#disableMultiReleaseVersions()}). Module entries are returned sorted by name (omitting
+     * non-canonical names). Directory entries are returned top-down with files before subdirectories, sorted by
+     * name within each directory (including unreadable files, which fail with {@link IOException} when read and
+     * return {@code null} from {@link #getEntry(String)}).
      *
      * @return the entries, as an unmodifiable list.
      * @throws IOException
-     *             if the entries could not be listed, or if the root, or the {@link Vfs} that opened it, has been
-     *             closed.
+     *             if the entries could not be listed, or if this root or its {@link Vfs} has been closed.
      */
     public final @Unmodifiable List<VfsEntry> getEntries() throws IOException {
         checkNotClosed(getPath());
@@ -438,25 +342,12 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Returns an iterator over the entries under the package root, in the same order as {@link #getEntries()}, so
-     * that a root can be iterated directly:
-     *
-     * <pre>
-     * for (VfsEntry entry : root) {
-     *     System.out.println(entry.getPathFromRoot());
-     * }
-     * </pre>
-     *
-     * <p>
-     * Listing the entries can fail, and {@link Iterable#iterator()} cannot declare a checked exception, so the
-     * {@link IOException} that {@link #getEntries()} throws is wrapped in an {@link UncheckedIOException} here, the
-     * same way {@link java.nio.file.DirectoryStream} wraps it. Call {@link #getEntries()} instead, to handle that
-     * failure as a checked exception.
+     * Returns an iterator over the entries under the package root in the same order as {@link #getEntries()},
+     * wrapping any {@link IOException} in {@link UncheckedIOException}.
      *
      * @return an iterator over the entries.
      * @throws UncheckedIOException
-     *             if the entries could not be listed, or if the root, or the {@link Vfs} that opened it, has been
-     *             closed.
+     *             if the entries could not be listed, or if this root or its {@link Vfs} has been closed.
      */
     @Override
     public final @Unmodifiable Iterator<VfsEntry> iterator() {
@@ -468,7 +359,7 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Returns the entries under the package root, once it is known that this root is open.
+     * Returns the entries under the package root (called after verifying that this root is open).
      *
      * @return the entries, as an unmodifiable list.
      * @throws IOException
@@ -477,13 +368,13 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     abstract List<VfsEntry> getEntriesImpl() throws IOException;
 
     /**
-     * Walk a list of entries that is already in hand, telling the visitor about the directory an entry is in
-     * whenever it differs from the directory of the entry before it.
+     * Walk a pre-collected list of entries, invoking {@link VfsVisitor#enterDirectory(String)} whenever the parent
+     * directory changes.
      *
      * @param entryList
-     *            the entries, in the order they should be walked in.
+     *            the entries to walk.
      * @param visitor
-     *            the visitor to hand the entries to.
+     *            the visitor.
      */
     static void walkEntryList(final List<VfsEntry> entryList, final VfsVisitor visitor) {
         // A one-directory memory is enough, because the entries of a jarfile or a module are almost always grouped
@@ -505,11 +396,11 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Collect every entry a walk reaches into a list.
+     * Returns a visitor that collects all visited entries into the given list.
      *
      * @param entriesOut
-     *            the list to add the entries to.
-     * @return a visitor that skips nothing.
+     *            the list to populate.
+     * @return the collecting visitor.
      */
     static VfsVisitor collectingVisitor(final List<VfsEntry> entriesOut) {
         return new VfsVisitor() {
@@ -527,49 +418,19 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Returns the entry with the given name, or null if there is no such entry, or it cannot be read. If a jarfile
-     * holds more than one entry with the same name, the last one in its central directory is returned, which is the
-     * one a classloader would find.
+     * Returns the readable entry with the given exact, case-sensitive canonical path relative to the package root,
+     * or {@code null} if no such readable file entry exists.
      *
      * <p>
-     * Null does not distinguish between the reasons for it: for a directory, the name may not exist, may name a
-     * directory rather than a file, or may name a file that the process has no permission to read; for a jarfile or
-     * a module, the name may not exist, or may be an entry that this root does not report (an encrypted entry, an
-     * entry stored with an unsupported compression method, or an entry hidden by a newer multi-release version of
-     * itself). Test for the file directly if the difference matters.
-     *
-     * <p>
-     * A directory that is walked with {@link #walk(VfsVisitor)} or listed with {@link #getEntries()} does report an
-     * unreadable file as an entry, because the walk tells the files from the subdirectories with the metadata it
-     * already reads and does not spend a second syscall per file on a permission check. Reading such an entry then
-     * throws an {@link IOException}. So a name that a walk reports can still come back null from this method.
-     *
-     * <p>
-     * The name is matched exactly, including the case of every character, on every operating system and for every
-     * kind of root, so that one jarfile answers the same question the same way wherever it is read, and so that a
-     * name this method finds is a name a classloader will also find. Windows and macOS have case-insensitive
-     * filesystems, and a lookup that such a filesystem answered by folding the case of the name is rejected here,
-     * rather than returning an entry under a name that is not the one it is stored under. Use
-     * {@link #getEntryCaseInsensitive(String)} to match the name case-insensitively instead. A symbolic link is
-     * found by its own name, even if that name differs from the name of the file it points at only in case. The one
-     * exception is a case-insensitive filesystem mounted on Linux, such as a directory with the casefold attribute
-     * on ext4, f2fs or tmpfs, or a vfat, exFAT or CIFS mount: there the real path of a file is spelled the way it
-     * was looked up rather than the way it is stored, which leaves nothing to tell a folded name by, so such a
-     * filesystem can still find a name in a case it is not stored in.
-     *
-     * <p>
-     * The name also has to be written the way the entries of a root are named -- relative to the package root, with
-     * {@code '/'} as the separator and no leading {@code '/'} -- so a name with a {@code "."} or {@code ".."}
-     * section in it, a repeated separator, or, on Windows, the platform separator, is not found, even for a
-     * directory root, whose filesystem would resolve all of those to a file.
+     * Names must use {@code '/'} as the separator without leading or trailing slashes, repeated slashes, or
+     * {@code "."} / {@code ".."} segments. Case-folded matches on case-insensitive filesystems (such as on Windows
+     * and macOS) are rejected; use {@link #getEntryCaseInsensitive(String)} for case-insensitive lookup.
      *
      * @param name
-     *            the path of the entry relative to the package root, as {@link VfsEntry#getPathFromRoot()} returns
-     *            it, e.g. {@code "com/xyz/Widget.class"}.
-     * @return the entry, or null if there is no readable entry with that name.
+     *            the path of the entry relative to the package root (e.g. {@code "com/xyz/Widget.class"}).
+     * @return the entry, or null if no readable entry with that exact name exists.
      * @throws IOException
-     *             if the root could not be searched, or if the root, or the {@link Vfs} that opened it, has been
-     *             closed.
+     *             if the root could not be searched, or if this root or its {@link Vfs} has been closed.
      */
     public final @Nullable VfsEntry getEntry(final String name) throws IOException {
         Assert.notNull(name, "name");
@@ -578,36 +439,25 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Returns the entry with the given name, once it is known that this root is open.
+     * Returns the entry with the given name (called after verifying that this root is open).
      *
      * @param name
-     *            the path of the entry relative to the package root, as {@link VfsEntry#getPathFromRoot()} returns
-     *            it.
-     * @return the entry, or null if there is no readable entry with that name.
+     *            the path of the entry relative to the package root.
+     * @return the entry, or null if no readable entry with that name exists.
      * @throws IOException
      *             if the root could not be searched.
      */
     abstract @Nullable VfsEntry getEntryImpl(String name) throws IOException;
 
     /**
-     * Returns whether a filesystem found a file under a path that differs from the path it was looked up by only in
-     * the case of its characters, which is how a case-insensitive filesystem answers a lookup for a name whose case
-     * does not match the name the file is stored under. A symbolic link whose name differs from the name of its
-     * target only in case is not such a match, since its directory lists it under the name it was looked up by.
-     *
-     * <p>
-     * This relies on the real path of a file being spelled the way the file is stored, as it is on Windows and
-     * macOS. A case-insensitive filesystem mounted on Linux spells the real path the way it was looked up, so there
-     * this method returns false for a folded name.
+     * Returns whether {@code path} resolved within canonical directory {@code dir} matched a file whose stored name
+     * differs only in case (excluding symbolic links whose link name matches the requested case).
      *
      * @param dir
-     *            the directory the lookup was made within, canonicalized. A directory spelled through a symbolic
-     *            link or an 8.3 short name never contains the real path of a file, so for it this method would
-     *            always return false.
+     *            the canonicalized base directory.
      * @param path
-     *            the path the file was looked up by, which the filesystem found a file at, resolved against
-     *            {@code dir}.
-     * @return true if the file is stored under a path that differs from the one it was looked up by only in case.
+     *            the looked-up path resolved against {@code dir}.
+     * @return true if the lookup succeeded only via case folding.
      * @throws IOException
      *             if the real path of the file could not be read.
      */
@@ -648,13 +498,13 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Returns whether a directory lists a file or subdirectory under exactly the given name, including its case.
+     * Returns whether {@code parentDir} contains an entry with the exact case-sensitive name {@code fileName}.
      *
      * @param parentDir
      *            the directory.
      * @param fileName
-     *            the name.
-     * @return true if the directory lists the name exactly, or false if it does not, or if it cannot be listed.
+     *            the entry name.
+     * @return true if the directory lists the name with exact case.
      */
     private static boolean isListedExactly(final Path parentDir, final String fileName) {
         try (var listing = Files.newDirectoryStream(parentDir)) {
@@ -672,14 +522,12 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Returns whether a name is written the way the entries of a root are named: not empty, with no leading or
-     * trailing {@code '/'}, and with no section that is empty (a repeated separator), {@code "."} or {@code ".."}.
-     * Such a name is its own normal form, so it is the only spelling under which {@link #getEntry(String)} and a
-     * path of {@link #asFileSystem()} can find the entry.
+     * Returns whether {@code name} is a canonical relative entry path (non-empty, no leading or trailing
+     * {@code '/'}, no empty segments, and no {@code "."} or {@code ".."} segments).
      *
      * @param name
-     *            the name.
-     * @return true if the name is written the way the entries of a root are named.
+     *            the entry name.
+     * @return true if the name is in canonical entry form.
      */
     static boolean isCanonicalEntryName(final String name) {
         var sectionStart = 0;
@@ -701,28 +549,14 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns the first entry whose name matches the given name when the case of both is ignored, or null if there
-     * is no such entry, or it cannot be read. This is the entry that a case-insensitive filesystem would find the
-     * name at, on every operating system and for every kind of root.
-     *
-     * <p>
-     * A root can hold more than one entry whose names differ only in case: a zipfile is free to store both
-     * {@code "META-INF/MANIFEST.MF"} and {@code "meta-inf/manifest.mf"}, and a case-sensitive filesystem is free to
-     * hold both as files. The first readable one of them in the order that {@link #getEntries()} reports is the one
-     * returned here, whether or not one of them matches the name exactly; use {@link #getEntry(String)} first if an
-     * exactly named entry should win over an earlier one that only matches when case is ignored, and
-     * {@link #getEntriesCaseInsensitive(String)} to see all of them.
-     *
-     * <p>
-     * Null covers the same cases here as it does for {@link #getEntry(String)}.
+     * Returns the first readable entry whose path matches {@code name} case-insensitively (in {@link #getEntries()}
+     * order), or {@code null} if no such entry exists.
      *
      * @param name
-     *            the path of the entry relative to the package root, as {@link VfsEntry#getPathFromRoot()} returns
-     *            it, e.g. {@code "com/xyz/Widget.class"}.
-     * @return the entry, or null if no readable entry has that name when the case of both is ignored.
+     *            the path of the entry relative to the package root (e.g. {@code "com/xyz/Widget.class"}).
+     * @return the first matching readable entry, or null if none.
      * @throws IOException
-     *             if the root could not be searched, or if the root, or the {@link Vfs} that opened it, has been
-     *             closed.
+     *             if the root could not be searched, or if this root or its {@link Vfs} has been closed.
      */
     public final @Nullable VfsEntry getEntryCaseInsensitive(final String name) throws IOException {
         Assert.notNull(name, "name");
@@ -731,22 +565,14 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Returns every entry whose name matches the given name when the case of both is ignored, in the order that
-     * {@link #getEntries()} reports them in. A root can hold more than one such entry: a zipfile is free to store
-     * both {@code "META-INF/MANIFEST.MF"} and {@code "meta-inf/manifest.mf"}, and a case-sensitive filesystem is
-     * free to hold both as files.
-     *
-     * <p>
-     * As with {@link #getEntry(String)}, an entry that cannot be read is left out, even though
-     * {@link #getEntries()} reports it.
+     * Returns all readable entries whose path matches {@code name} case-insensitively, in {@link #getEntries()}
+     * order.
      *
      * @param name
-     *            the path of the entry relative to the package root, as {@link VfsEntry#getPathFromRoot()} returns
-     *            it, e.g. {@code "com/xyz/Widget.class"}.
+     *            the path of the entry relative to the package root (e.g. {@code "com/xyz/Widget.class"}).
      * @return the matching entries, as an unmodifiable list.
      * @throws IOException
-     *             if the root could not be searched, or if the root, or the {@link Vfs} that opened it, has been
-     *             closed.
+     *             if the root could not be searched, or if this root or its {@link Vfs} has been closed.
      */
     public final @Unmodifiable List<VfsEntry> getEntriesCaseInsensitive(final String name) throws IOException {
         Assert.notNull(name, "name");
@@ -754,17 +580,15 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Find the entries whose name matches the given name when the case of both is ignored.
+     * Find readable entries whose path matches {@code name} case-insensitively.
      *
      * @param name
-     *            the path of the entry relative to the package root, as {@link VfsEntry#getPathFromRoot()} returns
-     *            it.
+     *            the path of the entry relative to the package root.
      * @param firstMatchOnly
-     *            true to stop the search at the first match.
+     *            true to stop at the first match.
      * @return the matching entries.
      * @throws IOException
-     *             if the root could not be searched, or if the root, or the {@link Vfs} that opened it, has been
-     *             closed.
+     *             if the root could not be searched, or if this root or its {@link Vfs} has been closed.
      */
     private List<VfsEntry> findEntriesCaseInsensitive(final String name, final boolean firstMatchOnly)
             throws IOException {
@@ -794,22 +618,15 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Returns the entries under the package root whose name starts with the given prefix, not including
-     * directories. A prefix ending in {@code '/'} names a directory, and everything beneath it is returned, however
-     * deeply nested.
-     *
-     * <p>
-     * The entries come back in the same order as {@link #getEntries()} reports them in, and the same entries are
-     * left out as it leaves out. For a directory tree, only the directories that could hold an entry with this
-     * prefix are listed, so this costs much less than listing the whole tree.
+     * Returns all non-directory entries under the package root whose path starts with {@code pathPrefix}, in
+     * {@link #getEntries()} order.
      *
      * @param pathPrefix
-     *            the prefix to match, relative to the package root, with {@code '/'} as the separator and no
-     *            leading {@code '/'}, e.g. {@code "BOOT-INF/lib/"}. The empty string matches every entry.
+     *            the prefix to match relative to the package root, with {@code '/'} as the separator and no leading
+     *            {@code '/'} (e.g. {@code "BOOT-INF/lib/"}, or {@code ""} to match all entries).
      * @return the matching entries, as an unmodifiable list.
      * @throws IOException
-     *             if the entries could not be listed, or if the root, or the {@link Vfs} that opened it, has been
-     *             closed.
+     *             if the entries could not be listed, or if this root or its {@link Vfs} has been closed.
      */
     public final @Unmodifiable List<VfsEntry> getEntries(final String pathPrefix) throws IOException {
         Assert.notNull(pathPrefix, "pathPrefix");
@@ -817,22 +634,14 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Returns whether there is any entry under the package root whose name starts with the given prefix. This
-     * answers the same question as {@code !getEntries(pathPrefix).isEmpty()}, but stops at the first matching entry
-     * rather than listing them all.
-     *
-     * <p>
-     * A directory is not itself an entry, so a prefix that names an empty directory is not found, whether the
-     * directory is a real one on disk or an entry of a jarfile that only records the directory.
+     * Returns whether any non-directory entry under the package root has a path starting with {@code pathPrefix}.
      *
      * @param pathPrefix
-     *            the prefix to match, relative to the package root, with {@code '/'} as the separator and no
-     *            leading {@code '/'}, e.g. {@code "BOOT-INF/classes/"}. The empty string matches every entry, so it
-     *            reports whether the root holds any entry at all.
-     * @return true if there is an entry whose name starts with the prefix.
+     *            the prefix to match relative to the package root, with {@code '/'} as the separator and no leading
+     *            {@code '/'} (e.g. {@code "BOOT-INF/classes/"}, or {@code ""} to test whether any entry exists).
+     * @return true if at least one matching entry exists.
      * @throws IOException
-     *             if the entries could not be listed, or if the root, or the {@link Vfs} that opened it, has been
-     *             closed.
+     *             if the entries could not be listed, or if this root or its {@link Vfs} has been closed.
      */
     public final boolean hasEntries(final String pathPrefix) throws IOException {
         Assert.notNull(pathPrefix, "pathPrefix");
@@ -841,17 +650,15 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Find the entries under the package root whose name starts with the given prefix, not including directories.
+     * Find non-directory entries under the package root whose path starts with {@code pathPrefix}.
      *
      * @param pathPrefix
-     *            the prefix to match, relative to the package root, with {@code '/'} as the separator and no
-     *            leading {@code '/'}.
+     *            the prefix to match relative to the package root.
      * @param firstMatchOnly
-     *            true to stop the search at the first match.
+     *            true to stop at the first match.
      * @return the matching entries.
      * @throws IOException
-     *             if the entries could not be listed, or if the root, or the {@link Vfs} that opened it, has been
-     *             closed.
+     *             if the entries could not be listed, or if this root or its {@link Vfs} has been closed.
      */
     private List<VfsEntry> findEntriesWithPrefix(final String pathPrefix, final boolean firstMatchOnly)
             throws IOException {
@@ -889,23 +696,17 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     /** The manifest, read on first use, or null if this root has no manifest file. */
     private @Nullable Map<String, String> manifest;
 
-    /** True once the manifest has been read, whether or not there turned out to be one. */
+    /** True once the manifest has been read. */
     private boolean manifestRead;
 
     /**
-     * Returns the main section of this root's manifest file, {@code META-INF/MANIFEST.MF}, which is read and parsed
-     * the first time it is asked for and cached from then on. A root opened at a package root reports the manifest
-     * of the container it was opened within, since that is the one that describes the jarfile as a whole.
+     * Returns the main attributes of this root's {@code META-INF/MANIFEST.MF} file (cached on first read), or
+     * {@code null} if this root has no manifest. A root opened at a package root returns the manifest of its
+     * enclosing container.
      *
-     * <p>
-     * A manifest is really only meaningful for a jarfile, but it is read the same way for a directory and for a
-     * module, so an exploded jarfile is described by its manifest just as the jarfile it was exploded from is.
-     *
-     * @return the manifest attributes, keyed case-insensitively by attribute name, as an unmodifiable map, or null
-     *         if this root has no manifest file.
+     * @return an unmodifiable case-insensitive map of manifest attributes, or null if no manifest exists.
      * @throws IOException
-     *             if the manifest file could not be read, or if the root, or the {@link Vfs} that opened it, has
-     *             been closed.
+     *             if the manifest file could not be read, or if this root or its {@link Vfs} has been closed.
      */
     public synchronized @Nullable @Unmodifiable Map<String, String> getManifest() throws IOException {
         // Checked even when the manifest has already been read, so that a root of a closed Vfs reports itself as
@@ -921,17 +722,13 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Returns the value of one attribute of this root's manifest file, reading the manifest if it has not already
-     * been read.
+     * Returns the value of a single attribute from this root's manifest file.
      *
      * @param key
-     *            the name of the attribute, e.g. {@code "Class-Path"}. Manifest attribute names are case
-     *            insensitive.
-     * @return the value of the attribute, or null if this root has no manifest file, or its manifest does not
-     *         declare that attribute.
+     *            the case-insensitive attribute name (e.g. {@code "Class-Path"}).
+     * @return the attribute value, or null if this root has no manifest or does not declare the attribute.
      * @throws IOException
-     *             if the manifest file could not be read, or if the root, or the {@link Vfs} that opened it, has
-     *             been closed.
+     *             if the manifest file could not be read, or if this root or its {@link Vfs} has been closed.
      */
     public final @Nullable String getManifestEntry(final String key) throws IOException {
         Assert.notNull(key, "key");
@@ -940,13 +737,11 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Read and parse the manifest file of this root, through the same entry lookup and read that any other file of
-     * the root is read through.
+     * Read and parse this root's manifest file.
      *
      * @return the manifest attributes, or null if this root has no manifest file.
      * @throws IOException
-     *             if the manifest file could not be read, or if the root, or the {@link Vfs} that opened it, has
-     *             been closed.
+     *             if the manifest file could not be read, or if this root or its {@link Vfs} has been closed.
      */
     @Nullable
     Map<String, String> readManifest() throws IOException {
@@ -968,10 +763,9 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Returns whether this root is searched for a manifest stored under a differently-cased name, when it holds no
-     * manifest under the canonical name.
+     * Returns whether to fall back to a case-insensitive lookup for {@code META-INF/MANIFEST.MF}.
      *
-     * @return true to widen the search to ignore case.
+     * @return true if case-insensitive manifest lookup is enabled.
      */
     boolean searchesForACaseFoldedManifest() {
         return true;
@@ -983,48 +777,25 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     private volatile @Nullable VfsFileSystem fileSystem;
 
     /**
-     * Returns a read-only {@link FileSystem} view of this root, so that it can be read through
-     * {@link java.nio.file.Files} and {@link Path} whatever kind of storage it actually is -- a directory, a
-     * jarfile, a jarfile nested inside another jarfile, a package root, a jarfile that exists only in RAM, or a
-     * module.
+     * Returns a read-only {@link FileSystem} view of this root (with {@code '/'} as the separator and {@code "/"}
+     * as the root directory).
      *
      * <p>
-     * The path separator is {@code '/'} and the root directory is {@code "/"}, whichever kind of root this is.
-     * Native directory views include empty directories and reflect subsequent changes to the underlying filesystem.
-     * For archives and modules, directories are synthesized from the names of the entries below them, since a
-     * jarfile need not contain an entry for every directory whose contents it holds. Their first directory listing
-     * is as expensive as {@link #getEntries()}; individual file lookups do not enumerate the entire root.
+     * Native directory views include empty directories and reflect live filesystem changes; archive and module
+     * views synthesize directories from entry paths. Module entry sizes are computed on demand when
+     * {@link java.nio.file.attribute.BasicFileAttributes#size()} is called.
      *
      * <p>
-     * The size of a module entry is not known without reading it, so it is counted through a bounded-memory stream
-     * on the first {@link java.nio.file.attribute.BasicFileAttributes#size()} call for an attribute snapshot, which
-     * needs this root to be open. A successful count is cached on that snapshot; a fresh attribute lookup counts
-     * again. If the entry cannot be read, {@code size()} and {@link java.nio.file.Files#size(Path)} throw an
-     * {@link UncheckedIOException}, and
-     * {@link java.nio.file.Files#readAttributes(Path, String, java.nio.file.LinkOption...)} throws the
-     * {@link java.io.IOException} it wraps.
+     * Closing the returned {@link FileSystem} closes only that view and its open channels/streams, leaving this
+     * root and its {@link Vfs} open; a subsequent call to {@code asFileSystem()} creates a new view. Closing this
+     * root or its {@link Vfs} closes the view and releases all underlying resources. (By contrast, a filesystem
+     * created directly via {@link java.nio.file.FileSystems#newFileSystem(URI, Map)} or
+     * {@link java.nio.file.FileSystems#newFileSystem(Path, Map)} owns its internal {@link Vfs} and closes it when
+     * closed.)
      *
-     * <p>
-     * The filesystem is read-only: every operation that would write throws
-     * {@link java.nio.file.ReadOnlyFileSystemException}.
-     *
-     * <p>
-     * A filesystem is a view of this root, and the two do not close each other. Its {@link FileSystem#close()}
-     * closes the view and handles opened through it, leaving this root and the {@link Vfs} that opened it open and
-     * readable, and a later call here hands out a fresh view. Closing this root closes every view of it, in the
-     * same one-way manner: a view of a closed root reports itself closed and refuses to be read through, and this
-     * method then throws. Release the remaining root-owned file handles, memory mappings and temporary files by
-     * closing this root or its {@link Vfs}, not just a view.
-     *
-     * <p>
-     * A filesystem created by {@link java.nio.file.FileSystems#newFileSystem(java.net.URI, java.util.Map)} for a
-     * {@code "cgvfs:"} URI, or by {@link java.nio.file.FileSystems#newFileSystem(Path, java.util.Map)} for a
-     * directory, is the exception: it created the {@link Vfs} behind it, and is the only reference the caller has
-     * to it, so closing that filesystem closes that {@link Vfs} too.
-     *
-     * @return a {@link FileSystem} view of this root. The same instance is returned every time, until it is closed.
+     * @return a read-only {@link FileSystem} view of this root (cached until closed).
      * @throws ClosedFileSystemException
-     *             if this root, or the {@link Vfs} that opened it, has been closed.
+     *             if this root or its {@link Vfs} has been closed.
      */
     public FileSystem asFileSystem() {
         // A closed root or Vfs has released the file handles, memory mappings and temporary files that a view
@@ -1047,12 +818,10 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Create the filesystem that {@link VfsFileSystemProvider} hands out for this root, which owns the {@link Vfs}
-     * that was created to open this root, and make it the view that {@link #asFileSystem()} returns, so that code
-     * that reaches this root from that filesystem is given the same filesystem back rather than a second view.
+     * Create and cache a {@link VfsFileSystem} that owns this root's {@link Vfs}.
      *
      * @param registeredPath
-     *            the path the provider registers the filesystem under, or null if it is not registered.
+     *            the path under which the provider registered the filesystem, or null if unregistered.
      * @return the filesystem.
      */
     VfsFileSystem asOwningFileSystem(final @Nullable String registeredPath) {
@@ -1066,12 +835,10 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Drop the cached {@link FileSystem} view of this root, if it is still the given one. A view calls this as the
-     * first step of its own close, so that this root cannot hand out a view that has started closing, and so that
-     * the next call to {@link #asFileSystem()} builds a fresh view.
+     * Clear the cached {@link FileSystem} view if it matches {@code view}.
      *
      * @param view
-     *            the view that is being closed.
+     *            the view being closed.
      */
     void discardFileSystemView(final VfsFileSystem view) {
         synchronized (this) {
@@ -1083,29 +850,20 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** True once this root has been closed, whether by its own {@link #close()} or by the {@link Vfs}'s. */
+    /** True once this root has been closed. */
     private final AtomicBoolean closed = new AtomicBoolean();
 
-    /**
-     * The actions that take this root back out of the caches that hold a reference to it. Recorded by whichever
-     * code publishes the reference, and drained as the first step of {@link #close(LogNode)}. Guarded by its own
-     * monitor, together with {@link #unregistrationsDrained}.
-     */
+    /** Callbacks that remove this root from caches when closed. */
     private final List<Runnable> unregistrations = new ArrayList<>();
 
-    /**
-     * True once {@link #close(LogNode)} has drained {@link #unregistrations}. Guarded by the monitor of that list.
-     */
+    /** True once {@link #close(LogNode)} has drained {@link #unregistrations}. */
     private boolean unregistrationsDrained;
 
     /**
-     * Record how to take this root back out of a cache that was just handed a reference to it, so that closing this
-     * root removes it from every cache that holds it. If the close has already drained the recorded actions, the
-     * reference this call is covering was published too late for the drain to see, so the action runs here instead.
+     * Register a callback to remove this root from a cache when closed, running it immediately if already closed.
      *
      * @param unregister
-     *            removes this root from the cache. Must be idempotent, must remove only this root (not whatever
-     *            root the cache currently maps the same key to), and must not throw.
+     *            the unregistration callback.
      */
     void addUnregistration(final Runnable unregister) {
         synchronized (unregistrations) {
@@ -1117,26 +875,18 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
         unregister.run();
     }
 
-    /**
-     * The closeable things this root has handed out that the caller has not closed yet -- the
-     * {@link CloseableByteBuffer}s read from it, the {@link InputStream}s from {@link VfsEntry#open()}, and the
-     * {@link java.nio.channels.SeekableByteChannel}s opened over its entries. Closing this root closes them, so
-     * that one that is a view of a memory mapping stops holding that mapping open and the file can be unmapped as
-     * this root closes rather than whenever the caller gets round to it, and so that a stream that holds a file
-     * handle of its own releases it. Guarded by its own monitor, together with {@link #openHandlesClosed}.
-     */
+    /** Open buffers, streams, and channels tracked for closure when this root closes. */
     private final Set<AutoCloseable> openHandles = Collections.newSetFromMap(new IdentityHashMap<>());
 
-    /** True once {@link #close(LogNode)} has closed what was in {@link #openHandles}. Guarded by that set. */
+    /** True once {@link #close(LogNode)} has closed all handles in {@link #openHandles}. */
     private boolean openHandlesClosed;
 
     /**
-     * Record something this root has just handed out, so that closing this root closes it if the caller has not.
+     * Track an open buffer, stream, or channel so it is closed when this root closes.
      *
      * @param handle
-     *            the buffer, stream or channel.
-     * @return true if it was recorded, or false if this root has already closed what it handed out, in which case
-     *         the caller must close this one itself, since nothing else will.
+     *            the buffer, stream, or channel.
+     * @return true if tracked, or false if this root has already closed its open handles.
      */
     boolean trackOpenHandle(final AutoCloseable handle) {
         synchronized (openHandles) {
@@ -1149,11 +899,10 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Stop tracking something, called from its own close method so that a caller that closes what it opens does not
-     * accumulate it here for as long as this root is open.
+     * Remove a closed buffer, stream, or channel from the tracked set.
      *
      * @param handle
-     *            the buffer, stream or channel.
+     *            the buffer, stream, or channel.
      */
     void untrackOpenHandle(final AutoCloseable handle) {
         synchronized (openHandles) {
@@ -1162,13 +911,10 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Close what this root handed out that the caller has not closed, as the step before
-     * {@link #releaseResources(LogNode)}. Each close drops the reference to the content and releases whatever was
-     * held -- for a view of a memory mapping, that is the view that was keeping the file mapped, so that the
-     * release of resources that follows can unmap it.
+     * Close all tracked buffers, streams, and channels that remain open.
      *
      * @param log
-     *            the log node, or null to not log.
+     *            the log node, or null.
      */
     private void closeOpenHandles(final @Nullable LogNode log) {
         final List<AutoCloseable> handlesToClose;
@@ -1196,40 +942,14 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Close this root, releasing what it owns and removing it from the cache of the {@link Vfs} that opened it.
-     * Every root built within this one -- the root of a jarfile nested within this root's jarfile, or a package
-     * root view of it -- is closed too, innermost first. The {@link Vfs} and every other root it has opened stay
-     * open; asking the {@link Vfs} for the same path again opens a fresh root. After the close, reading through
-     * this root -- or through a {@link VfsEntry} or {@link FileSystem} view of it -- throws {@link IOException} or
-     * {@link ClosedFileSystemException}.
+     * Close this root, releasing its resources and removing it from the {@link Vfs} cache.
      *
      * <p>
-     * Every {@link CloseableByteBuffer} this root handed out, every stream from {@link VfsEntry#open()} (and so
-     * every stream opened through the {@link FileSystem} view), and every channel opened over one of its entries
-     * through the {@link FileSystem} view, is closed by this if the caller has not closed it, as the step before
-     * the root releases what it owns -- so that nothing the caller left open can hold a memory mapping or a file
-     * handle open past this close, and every file this root mapped is unmapped, and every temporary file it created
-     * deleted, before this returns, except a file whose mapping is still in use by an I/O operation in another
-     * thread as this runs, which stays mapped until the JVM exits -- see {@link Vfs#close()}. If another thread is
-     * in the middle of copying from a file that this root mapped, this waits for that copy to finish before it
-     * unmaps the file. A {@link java.nio.ByteBuffer} reference taken from such a wrapper before the close is not
-     * revoked by it, and reading through one afterwards is undefined; see
-     * {@link CloseableByteBuffer#getByteBuffer()}.
-     *
-     * <p>
-     * A channel from {@link VfsEntry#openChannel()} reads one of those streams, so this closes the stream, and
-     * every further read of the channel throws {@link IOException}, but the channel still reports that it is open
-     * until the caller closes it.
-     *
-     * <p>
-     * There is rarely a reason to call this by hand, since {@link Vfs#close()} closes every root the {@link Vfs}
-     * has opened; closing one early is for a long-lived {@link Vfs} that is done reading one root and wants what
-     * that root holds released now.
-     *
-     * <p>
-     * Closing a root that is already closed does nothing. This method throws no exception: a resource that cannot
-     * be released is reported to the {@link Vfs} log rather than thrown, since the close releases everything else
-     * the root owns either way. An {@link Error}, such as {@link OutOfMemoryError}, is not caught.
+     * Closes any child roots opened within this root (such as nested archives or package root views) and any
+     * unclosed {@link CloseableByteBuffer}s, {@link InputStream}s, or channels opened from this root, while leaving
+     * the parent {@link Vfs} and other roots open. Subsequent operations on this root, its entries, or its
+     * {@link FileSystem} view throw {@link IOException} or {@link ClosedFileSystemException}. Idempotent; any
+     * cleanup failures are logged rather than thrown.
      */
     @Override
     public final void close() {
@@ -1237,10 +957,10 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Close this root, logging to the given log node -- see {@link #close()}.
+     * Close this root, logging to the specified {@link LogNode}.
      *
      * @param log
-     *            the log node, or null to not log.
+     *            the log node, or null.
      */
     final void close(final @Nullable LogNode log) {
         // Remove this root from every cache that holds it before anything else, so that the window in which
@@ -1282,21 +1002,17 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Release the resources this root owns, as the last step of {@link #close(LogNode)}. The base root owns
-     * nothing, so this does nothing; a root that owns resources overrides it. Runs at most once per root. Must not
-     * throw an exception: a resource that cannot be released is logged, so that the rest are still released. An
-     * {@link Error} is not caught.
+     * Release resources owned directly by this root.
      *
      * @param log
-     *            the log node, or null to not log.
+     *            the log node, or null.
      */
     void releaseResources(final @Nullable LogNode log) {
         // The base root owns nothing
     }
 
     /**
-     * Returns whether this root has been closed, either by {@link #close()} or by the close of the {@link Vfs} that
-     * opened it. Reading through a closed root throws {@link IOException}.
+     * Returns whether this root or its {@link Vfs} has been closed.
      *
      * @return true if this root or its {@link Vfs} has been closed.
      */
@@ -1305,10 +1021,10 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Throw an {@link IOException} if this root has been closed, or the {@link Vfs} that opened it has been.
+     * Throw {@link IOException} if this root or its {@link Vfs} has been closed.
      *
      * @param what
-     *            what was being read, for the error message.
+     *            description of the resource being read.
      * @throws IOException
      *             if this root or its {@link Vfs} has been closed.
      */
@@ -1320,17 +1036,10 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Returns the path this root reports itself at: the path of the directory or jarfile that backs it, with the
-     * package root appended if it was opened at one, or the name of a module. This is what {@link #toString()}
-     * returns, and for a root opened by a path in the default filesystem, it fully names the root, so it is one of
-     * the keys {@link Vfs} caches the root under. A root opened through a {@link java.nio.file.Path} in another
-     * filesystem is cached only under the URI of that path, since the path it reports names the file that
-     * filesystem is backed by, not that filesystem. A module is cached by its
-     * {@link java.lang.module.ModuleReference} instead, and is written as {@code "jrt:/<module>"} in a
-     * {@code "cgvfs:"} URI, where its bare name would name a relative directory: see
-     * {@link VfsFileSystemProvider#cgvfsPathOf(VfsRoot)}.
+     * Returns {@link #getPath()} with {@code "!/" + getPackageRoot()} appended if {@link #getPackageRoot()} is
+     * non-empty.
      *
-     * @return the path of this root, with the package root appended if there is one.
+     * @return the full path of this root including any package root suffix.
      */
     String reportedPath() {
         final var packageRoot = getPackageRoot();
@@ -1338,9 +1047,9 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Returns the path of this root, with the package root appended if there is one.
+     * Returns the path of this root, with the package root appended if present.
      *
-     * @return the root, as a string.
+     * @return the string representation of this root.
      */
     @Override
     public String toString() {

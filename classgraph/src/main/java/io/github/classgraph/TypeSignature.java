@@ -64,44 +64,27 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
     // Type variable resolution (#735)
 
     /**
-     * Resolve the type variables in this type signature against a context class, i.e. substitute the type arguments
-     * that the context class (or a class between the context class and the class declaring this type) supplies for
-     * them.
+     * Resolve the type variables in this type signature against a context class by substituting the type arguments
+     * supplied by the context class or its supertypes.
      *
      * <p>
      * For example, given {@code interface Base<T> { T getT(); }} and {@code abstract class Derived implements
-     * Base<String> {}}, the result type of {@code Base#getT()} is the type variable {@code T}, but calling this
-     * method on that result type with {@code Derived} as the context class returns {@code java.lang.String}.
+     * Base<String> {}}, the return type of {@code Base#getT()} is the type variable {@code T}, and calling this
+     * method on that return type with {@code Derived} as the context class returns {@code java.lang.String}.
      *
      * <p>
-     * A type variable is left unchanged if it cannot be resolved: if the context class is not a subclass or
-     * subinterface of the class declaring the type variable, if the supertype, or any supertype between it and the
-     * context class, is used in raw form, if the type variable is shadowed by a type parameter of the method that
-     * declares this type, or if the type argument is a wildcard that has no expressible equivalent outside type
-     * argument position ({@code "?"} or {@code "? super X"} -- an upper-bounded wildcard {@code "? extends X"} is
-     * substituted as {@code X}). In type argument position, wildcards are substituted verbatim, so {@code List<T>}
-     * with {@code T := "? extends Number"} resolves to {@code List<? extends Number>}.
+     * A type variable is left unchanged if it cannot be resolved: if the context class is not a subtype of the
+     * class declaring the type variable, if a supertype along the hierarchy is used in raw form, if the type
+     * variable is shadowed by a method type parameter, or if the bound type argument is {@code "?"} or
+     * {@code "? super X"} outside type argument position (an upper-bounded wildcard {@code "? extends X"} is
+     * substituted as {@code X}). In type argument position, wildcards are substituted verbatim (e.g.,
+     * {@code List<T>} with {@code T := "? extends Number"} resolves to {@code List<? extends Number>}).
      *
      * <p>
-     * Type variables are matched by the class that declares them together with their name, and bindings are
-     * collected by walking up the superclass and superinterface chain of the context class. A type variable that an
-     * inner class inherits from its enclosing class is matched by the enclosing class, so given {@code class
-     * Outer<V> { abstract class Inner implements Base<V> {} }}, the result type of {@code Base#getT()} resolves to
-     * {@code java.lang.String} against a subclass of {@code Outer<String>.Inner}, and a type variable used in
-     * {@code Inner} resolves against a subclass of {@code Outer<String>}. An inner class of a generic class that is
-     * referenced with no type arguments, as in {@code Outer.Inner}, is used in raw form.
-     *
-     * <p>
-     * An array type substituted for the element type of an array type adds its dimensions, so {@code E[]} with
-     * {@code E := String[]} resolves to {@code String[][]}. If the result would have more than 255 dimensions, the
-     * maximum the JVM allows, the type variable is left unchanged.
-     *
-     * <p>
-     * Type annotations are kept. A type annotation on a use of a type variable, such as the {@code @A} in
-     * {@code @A T} or {@code List<@A T>}, is placed on the type that replaces the type variable, before that type's
-     * own type annotations: on the innermost class of a nested class type (as in {@code Map.@A Entry}), on the
-     * outermost dimension of an array type, and on the wildcard of a wildcard type argument. The type signature
-     * that binds the type variable is not changed.
+     * Type variables are matched by declaring class and name across the superclass, superinterface, and enclosing
+     * inner class hierarchy of the context class. Substituting an array type for the element type of an array type
+     * combines their dimensions (up to the JVM maximum of 255 dimensions). Type annotations on a type variable use
+     * are preserved and prepended to the substituted type.
      *
      * @param contextClass
      *            the class to resolve type variables against.
@@ -126,9 +109,7 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
     }
 
     /**
-     * Get the key used to look up a type variable in a substitution map. A type variable is identified by the class
-     * that declares it as well as by its name, since the same name may be declared by several classes in a class
-     * hierarchy.
+     * Get the key used to look up a type variable in a substitution map.
      *
      * @param definingClassName
      *            the name of the class declaring the type variable.
@@ -141,15 +122,14 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
     }
 
     /**
-     * Walk from a class up through its superclasses and superinterfaces, recording the type argument that each
-     * level supplies for each type parameter of the level above it.
+     * Walk up the superclass and superinterface hierarchy of a class, recording type argument substitutions.
      *
      * @param classInfo
      *            the class to walk up from.
      * @param substitutions
-     *            the substitution map to add to.
+     *            the substitution map to populate.
      * @param visited
-     *            the names of the classes already visited, to terminate on cyclic or diamond hierarchies.
+     *            the names of classes already visited.
      */
     private static void addSubstitutions(final @Nullable ClassInfo classInfo,
             final Map<String, TypeArgument> substitutions, final Set<String> visited) {
@@ -180,16 +160,14 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
     }
 
     /**
-     * Record the type arguments that a class supplies for the type parameters of one of its direct supertypes, then
-     * continue walking up from that supertype.
+     * Record the type arguments supplied for a direct supertype, then continue walking up from that supertype.
      *
      * @param supertypeSignature
-     *            the signature of the supertype, as referenced by the subclass.
+     *            the signature of the supertype.
      * @param substitutions
-     *            the substitution map to add to, which already holds the bindings of the subclass' own type
-     *            parameters.
+     *            the substitution map to populate.
      * @param visited
-     *            the names of the classes already visited.
+     *            the names of classes already visited.
      */
     private static void addSupertypeSubstitutions(final @Nullable ClassRefTypeSignature supertypeSignature,
             final Map<String, TypeArgument> substitutions, final Set<String> visited) {
@@ -219,13 +197,11 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
     }
 
     /**
-     * Check whether a class declares type parameters, or is an inner member class of a class that has type
-     * parameters in scope, i.e. whether a reference to the class with no type arguments is a raw type (JLS 4.8).
+     * Check whether a class declares type parameters or is a non-static inner class of a generic class.
      *
      * @param classInfo
      *            the class, or null.
-     * @return true if the class or a class it is nested in, up to the first static member class, local class or
-     *         anonymous class, has a parseable generic signature that declares at least one type parameter.
+     * @return true if the class or an enclosing non-static member class declares at least one type parameter.
      */
     private static boolean hasTypeParametersInScope(final @Nullable ClassInfo classInfo) {
         if (classInfo == null) {
@@ -247,16 +223,16 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
     }
 
     /**
-     * Record the type arguments supplied for the type parameters of one class in a supertype reference.
+     * Record the type arguments supplied for the type parameters of one class segment in a supertype reference.
      *
      * @param supertypeSignature
-     *            the supertype reference the type arguments came from, used to reach the {@link ScanResult}.
+     *            the supertype reference.
      * @param className
      *            the name of the class that declares the type parameters.
      * @param typeArguments
-     *            the type arguments supplied for that class' type parameters.
+     *            the type arguments supplied for that class's type parameters.
      * @param substitutions
-     *            the substitution map to add to, and to compose the type arguments with.
+     *            the substitution map to populate.
      */
     private static void addTypeArgumentSubstitutions(final ClassRefTypeSignature supertypeSignature,
             final String className, final List<TypeArgument> typeArguments,
@@ -298,15 +274,12 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
     }
 
     /**
-     * Render a type signature back into the type signature string format of JVMS section 4.7.9.1, so that a
-     * substituted array type can be given a type signature string that matches its substituted element type. This
-     * is implemented in one place using a pattern switch rather than as an overridden method in each of the five
-     * signature classes, since it is only needed for this one purpose.
+     * Render a type signature into the JVM type signature string format (JVMS 4.7.9.1).
      *
      * @param typeSignature
      *            the type signature to render.
      * @param buf
-     *            the buffer to append to
+     *            the buffer to append to.
      */
     private static void toTypeSignatureStr(final HierarchicalTypeSignature typeSignature, final StringBuilder buf) {
         switch (typeSignature) {
@@ -383,26 +356,16 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Render this type as {@link #toString()} or {@link #toStringWithSimpleNames()} does, but leave out the given
-     * annotations where they are written on the type itself.
-     *
-     * <p>
-     * An annotation whose {@link java.lang.annotation.Target @Target} includes
-     * {@link java.lang.annotation.ElementType#TYPE_USE TYPE_USE} as well as a declaration kind, such as
-     * {@link java.lang.annotation.ElementType#FIELD FIELD}, is recorded by the compiler both on the declaration and
-     * on the declared type. Passing the annotations of a field, method or method parameter here renders its type
-     * without repeating them, which is how {@link FieldInfo}, {@link MethodInfo} and {@link MethodParameterInfo}
-     * show such an annotation once. An annotation is left out only where the compiler records that copy: on the
-     * type as a whole, or for an array type on its element type, or for a static nested class such as
-     * {@code Map.Entry} on the nested class. An annotation written inside the type, for example on a type argument
-     * as in {@code List<@NonNull String>}, is part of the type and is kept.
+     * Render this type signature as a string, excluding the specified annotations from the outermost type (or array
+     * element type / innermost nested class) where declaration annotations that also target
+     * {@link java.lang.annotation.ElementType#TYPE_USE TYPE_USE} are duplicated by the compiler. Annotations on
+     * nested type arguments (such as {@code List<@NonNull String>}) are retained.
      *
      * @param useSimpleNames
      *            if true, use simple class names, as {@link #toStringWithSimpleNames()} does; if false, use fully
      *            qualified class names, as {@link #toString()} does.
      * @param annotationsToExclude
-     *            the annotations to leave out, usually the annotations of the field, method or method parameter
-     *            that this is the type of.
+     *            the declaration annotations to exclude from the rendered type.
      * @return this type as a string, without the excluded annotations.
      * @throws NullPointerException
      *             if {@code annotationsToExclude} is null or contains null.
@@ -477,15 +440,15 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
     }
 
     /**
-     * Add a type annotation to this type, or to the type within it that the type path leads to.
+     * Add a type annotation to this type, or to the nested type indicated by {@code typePath}.
      *
      * @param typePath
      *            The type path, relative to this type.
      * @param annotationInfo
      *            The annotation to add.
      * @param unlinkedInnerClasses
-     *            The {@code InnerClasses} entries for inner classes that the classfile the annotation was read from
-     *            did not link (see {@link ClassInfo#getUnlinkedInnerClasses()}).
+     *            Unlinked {@code InnerClasses} entries from the classfile (see
+     *            {@link ClassInfo#getUnlinkedInnerClasses()}).
      * @throws IllegalArgumentException
      *             if the type path does not lead to a type within this type.
      */

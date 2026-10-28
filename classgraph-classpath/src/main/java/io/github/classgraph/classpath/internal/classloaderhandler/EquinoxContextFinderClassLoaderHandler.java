@@ -36,9 +36,7 @@ import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
 
-/**
- * Extract classpath entries from the Eclipse Equinox ContextFinder ClassLoader.
- */
+/** Extracts the classloader delegation order from the Eclipse Equinox {@code ContextFinder} classloader. */
 class EquinoxContextFinderClassLoaderHandler implements ClassLoaderHandler {
     /** Constructor. */
     EquinoxContextFinderClassLoaderHandler() {

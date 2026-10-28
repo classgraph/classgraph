@@ -38,31 +38,15 @@ import org.jspecify.annotations.Nullable;
 import io.github.classgraph.base.LogNode;
 
 /**
- * A memory mapping of a whole file, owned by the toplevel {@link Slice} that mapped it. Every slice of that file
- * reads through {@link #byteBuffer}, and only the owning slice may release it.
- *
- * <p>
- * The file is mapped through a shared {@link Arena}, so that the owning slice can unmap the file as it closes, by
- * closing the arena, and a thread that reads the mapping after that throws {@link IllegalStateException} rather
- * than read memory that is no longer there. If another thread is in the middle of an access to the mapping when the
- * arena is closed, such as one bulk copy out of it, the close waits for that access to finish, the access then
- * throws {@link IllegalStateException} instead of returning, and only then is the file unmapped -- so a close can
- * take as long as that access takes. The garbage collector cannot release a mapping in a shared arena: only closing
- * the arena does.
- *
- * <p>
- * Unmapping needs no class that mapping did not already load: this class is loaded by {@link #map}, and closing an
- * arena loads nothing that opening it and mapping the file through it has not. That matters because the owning
- * slice may be closed from a shutdown hook or a container's teardown code, after the classloader that loaded
- * ClassGraph has been closed and can no longer load anything.
+ * A read-only memory mapping of a whole file, owned and released by the toplevel {@link PathSlice} that mapped it.
  */
 // #331
 // #939
 final class FileMapping {
-    /** The mapped {@link ByteBuffer}, covering the whole file. */
+    /** The mapped {@link ByteBuffer} covering the whole file. */
     final ByteBuffer byteBuffer;
 
-    /** The arena that was used to map the file. */
+    /** The arena used to map the file. */
     private final Arena arena;
 
     /**
@@ -71,7 +55,7 @@ final class FileMapping {
      * @param byteBuffer
      *            the mapped byte buffer
      * @param arena
-     *            the arena that was used to map the file
+     *            the arena used to map the file
      */
     private FileMapping(final ByteBuffer byteBuffer, final Arena arena) {
         this.byteBuffer = byteBuffer;
@@ -89,9 +73,8 @@ final class FileMapping {
      *            the file being mapped, for logging
      * @param log
      *            the log node, or null to skip logging
-     * @return the mapping, or null if the file could not be mapped -- because it is too long to map to a single
-     *         {@link ByteBuffer}, because the {@link FileChannel} does not support mapping, or because the mapping
-     *         failed -- in which case the caller has to read the file through the {@link FileChannel} API instead.
+     * @return the mapping, or null if the file exceeds {@link Slice#MAX_BUFFER_SIZE}, the {@link FileChannel} does
+     *         not support memory mapping, or mapping failed.
      */
     static @Nullable FileMapping map(final FileChannel fileChannel, final long fileLength, final Object file,
             final @Nullable LogNode log) {
@@ -147,7 +130,7 @@ final class FileMapping {
      *            the length of the file
      * @return the mapped byte buffer
      * @throws IOException
-     *             if the file could not be mapped (mapping may succeed if it is retried after garbage collection)
+     *             if the file could not be mapped
      */
     private static ByteBuffer mapWholeFile(final Arena arena, final FileChannel fileChannel, final long fileLength)
             throws IOException {
@@ -155,18 +138,9 @@ final class FileMapping {
     }
 
     /**
-     * Release the memory mapping of the file, by closing the arena that mapped it. Called only by the toplevel
-     * {@link Slice} that owns the mapping, once, as it closes.
+     * Release the memory mapping of the file. Called once by the owning toplevel {@link PathSlice} on close.
      *
-     * <p>
-     * This unmaps the file even if another thread is still reading it: if that thread is in the middle of an access
-     * to the mapping, this waits for the access to finish, and the access then throws {@link IllegalStateException}
-     * instead of returning, which the readers translate into {@link IOException}. Closing a
-     * {@link io.github.classgraph.vfs.Vfs} while another thread is reading through it is a use-after-close either
-     * way, and is documented as one.
-     *
-     * @return true if the file has been unmapped by the time this returns, or false if the arena would not close,
-     *         which leaves the file mapped for the rest of the life of the JVM.
+     * @return true if the file was successfully unmapped.
      */
     // #939
     boolean unmap() {
@@ -174,15 +148,13 @@ final class FileMapping {
     }
 
     /**
-     * Close an arena, unmapping any file mapped with it. A thread that is still reading the mapping does not stop
-     * the arena from closing: if it is in the middle of an access to the mapping, the close waits for that access
-     * to finish, and the access then throws {@link IllegalStateException} instead of returning.
+     * Close an arena, unmapping any file mapped with it.
      *
      * @param arena
-     *            the arena to close.
+     *            the arena to close
      * @param log
      *            the log node, or null to skip logging
-     * @return true if the arena was successfully closed.
+     * @return true if the arena was successfully closed
      */
     // #939
     static boolean closeArena(final Arena arena, final @Nullable LogNode log) {

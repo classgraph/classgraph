@@ -51,29 +51,14 @@ import io.github.classgraph.vfs.VfsEntry;
 import io.github.classgraph.vfs.VfsRoot;
 
 /**
- * Finds the classpath entries that a classpath element adds to the classpath: the jarfiles in its automatic lib
- * dirs, and the entries of its manifest's {@code Class-Path} and {@code Bundle-ClassPath} attributes.
- *
- * <p>
- * A classpath element is read through the virtual filesystem, so a jarfile, a jarfile nested inside another jarfile
- * and an exploded jarfile in a directory all declare their child classpath elements the same way. The one
- * difference between them is how a path within the element is written: a jarfile separates itself from a path
- * within it with {@code "!/"}, where a directory simply has the path below it.
- *
- * <p>
- * A classpath is not complete until these have been resolved, since each of them can in turn declare more of them.
- * The caller drives the recursion, because the two callers need different things from it: the classpath finder
- * wants the expanded list of classpath entries, and the scanner wants a classpath element object for each one.
- *
- * <p>
- * The returned entries are in the order they must be added to the classpath, so a caller that schedules them for
- * parallel processing must record that order, and must not rely on the order in which the work finishes.
+ * Extracts child classpath entries declared by a classpath element via its manifest {@code Class-Path} and
+ * {@code Bundle-ClassPath} attributes and its automatic lib directories.
  */
 public final class ClasspathExpander {
-    /** The manifest attribute that lists the classpath elements a jarfile depends on. */
+    /** The manifest {@code Class-Path} attribute name. */
     private static final String CLASS_PATH_KEY = "Class-Path";
 
-    /** The manifest attribute that an OSGi bundle lists the classpath elements within itself with. */
+    /** The OSGi manifest {@code Bundle-ClassPath} attribute name. */
     private static final String BUNDLE_CLASS_PATH_KEY = "Bundle-ClassPath";
 
     /** Not instantiable. */
@@ -81,37 +66,34 @@ public final class ClasspathExpander {
         // Cannot be constructed
     }
 
-    /** Why a classpath element declared a child classpath entry. */
+    /** Source of a child classpath entry declared by a parent classpath element. */
     public enum ChildEntryOrigin {
-        /**
-         * A jarfile in one of the lib dirs that are automatically added to the classpath, e.g. {@code "lib/"}. Not
-         * all classloaders list these as classpath elements, so they are found by looking for them.
-         */
+        /** A jarfile found in an automatic lib directory. */
         NESTED_LIB_JAR("Found nested lib jar"),
 
-        /** An entry of the manifest's {@code Class-Path} attribute. */
+        /** An entry from the manifest {@code Class-Path} attribute. */
         CLASS_PATH_MANIFEST_ENTRY("Found Class-Path manifest entry"),
 
-        /** An entry of the manifest's {@code Bundle-ClassPath} attribute. */
+        /** An entry from the manifest {@code Bundle-ClassPath} attribute. */
         BUNDLE_CLASS_PATH_MANIFEST_ENTRY("Found Bundle-ClassPath manifest entry");
 
-        /** The text to log when an entry with this origin is found. */
+        /** Log message prefix for this origin. */
         private final String logMessage;
 
         /**
          * Constructor.
          *
          * @param logMessage
-         *            the text to log when an entry with this origin is found
+         *            the log message prefix.
          */
         ChildEntryOrigin(final String logMessage) {
             this.logMessage = logMessage;
         }
 
         /**
-         * Get the text to log when an entry with this origin is found.
+         * Returns the log message prefix for this origin.
          *
-         * @return the log message.
+         * @return the log message prefix.
          */
         public String getLogMessage() {
             return logMessage;
@@ -119,37 +101,30 @@ public final class ClasspathExpander {
     }
 
     /**
-     * A classpath entry declared by a classpath element.
+     * A child classpath entry declared by a parent classpath element.
      *
      * @param origin
-     *            why the classpath element declared it.
+     *            how the child entry was declared.
      * @param location
-     *            the location of the child classpath entry, resolved so that it can be opened directly.
+     *            the resolved location of the child entry.
      * @param path
-     *            the child classpath entry as a {@link Path} in the same filesystem as the classpath element that
-     *            declared it, or null if it does not have one -- a jarfile nested inside another jarfile is read
-     *            out of the jarfile that contains it rather than from a file of its own. This is the only way to
-     *            reach a classpath element in a filesystem other than the default one, since its
-     *            {@link #location()} names it but cannot open it.
+     *            the child entry as a {@link Path} in the parent element's filesystem, or null if none.
      */
     public record ChildEntry(ChildEntryOrigin origin, String location, @Nullable Path path) {
     }
 
     /**
-     * Find the classpath entries that a classpath element adds to the classpath.
+     * Returns the child classpath entries declared by {@code root}, in classpath resolution order.
      *
      * @param root
-     *            the classpath element, opened through the virtual filesystem.
+     *            the opened classpath element.
      * @param libDirPrefixes
-     *            the lib dirs to look in for jarfiles that the classloader loads without listing them as classpath
-     *            elements, each ending in a slash.
+     *            automatic lib directory prefixes (each ending in {@code '/'}).
      * @param enableNestedJars
-     *            whether jarfiles nested inside other jarfiles are read. A lib dir of an exploded jarfile in a
-     *            directory holds jarfiles of its own, which are read whether or not this is set, since they are
-     *            files in the filesystem rather than jarfiles nested inside another jarfile.
+     *            whether jarfiles nested inside archive classpath elements should be included.
      * @param log
      *            the log node, or null to skip logging.
-     * @return the child classpath entries, in the order they must be added to the classpath.
+     * @return the child classpath entries in declaration order.
      * @throws IOException
      *             if the classpath element could not be read.
      */
@@ -174,16 +149,16 @@ public final class ClasspathExpander {
     }
 
     /**
-     * Add the jarfiles in the automatic lib dirs, since not all classloaders list them as classpath elements.
+     * Adds {@code .jar} files found in {@code libDirPrefixes} within {@code container} to {@code childEntries}.
      *
      * @param container
-     *            the classpath element, opened through the virtual filesystem.
+     *            the opened container root.
      * @param libDirPrefixes
-     *            the lib dirs to look in, each ending in a slash.
+     *            the lib directory prefixes (each ending in {@code '/'}).
      * @param childEntries
-     *            the list to add the child classpath entries to.
+     *            the list to append child entries to.
      * @throws IOException
-     *             if the classpath element could not be listed.
+     *             if the container entries could not be listed.
      */
     private static void addLibJars(final VfsRoot container, final List<String> libDirPrefixes,
             final List<ChildEntry> childEntries) throws IOException {
@@ -206,13 +181,13 @@ public final class ClasspathExpander {
     }
 
     /**
-     * Add the entries of the manifest's {@code Class-Path} attribute, resolving each path against the directory or
-     * jarfile that contains the classpath element.
+     * Parses and resolves manifest {@code Class-Path} entries from {@code container} and adds them to
+     * {@code childEntries}.
      *
      * @param container
-     *            the classpath element, opened through the virtual filesystem.
+     *            the opened container root.
      * @param childEntries
-     *            the list to add the child classpath entries to.
+     *            the list to append child entries to.
      * @param log
      *            the log node, or null to skip logging.
      * @throws IOException
@@ -293,13 +268,11 @@ public final class ClasspathExpander {
     }
 
     /**
-     * Whether a {@code Class-Path} entry with no URL scheme is a valid relative URL, as the JVM's own classloader
-     * requires of an entry of a jarfile fetched from a URL. An entry such as {@code "x[1].jar"} is not, so the JVM
-     * ignores it.
+     * Checks whether {@code relativePath} is a valid relative URI.
      *
      * @param relativePath
-     *            the {@code Class-Path} entry.
-     * @return true if the entry is a valid relative URL.
+     *            the {@code Class-Path} entry string.
+     * @return true if {@code relativePath} is a valid relative URI.
      */
     private static boolean isValidRelativeURL(final String relativePath) {
         try {
@@ -311,13 +284,13 @@ public final class ClasspathExpander {
     }
 
     /**
-     * Add the entries of an OSGi bundle jar manifest's {@code Bundle-ClassPath} attribute, resolving each path
-     * against the root of the classpath element.
+     * Parses and resolves OSGi manifest {@code Bundle-ClassPath} entries from {@code container} and adds them to
+     * {@code childEntries}.
      *
      * @param container
-     *            the classpath element, opened through the virtual filesystem.
+     *            the opened container root.
      * @param childEntries
-     *            the list to add the child classpath entries to.
+     *            the list to append child entries to.
      * @throws IOException
      *             if the manifest could not be read.
      */
@@ -349,15 +322,12 @@ public final class ClasspathExpander {
     }
 
     /**
-     * Split the value of a {@code Bundle-ClassPath} attribute into the paths it lists. The OSGi header syntax
-     * separates entries with {@code ','}, and the paths within an entry with {@code ';'}, and lets the paths of an
-     * entry be followed by parameters such as {@code selection-filter="..."}, which are not paths. Whitespace
-     * around a path is ignored, and a path may be quoted, though a quoted path cannot hold a {@code ','} or a
-     * {@code ';'}.
+     * Extracts target paths from an OSGi {@code Bundle-ClassPath} header value, stripping any parameters and
+     * quotes.
      *
      * @param bundleClassPath
-     *            the value of the {@code Bundle-ClassPath} attribute.
-     * @return the paths, in the order they are listed.
+     *            the {@code Bundle-ClassPath} attribute value.
+     * @return the target paths in declaration order.
      */
     private static List<String> bundleClassPathTargets(final String bundleClassPath) {
         final List<String> targets = new ArrayList<>();
@@ -378,13 +348,12 @@ public final class ClasspathExpander {
     }
 
     /**
-     * The path a classpath element is stored at in its own filesystem, or null if it is not stored at one: a
-     * jarfile nested inside another jarfile is read out of the jarfile that contains it, and a jarfile read from a
-     * stream or downloaded from a URL is not stored at a path at all.
+     * Returns the NIO {@link Path} of {@code root} if it directly represents a top-level file or directory, or null
+     * if it is nested or stream-backed.
      *
      * @param root
-     *            the classpath element, opened through the virtual filesystem.
-     * @return the path of the classpath element, or null if it does not have one.
+     *            the opened classpath element root.
+     * @return the NIO {@link Path}, or null.
      */
     private static @Nullable Path pathOfRoot(final VfsRoot root) {
         final var nioPath = root.getNioPath();
@@ -394,18 +363,15 @@ public final class ClasspathExpander {
     }
 
     /**
-     * The path of a child classpath entry that lies beside the classpath element that declared it, in the same
-     * filesystem as that classpath element.
+     * Resolves {@code location} as a sibling {@link Path} in the same filesystem as {@code containerNioPath}.
      *
      * @param containerNioPath
-     *            the path of the classpath element that declared it, or null if it does not have one.
+     *            the {@link Path} of the declaring classpath element, or null.
      * @param parentDir
-     *            the directory that contains the classpath element.
+     *            the parent directory path of the declaring classpath element.
      * @param location
      *            the resolved location of the child classpath entry.
-     * @return the path of the child classpath entry, or null if it does not lie under any directory above the
-     *         classpath element (a {@code Class-Path} entry may be an absolute path or a URL somewhere else
-     *         entirely), or if its location cannot be spelled as a path of that filesystem.
+     * @return the resolved {@link Path}, or null if it cannot be resolved in the same filesystem.
      */
     private static @Nullable Path siblingPath(final @Nullable Path containerNioPath, final String parentDir,
             final String location) {
@@ -437,15 +403,13 @@ public final class ClasspathExpander {
     }
 
     /**
-     * The path of a child classpath entry that lies within the classpath element that declared it, in the same
-     * filesystem as that classpath element.
+     * Resolves {@code nameWithin} relative to {@code containerNioPath}.
      *
      * @param containerNioPath
-     *            the path of the classpath element that declared it, or null if it does not have one.
+     *            the {@link Path} of the declaring classpath element, or null.
      * @param nameWithin
-     *            the name of the child classpath entry, relative to the classpath element.
-     * @return the path of the child classpath entry, or null if the classpath element does not have one, or if the
-     *         name cannot be spelled as a path of that filesystem.
+     *            the relative path within the declaring classpath element.
+     * @return the resolved {@link Path}, or null if {@code containerNioPath} is null or the path is invalid.
      */
     private static @Nullable Path resolveWithin(final @Nullable Path containerNioPath, final String nameWithin) {
         if (containerNioPath == null) {

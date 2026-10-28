@@ -55,8 +55,8 @@ public final class PackageInfoList extends MappableInfoList<PackageInfo> {
     }
 
     /**
-     * Construct a new unmodifiable {@link PackageInfoList} from a completed collection of {@link PackageInfo}
-     * objects. The collection is copied, and the packages are sorted by name.
+     * Construct a new unmodifiable {@link PackageInfoList} from a collection of {@link PackageInfo} objects, sorted
+     * by package name.
      *
      * @param packageInfoCollection
      *            the package info collection
@@ -67,8 +67,7 @@ public final class PackageInfoList extends MappableInfoList<PackageInfo> {
     }
 
     /**
-     * Constructor. As in {@link InfoList#InfoList(List)}, this list claims the given list, and the caller is
-     * responsible for having sorted it.
+     * Construct a {@link PackageInfoList} backed by the given pre-sorted list.
      *
      * @param packageInfo
      *            the elements of the list

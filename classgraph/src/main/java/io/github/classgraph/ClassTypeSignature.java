@@ -58,10 +58,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     /** The superinterface signatures. */
     private final List<ClassRefTypeSignature> superinterfaceSignatures;
 
-    /**
-     * The throws signatures (usually empty). These are only present in Scala classes, if the class is marked up
-     * with {@code @throws}, and they violate the classfile spec, but we parse them anyway.
-     */
+    /** Throws signatures (present only in Scala classfiles annotated with {@code @throws}). */
     // #495
     private final List<ClassRefOrTypeVariableSignature> throwsSignatures;
 
@@ -79,7 +76,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      * @param superinterfaceSignatures
      *            The superinterface signature(s).
      * @param throwsSignatures
-     *            the throws signatures (these are actually invalid, but can be added by Scala). Usually empty.
+     *            The throws signatures.
      */
     // #495
     private ClassTypeSignature(final ClassInfo classInfo, final List<TypeParameter> typeParameters,
@@ -153,10 +150,9 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Gets the throws signatures. These are invalid according to the classfile spec (so this method is currently
-     * non-public), but may be added by the Scala compiler.
+     * Get the throws signatures (present only in Scala classfiles annotated with {@code @throws}).
      *
-     * @return the throws signatures, or the empty list if the class type signature has no throws suffix
+     * @return the throws signatures, or the empty list if none
      */
     // #495
     List<ClassRefOrTypeVariableSignature> getThrowsSignatures() {
@@ -242,8 +238,8 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Render the declaration of the class that this signature belongs to -- its modifiers, its class type, its
-     * name, its type parameters, its record components, and any supertype that is not implicit in the declaration.
+     * Append the declaration of the class (modifiers, class type, name, type parameters, record components, and
+     * explicit supertypes) to {@code buf}.
      *
      * @param useSimpleNames
      *            if true, strip package and outer class names from class names

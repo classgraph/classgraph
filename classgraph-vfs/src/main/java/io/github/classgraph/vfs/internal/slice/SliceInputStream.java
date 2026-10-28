@@ -38,31 +38,26 @@ import org.jspecify.annotations.Nullable;
 import io.github.classgraph.vfs.reader.RandomAccessReader;
 
 /**
- * An {@link InputStream} that reads the bytes of a {@link Slice}, in order, through the slice's
- * {@link RandomAccessReader}.
+ * An {@link InputStream} that sequentially reads the bytes of a {@link Slice} via its {@link RandomAccessReader}.
  */
 final class SliceInputStream extends InputStream {
     /** The slice being read. */
     private final Slice slice;
 
-    /**
-     * The reader that the bytes are read through, or null once this stream has been closed. A reader of a
-     * memory-mapped file holds a duplicate of the mapped buffer, so this reference is dropped as the stream closes
-     * rather than being kept for as long as anything still refers to the stream.
-     */
+    /** The reader for the slice, or null once this stream is closed. */
     // #939
     private volatile @Nullable RandomAccessReader randomAccessReader;
 
     /** The {@link AutoCloseable} to close when this stream is closed, or null if none. */
     private final @Nullable AutoCloseable resourceToClose;
 
-    /** The current read position, relative to the start of the slice. */
+    /** Current read position relative to the start of the slice. */
     private long currOff;
 
-    /** The read position recorded by the last call to {@link #mark(int)}. */
+    /** Read position saved by the last call to {@link #mark(int)}. */
     private long markOff;
 
-    /** A destination buffer for the single-byte {@link #read()} method. */
+    /** Scratch buffer for {@link #read()}. */
     private final byte[] byteBuf = new byte[1];
 
     /** True once this stream has been closed. */
@@ -76,7 +71,7 @@ final class SliceInputStream extends InputStream {
      * @param resourceToClose
      *            the {@link AutoCloseable} to close when this stream is closed, or null if none
      * @throws IOException
-     *             if the slice has been closed, so that there is nothing left to read through.
+     *             if the slice has been closed
      */
     SliceInputStream(final Slice slice, final @Nullable AutoCloseable resourceToClose) throws IOException {
         this.slice = slice;
@@ -85,12 +80,11 @@ final class SliceInputStream extends InputStream {
     }
 
     /**
-     * Check that this stream, and the {@link io.github.classgraph.vfs.Vfs} that the slice belongs to, are both
-     * still open, and return the reader to read through.
+     * Check that this stream and its owning {@link io.github.classgraph.vfs.Vfs} are open, and return the reader.
      *
-     * @return the reader that the bytes are read through
+     * @return the {@link RandomAccessReader}
      * @throws IOException
-     *             if either has been closed.
+     *             if this stream or the {@link io.github.classgraph.vfs.Vfs} has been closed
      */
     private RandomAccessReader checkOpen() throws IOException {
         // Read the field into a local, so that a close running concurrently cannot null it between the check and

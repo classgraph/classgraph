@@ -105,9 +105,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      *            The class name, with '.' between package segments.
      * @param definingClassName
      *            The name of the defining class (for resolving type variables).
-     * @return The class reference. If the name cannot be written as a class reference in a type signature (e.g. it
-     *         contains ':', which the JVM allows in a class name), it is the whole name as the base class name,
-     *         with no suffixes.
+     * @return The class reference.
      */
     static ClassRefTypeSignature ofClassName(final String className, final @Nullable String definingClassName) {
         try {
@@ -511,12 +509,8 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Find the type annotations to leave out when rendering this class reference. The compiler records a
-     * declaration annotation that is also a type annotation on the outermost part of the class reference that can
-     * be annotated: the base class, or for a static nested class such as {@code Map.Entry}, the nested class, since
-     * the enclosing class of a static nested class cannot be annotated. So the first occurrence of each excluded
-     * annotation, searching from the base class inward, is the one to leave out; the same annotation written again
-     * on a part further in is kept.
+     * Find the outermost occurrence of each annotation in {@code annotationsToExclude} on this class reference or
+     * its suffixes so that it can be omitted when rendering the signature.
      *
      * @param annotationsToExclude
      *            the annotations to exclude

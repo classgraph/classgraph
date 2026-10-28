@@ -40,13 +40,12 @@ import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
 
 /**
- * The URL end of a path: percent-encoding and decoding the path part of a URL, normalizing it, and reading and
- * normalizing the scheme that a path may begin with.
+ * Utilities for validating URL schemes and percent-encoding, normalizing, and converting paths and URLs to
+ * {@link URI} instances.
  */
 public final class URLPaths {
     /**
-     * A URL scheme and its trailing {@code ':'} at the start of a path. At least two characters are required, so
-     * that a Windows drive designation is not taken for a URL scheme.
+     * Pattern matching a URL scheme (at least two characters) and its trailing {@code ':'} at the start of a path.
      */
     private static final Pattern URL_SCHEME_PREFIX_PATTERN = Pattern.compile("^[a-zA-Z][a-zA-Z0-9+\\-.]+:");
 
@@ -87,14 +86,13 @@ public final class URLPaths {
     }
 
     /**
-     * Check that a string is a URL scheme name, and lowercase it, since URL schemes are case-insensitive but are
-     * matched in lowercase.
+     * Validate a URL scheme name and convert it to lowercase.
      *
      * @param scheme
-     *            the scheme, e.g. "http", without the trailing ':'.
-     * @return the scheme, lowercased.
+     *            the scheme name (e.g. {@code "http"}), without a trailing {@code ':'}.
+     * @return the lowercased scheme name.
      * @throws IllegalArgumentException
-     *             if the scheme is shorter than two characters, or is not a valid URL scheme.
+     *             if the scheme is shorter than two characters or is not a valid URL scheme.
      */
     public static String normalizeURLScheme(final String scheme) {
         // The scheme is validated, rather than simply lowercased, because a scheme given in a form that can never
@@ -110,21 +108,19 @@ public final class URLPaths {
     }
 
     /**
-     * Check whether a path begins with something shaped like a URL scheme: a letter, then at least one more letter,
-     * digit, {@code '+'}, {@code '-'} or {@code '.'}, then {@code ':'}. This looks at syntax only. Since
-     * {@code ':'} is a legal filename character off Windows, a relative path can be spelled like a URL, and
-     * {@link PathSyntax#hasURLScheme(String)} consults the filesystem to tell the two apart.
+     * Check whether a path syntactically begins with a URL scheme (at least two characters) followed by
+     * {@code ':'}.
      *
      * @param path
      *            the path.
-     * @return true if the path begins with a URL scheme followed by {@code ':'}.
+     * @return {@code true} if the path begins with a URL scheme followed by {@code ':'}.
      */
     public static boolean startsWithURLScheme(final String path) {
         return URL_SCHEME_PREFIX_PATTERN.matcher(path).find();
     }
 
     /**
-     * Encode a URL path using percent-encoding. '/' is not encoded.
+     * Percent-encode unsafe characters in a URL path, preserving {@code '/'} and valid scheme or drive colons.
      *
      * @param path
      *            The path to encode.
@@ -168,35 +164,23 @@ public final class URLPaths {
     }
 
     /**
-     * Test whether a character is a hexadecimal digit, i.e. whether it can be one of the two digits of a percent
-     * escape.
+     * Test whether a character is a hexadecimal digit.
      *
      * @param c
      *            the character.
-     * @return true if the character is a hexadecimal digit.
+     * @return {@code true} if the character is a hexadecimal digit.
      */
     private static boolean isHexDigit(final char c) {
         return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
     }
 
     /**
-     * Percent-encode only the characters that a URI cannot hold, leaving the rest of a URL as it is written.
-     *
-     * <p>
-     * This is what a path that is still a URL needs, as opposed to a file path: a URL is already percent-encoded,
-     * so {@link #encodePath(String)} would encode it a second time and turn {@code "%20"} into {@code "%2520"},
-     * naming a resource that does not exist. It would also escape the URL's own syntax -- the colon before a port
-     * number becomes {@code "%3a"}, which makes the authority name a host that does not exist, and the {@code '?'}
-     * of a query string becomes {@code "%3f"}.
-     *
-     * <p>
-     * An escape that is already written is therefore kept as it is, and only a lone {@code '%'} that does not
-     * introduce one is escaped. What is escaped besides that is what {@link URI} rejects: a space, a control
-     * character, a character outside ASCII, and the handful of ASCII characters that no part of a URI may hold.
+     * Percent-encode characters that are not permitted in a {@link URI}, preserving existing percent-escape
+     * sequences and URL syntax characters.
      *
      * @param url
      *            the URL.
-     * @return the URL, with the characters a URI cannot hold percent-encoded.
+     * @return the URL with disallowed URI characters percent-encoded.
      */
     public static String encodeURL(final String url) {
         final StringBuilder buf = new StringBuilder(url.length() + 16);
@@ -224,23 +208,13 @@ public final class URLPaths {
     }
 
     /**
-     * Move the server of a UNC path out of the authority of a {@code "file:"} URI and back into its path, so that
-     * the URI names the same file after it is converted to a {@link java.net.URL} and opened.
-     *
-     * <p>
-     * {@link java.nio.file.Path#toUri()} renders the UNC path {@code \\server\share\x} as
-     * {@code file://server/share/x}, putting the server in the URI authority. {@link java.net.URL} reads that back
-     * as the local path {@code \share\x}, dropping the server, so opening it fails or, worse, reads a different
-     * file. {@link java.io.File#toURI()} renders the same path as {@code file:////server/share/x}, with an empty
-     * authority and the server in the path, and that does read back as the UNC path it came from. Both spellings
-     * are permitted (RFC 8089 appendix E.3.2); only the second one round-trips.
-     *
-     * <p>
-     * A URI with no authority is returned unchanged, so this is a no-op for every path that is not a UNC path.
+     * For a Windows UNC {@code "file:"} URI with a non-empty authority (such as {@code file://server/share/x}),
+     * move the authority into the path ({@code file:////server/share/x}) so that {@link java.net.URL} preserves the
+     * UNC server name.
      *
      * @param uri
      *            the URI
-     * @return the URI, with any UNC server moved from the authority into the path
+     * @return the URI with any UNC server moved from the authority into the path
      */
     public static URI moveUNCServerIntoPath(final URI uri) {
         final var authority = uri.getRawAuthority();
@@ -252,11 +226,11 @@ public final class URLPaths {
     }
 
     /**
-     * Normalize a URL path, so that it can be fed into the URL or URI constructor.
+     * Normalize and percent-encode a file path or URL string so that it can be parsed by {@link URI#URI(String)}.
      *
      * @param urlPath
      *            the URL path
-     * @return the URL string
+     * @return the normalized URL string
      */
     public static String normalizeURLPath(final String urlPath) {
         if (startsWithURLScheme(urlPath) && !urlPath.startsWith("file:") && !urlPath.startsWith("jar:")) {
@@ -293,15 +267,13 @@ public final class URLPaths {
     }
 
     /**
-     * Form the {@link URI} of a path, normalizing and percent-encoding it first, so that a path containing a
-     * character that a URI cannot hold, or a {@code "!/"} section that names something nested inside a jarfile,
-     * still produces a URI that names the same thing the path does.
+     * Convert a path or URL string into a normalized {@link URI}.
      *
      * @param path
      *            the path
      * @return the {@link URI} of the path
      * @throws IllegalStateException
-     *             if the path could not be turned into a {@link URI}
+     *             if the path could not be converted into a {@link URI}
      */
     public static URI toURI(final String path) {
         final var normalized = normalizeURLPath(path);
@@ -313,13 +285,13 @@ public final class URLPaths {
     }
 
     /**
-     * Form the {@link URI} of a filesystem path, in the spelling that reads back as the path it came from.
+     * Convert a filesystem {@link Path} into a {@link URI}, preserving Windows UNC server names.
      *
      * @param path
      *            the path
      * @return the {@link URI} of the path
      * @throws IllegalStateException
-     *             if the path could not be turned into a {@link URI}
+     *             if the path could not be converted into a {@link URI}
      */
     public static URI toURI(final Path path) {
         try {
@@ -332,8 +304,7 @@ public final class URLPaths {
     }
 
     /**
-     * Strip the {@code "jar:"} and {@code "file:"} scheme prefixes from a URL path, if present, leaving a plain
-     * file path.
+     * Strip leading {@code "jar:"} and {@code "file:"} scheme prefixes from a URL path.
      *
      * @param urlPath
      *            the URL path.
@@ -363,8 +334,7 @@ public final class URLPaths {
     }
 
     /**
-     * Turn a plain file path into a {@code "file:"} URL, prepending {@code "file:///"} to absolute paths and
-     * {@code "file:"} to relative paths.
+     * Convert a plain file path into a {@code "file:"} URL string.
      *
      * @param path
      *            the file path.

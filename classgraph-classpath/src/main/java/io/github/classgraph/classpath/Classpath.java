@@ -41,43 +41,41 @@ import io.github.classgraph.classpath.internal.ClasspathSpec;
 import io.github.classgraph.vfs.Vfs;
 
 /**
- * Where a JVM loads its classes and resources from: the classpath elements and the modules that were found by a
- * {@link ClasspathFinder}.
+ * The classpath entries and modules found by a {@link ClasspathFinder}.
  *
  * <p>
- * Finding the classpath opens the jarfiles on it, in order to read their manifests. {@link #close()} closes them
- * again, and deletes any temporary files that were needed to open a jarfile nested inside another jarfile, so a
- * {@link Classpath} is best obtained in a try-with-resources statement. The classpath elements and the modules can
- * still be read after {@link #close()} has been called.
+ * Finding the classpath opens jarfiles on the classpath to read their manifests. Calling {@link #close()} closes
+ * these jarfiles and deletes any temporary files extracted from nested jarfiles, so a {@link Classpath} should be
+ * used in a try-with-resources statement. Entry and module metadata remain accessible after {@link #close()}.
  *
  * <p>
- * Iterating a {@link Classpath} iterates its classpath elements, in the same order as {@link #getEntries()}. The
- * modules are listed separately, by {@link #getModules()}.
+ * Iterating over a {@link Classpath} yields its {@link ClasspathEntry} elements in {@link #getEntries()} order.
+ * Modules are returned separately by {@link #getModules()}.
  */
 public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> {
-    /** The classpath elements, in the order the classloaders would search them. */
+    /** The classpath elements in classloader search order. */
     private final List<ClasspathEntry> entries;
 
-    /** The system modules, in module layer order, and by module name within each layer. */
+    /** The system modules, ordered by module layer and then by module name. */
     private final List<ModuleReference> systemModules;
 
-    /** The non-system modules, in module layer order, and by module name within each layer. */
+    /** The non-system modules, ordered by module layer and then by module name. */
     private final List<ModuleReference> nonSystemModules;
 
-    /** The virtual filesystem that the jarfiles were read through, in order to read their manifests. */
+    /** The virtual filesystem used to read jarfiles on the classpath. */
     private final Vfs vfs;
 
     /**
      * Constructor.
      *
      * @param entries
-     *            the classpath elements, in the order the classloaders would search them.
+     *            the classpath elements in classloader search order.
      * @param classLoaderProbe
-     *            the probe that read the classloaders, which is where the modules come from.
+     *            the classloader probe containing discovered modules.
      * @param classpathSpec
-     *            the settings the classpath was found with, which say which kinds of module to list.
+     *            the classpath configuration.
      * @param vfs
-     *            the virtual filesystem that the jarfiles were read through, in order to read their manifests.
+     *            the virtual filesystem used to read jarfiles.
      */
     Classpath(final List<ClasspathEntry> entries, final ClassLoaderProbe classLoaderProbe,
             final ClasspathSpec classpathSpec, final Vfs vfs) {
@@ -96,9 +94,8 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Closes the jarfiles that were opened to read their manifests, and deletes any temporary files that were
-     * needed to open a jarfile nested inside another jarfile. The classpath elements and the modules can still be
-     * read afterwards. Calling this more than once has no further effect.
+     * Closes the underlying {@link Vfs}, releasing any open jarfiles and deleting any temporary files created for
+     * nested jarfiles. Entry and module metadata remain accessible after closing.
      */
     @Override
     public void close() {
@@ -106,23 +103,19 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
     }
 
     /**
-     * Returns the classpath elements, in the order the classloaders would search them, including the elements that
-     * a jarfile on the classpath declares: the jarfiles in its automatic lib dirs, and the entries of its
-     * manifest's {@code Class-Path} and {@code Bundle-ClassPath} attributes. An element that is reached more than
-     * once is listed only at the first position it is reached at, which is the position that decides which copy of
-     * a duplicated class is loaded.
+     * Returns the deduplicated classpath entries in classloader resolution order, including entries expanded from
+     * automatic lib directories and manifest {@code Class-Path} and {@code Bundle-ClassPath} attributes.
      *
-     * @return the classpath elements, as an unmodifiable list.
+     * @return the classpath entries, as an unmodifiable list.
      */
     public @Unmodifiable List<ClasspathEntry> getEntries() {
         return entries;
     }
 
     /**
-     * Returns an iterator over the classpath elements, in the same order as {@link #getEntries()}, so that a
-     * {@link Classpath} can be iterated directly.
+     * Returns an iterator over the classpath entries in {@link #getEntries()} order.
      *
-     * @return an iterator over the classpath elements.
+     * @return an iterator over the classpath entries.
      */
     @Override
     public @Unmodifiable Iterator<ClasspathEntry> iterator() {
@@ -130,19 +123,17 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
     }
 
     /**
-     * Returns the {@link ClasspathEntry#getLocation()} of each classpath element, in the same order as
-     * {@link #getEntries()}.
+     * Returns the {@link ClasspathEntry#getLocation()} string for each entry in {@link #getEntries()}.
      *
-     * @return the classpath element locations, as an unmodifiable list.
+     * @return the classpath entry locations, as an unmodifiable list.
      */
     public @Unmodifiable List<String> getLocations() {
         return entries.stream().map(ClasspathEntry::getLocation).toList();
     }
 
     /**
-     * Returns the modules that were found, the system modules first, then the rest: {@link #getSystemModules()}
-     * followed by {@link #getNonSystemModules()}. A jarfile on the classpath is not a module, and is not listed
-     * here. The list is empty unless {@link ClasspathFinder#enableSystemModules()} or
+     * Returns all discovered modules ({@link #getSystemModules()} followed by {@link #getNonSystemModules()}).
+     * Empty unless {@link ClasspathFinder#enableSystemModules()} or
      * {@link ClasspathFinder#enableNonSystemModules()} was called.
      *
      * @return the modules, as an unmodifiable list.
@@ -155,11 +146,9 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
     }
 
     /**
-     * Returns the JDK's own modules, in module layer order, and by module name within each layer. A module is a
-     * system module if its name starts with {@code java.}, {@code jdk.}, {@code javafx.} or {@code oracle.}, and
-     * {@link java.lang.module.ModuleFinder#ofSystem()} finds it at the same location. The application's own modules
-     * are non-system modules, even when jlink or jpackage has linked them into the runtime image. The list is empty
-     * unless {@link ClasspathFinder#enableSystemModules()} was called.
+     * Returns the discovered system modules ({@code java.*}, {@code jdk.*}, {@code javafx.*}, and {@code oracle.*}
+     * modules present at the same location in {@link java.lang.module.ModuleFinder#ofSystem()}), ordered by module
+     * layer and module name. Empty unless {@link ClasspathFinder#enableSystemModules()} was called.
      *
      * @return the system modules, as an unmodifiable list.
      */
@@ -168,8 +157,8 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
     }
 
     /**
-     * Returns the modules other than the system modules, in module layer order, and by module name within each
-     * layer. The list is empty unless {@link ClasspathFinder#enableNonSystemModules()} was called.
+     * Returns the discovered non-system modules, ordered by module layer and module name. Empty unless
+     * {@link ClasspathFinder#enableNonSystemModules()} was called.
      *
      * @return the non-system modules, as an unmodifiable list.
      */
@@ -178,9 +167,8 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
     }
 
     /**
-     * Returns the module path switches this JVM was launched with: {@code --module-path}, {@code --add-modules},
-     * {@code --patch-module}, {@code --add-exports}, {@code --add-opens} and {@code --add-reads}. This is the same
-     * instance that {@link ModulePathInfo#current()} returns.
+     * Returns the module path command-line options for the running JVM (equivalent to
+     * {@link ModulePathInfo#current()}).
      *
      * @return the module path info.
      */
@@ -191,28 +179,23 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
     }
 
     /**
-     * Returns the {@link Vfs} that the jarfiles on the classpath were read through, so that they can be read again
-     * without being opened a second time. It opens a directory, a jarfile, or a jarfile nested inside another
-     * jarfile all the same way, and it has the settings that the {@link ClasspathFinder} had when
-     * {@link ClasspathFinder#find()} was called (changing the {@link ClasspathFinder} afterward does not change
-     * them), so it can be passed straight to {@link ClasspathEntry#open(Vfs)} to read a classpath element, or to
-     * {@link Vfs#open(java.lang.module.ModuleReference)} to read a module.
+     * Returns the {@link Vfs} instance owned by this {@link Classpath}, which can be passed to
+     * {@link ClasspathEntry#open(Vfs)} or {@link Vfs#open(java.lang.module.ModuleReference)} to read classpath
+     * entries and modules while reusing already-opened jarfiles.
      *
      * <p>
-     * The {@link Vfs} is closed by {@link #close()}, along with everything opened through it, so do not close it
-     * yourself, and do not let anything it hands out escape the block that the {@link Classpath} is closed at the
-     * end of.
+     * This {@link Vfs} is closed when {@link #close()} is called on this {@link Classpath}.
      *
-     * @return the {@link Vfs} that the jarfiles on the classpath were read through.
+     * @return the {@link Vfs} instance.
      */
     public Vfs getVfs() {
         return vfs;
     }
 
     /**
-     * Returns the classpath elements and the modules, one per line.
+     * Returns a string representation listing all classpath entries and modules, one per line.
      *
-     * @return the classpath, as a string.
+     * @return the classpath and modules as a newline-separated string.
      */
     @Override
     public String toString() {

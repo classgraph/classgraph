@@ -35,9 +35,8 @@ import java.lang.reflect.Method;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Narcissus reflection driver (uses the <a href="https://github.com/toolfactory/narcissus">Narcissus</a> library,
- * if it is available, which allows access to non-public fields and methods, circumventing encapsulation and
- * visibility controls via JNI).
+ * Reflection driver backed by the <a href="https://github.com/toolfactory/narcissus">Narcissus</a> JNI library,
+ * allowing access to non-public fields and methods without strong encapsulation restrictions.
  */
 class NarcissusReflectionDriver extends ReflectionDriver {
     /** {@code Narcissus#getDeclaredMethods(Class)}. */
@@ -68,18 +67,10 @@ class NarcissusReflectionDriver extends ReflectionDriver {
     private final Method invokeStaticMethod;
 
     /**
-     * Constructor. Looks up the Narcissus API reflectively, so that ClassGraph has no compile-time or runtime
-     * dependency on Narcissus.
-     *
-     * <p>
-     * Every lookup below throws if it does not find what it is looking for, rather than returning null, so none of
-     * the fields can be left null and no null check is needed here. A method is matched on its name and parameter
-     * types only, though, so a Narcissus that changed a return type while keeping the rest of a signature would be
-     * accepted here and fail later, where the result of {@link Method#invoke} is cast.
+     * Construct a {@link NarcissusReflectionDriver}, looking up the Narcissus API methods reflectively.
      *
      * @throws Exception
-     *             if Narcissus is not on the classpath and is not a resolved module, or its native library could
-     *             not be loaded, or its API is not the expected shape
+     *             if Narcissus is not available or its native library could not be loaded
      */
     NarcissusReflectionDriver() throws Exception {
         // Load Narcissus class via reflection, so that there is no runtime dependency

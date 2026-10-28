@@ -34,17 +34,17 @@ import java.util.regex.Pattern;
 import io.github.classgraph.base.internal.path.PathSyntax;
 
 /**
- * The name that the module system gives a jarfile that has no module descriptor and no
- * {@code Automatic-Module-Name} manifest entry, which it derives from the name of the jarfile.
+ * Derives automatic module names from jarfile names when no module descriptor or {@code Automatic-Module-Name}
+ * manifest entry is present.
  */
 final class AutomaticModuleName {
-    /** A hyphen followed by a version number, which starts the version part of a jarfile name. */
+    /** Matches a hyphen followed by a version number. */
     private static final Pattern DASH_VERSION = Pattern.compile("-(\\d+(\\.|$))");
 
-    /** A character that may not appear in an automatic module name, and is replaced with a dot. */
+    /** Matches characters that are not alphanumeric (replaced with dots). */
     private static final Pattern NON_ALPHANUM = Pattern.compile("[^A-Za-z0-9]");
 
-    /** A run of two or more dots, which is collapsed into one. */
+    /** Matches two or more consecutive dots. */
     private static final Pattern REPEATING_DOTS = Pattern.compile("\\.{2,}");
 
     /** Not instantiable. */
@@ -53,15 +53,13 @@ final class AutomaticModuleName {
     }
 
     /**
-     * Derive automatic module name from jar name, using the algorithm described in
+     * Derive an automatic module name from a jar path, using the algorithm specified in
      * {@link java.lang.module.ModuleFinder#of(java.nio.file.Path...)}.
      *
      * @param jarPath
-     *            The path of the jarfile, as normalized by {@code FastPathResolver}: directory separators are '/'
-     *            on every platform, and nested jar separators are "!/". The path must not end in a package root:
-     *            the only "!/" separators it may hold are those between a jarfile and a jarfile nested within it.
-     * @return The automatic module name, or the empty string if the module system could not derive a name for the
-     *         jarfile.
+     *            The normalized jarfile path (with {@code '/'} directory separators and {@code "!/"} nested jar
+     *            separators, without a trailing package root).
+     * @return The derived automatic module name, or the empty string if a valid module name cannot be derived.
      */
     static String derive(final String jarPath) {
         // The jar is named by the last segment of its path, which is the name of the innermost nested jarfile for

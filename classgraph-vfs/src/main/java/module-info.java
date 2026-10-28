@@ -30,18 +30,15 @@
 import org.jspecify.annotations.NullMarked;
 
 /**
- * The virtual filesystem of
- * <a href="https://github.com/classgraph/classgraph">ClassGraph</a>: reads
- * directories, jarfiles and modules through one interface, however they are
- * named -- by path string, {@link java.io.File}, {@link java.nio.file.Path},
- * {@link java.net.URI}, {@link java.net.URL},
- * {@link java.lang.module.ModuleReference}, {@link java.io.InputStream} or byte
- * array -- including jarfiles nested inside other jarfiles to any depth, which
- * are read without being extracted to disk.
+ * The virtual filesystem of <a href="https://github.com/classgraph/classgraph">ClassGraph</a>, providing unified
+ * read access to directories, jarfiles (including nested jarfiles to any depth without extracting them to disk),
+ * and modules specified by path string, {@link java.io.File}, {@link java.nio.file.Path}, {@link java.net.URI},
+ * {@link java.net.URL}, {@link java.lang.module.ModuleReference}, {@link java.io.InputStream}, or byte array.
  *
  * <p>
- * This module is {@link org.jspecify.annotations.NullMarked}: unless a type is
- * annotated {@link org.jspecify.annotations.Nullable}, it is never null.
+ * This module is {@link org.jspecify.annotations.NullMarked}: parameters and return values are non-null unless
+ * annotated with {@link org.jspecify.annotations.Nullable}, and passing {@code null} for a non-null parameter
+ * throws {@link NullPointerException}.
  *
  * @author Luke Hutchison
  */

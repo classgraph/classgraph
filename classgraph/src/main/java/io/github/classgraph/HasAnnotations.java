@@ -38,20 +38,16 @@ import org.jspecify.annotations.Nullable;
 import io.github.classgraph.base.internal.utils.Assert;
 
 /**
- * An element that annotations can be applied to: a class ({@link ClassInfo}), a field ({@link FieldInfo}), a method
- * ({@link MethodInfo}), a method parameter ({@link MethodParameterInfo}), a package ({@link PackageInfo}) or a
- * module ({@link ModuleInfo}). This is the ClassGraph counterpart of {@link AnnotatedElement}, and lets code that
- * only cares about annotations accept any of those types.
+ * An annotated element: a class ({@link ClassInfo}), field ({@link FieldInfo}), method ({@link MethodInfo}), method
+ * parameter ({@link MethodParameterInfo}), package ({@link PackageInfo}), or module ({@link ModuleInfo}). This is
+ * the ClassGraph counterpart of {@link AnnotatedElement}.
  *
  * <p>
- * Each getter comes in an {@code All} form and a {@code Direct} form. The {@code All} form includes
- * meta-annotations -- the annotations on the element's own annotations, transitively -- and, for a class, any
- * {@link Inherited} annotations on its superclasses. The {@code Direct} form includes only the annotations written
- * on the element itself. {@link #hasAnnotation(String)} checks the {@code All} form; to check only the annotations
- * written on the element, call {@code getDirectAnnotationInfo().containsName(annotationName)}.
- *
- * <p>
- * Implementations need only supply {@link #getAllAnnotationInfo()}; the rest of this interface is derived from it.
+ * Each getter has an {@code All} form and a {@code Direct} form. The {@code All} form includes transitive
+ * meta-annotations (annotations on the element's annotations) and, for a class, any {@link Inherited} annotations
+ * on its superclasses. The {@code Direct} form includes only the annotations directly declared on the element.
+ * {@link #hasAnnotation(String)} checks the {@code All} form; to check only direct annotations, call
+ * {@code getDirectAnnotationInfo().containsName(annotationName)}.
  */
 public interface HasAnnotations {
     /**
@@ -102,9 +98,8 @@ public interface HasAnnotations {
      * {@link Repeatable} annotations, or {@link #getDirectAnnotationInfo(String)} to ignore meta-annotations.)
      *
      * <p>
-     * If the named annotation can be reached in more than one way -- if it is written on this element and is also a
-     * meta-annotation of one of the element's other annotations, for example -- then the one reached most directly
-     * is returned.
+     * If the named annotation is reachable in multiple ways (for example, both directly on this element and as a
+     * meta-annotation), the most direct instance is returned.
      *
      * @param annotationName
      *            the name of the annotation class

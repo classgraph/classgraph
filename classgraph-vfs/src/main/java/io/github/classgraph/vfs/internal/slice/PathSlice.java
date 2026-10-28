@@ -59,90 +59,64 @@ import io.github.classgraph.vfs.reader.RandomAccessReader;
 /** A {@link Path} slice. */
 public final class PathSlice extends Slice {
     /**
-     * The longest {@link #freeUnreachableBuffers()} waits for the garbage collector to process the references that
-     * a collection found, in milliseconds.
+     * Maximum time in milliseconds that {@link #freeUnreachableBuffers()} waits for reference processing after GC.
      */
     private static final int REFERENCE_PROCESSING_TIMEOUT_MILLIS = 100;
 
     /**
-     * The {@link Path} of the file, or null if this slice was opened from a {@link File} whose path cannot be
-     * represented as a {@link Path} on the default filesystem.
+     * The {@link Path} of the file, or null if opened from a {@link File} whose path cannot be represented as a
+     * {@link Path} on the default filesystem.
      */
     private final @Nullable Path path;
 
-    /** The {@link File} of the file, or null if this slice was opened from a {@link Path}. */
+    /** The {@link File} of the file, or null if opened from a {@link Path}. */
     private final @Nullable File file;
 
-    /** The path of the file, as it was given, for use in log and exception messages. */
+    /** The file path string, for log and exception messages. */
     private final String pathStr;
 
     /** The file length. */
     private final long fileLength;
 
     /**
-     * The {@link FileChannel} opened on the {@link Path}, or null once closed. Only set on the toplevel file slice,
-     * which owns the file channel. Volatile, since every slice of the file reads it, and it is replaced when a
-     * thread that was interrupted while reading it closes it.
+     * The {@link FileChannel} opened on the file, or null on sub-slices or once closed. Owned by the toplevel slice
+     * and reopened if closed by thread interruption during a read.
      */
     private volatile @Nullable FileChannel fileChannel;
 
-    /**
-     * The lock that the toplevel slice's {@link #fileChannel} is replaced and set to null under, which every slice
-     * of the file shares.
-     */
+    /** Lock synchronizing reopening and closing of {@link #fileChannel} on the toplevel slice. */
     private final Object fileChannelLock;
 
-    /**
-     * The toplevel file slice, which owns the file channel and the memory mapping, or {@code this} if this is the
-     * toplevel slice.
-     */
+    /** The toplevel file slice that owns {@link #fileChannel} and {@link #fileMapping} (or {@code this}). */
     private final PathSlice topLevelPathSlice;
 
-    /**
-     * The memory mapping of the file, if it was memory-mapped, or null once closed. Only set on the toplevel file
-     * slice, which owns the mapping and releases it as it closes. The slices of the file read the mapping through
-     * {@link #backingByteBuffer}.
-     */
+    /** The memory mapping of the file (only set on the toplevel slice), or null if unmapped or closed. */
     private volatile @Nullable FileMapping fileMapping;
 
-    /**
-     * The mapped byte buffer, if the file was memory-mapped, or null once closed. Only set on the toplevel file
-     * slice, which owns the mapping. Volatile, since every slice of the file reads it, but only the toplevel slice
-     * writes it.
-     */
+    /** The mapped {@link ByteBuffer} (only set on the toplevel slice), or null if unmapped or closed. */
     private volatile @Nullable ByteBuffer backingByteBuffer;
 
     /** True if {@link #close} has been called. */
     private final AtomicBoolean isClosed = new AtomicBoolean();
 
     /**
-     * The temporary file that this slice reads and owns, or null if this slice reads a file that something else
-     * owns. Only set on the toplevel slice of a nested jarfile that was extracted to a temporary file, which is
-     * deleted by {@link #close()}, once the mapping and the file channel over it have been released.
+     * The temporary file owned by this toplevel slice and deleted on {@link #close()}, or null if this slice does
+     * not own a temporary file.
      */
     private final @Nullable File tempFile;
 
-    /**
-     * The log node to report a temporary file that could not be deleted to, or null to skip logging. Only set
-     * alongside {@link #tempFile}.
-     */
+    /** The log node for reporting temporary file deletion failures, or null to skip logging. */
     private final @Nullable LogNode tempFileLog;
 
     /**
-     * Get the {@link FileChannel} opened on the {@link Path}, to read it. Called on the toplevel slice before every
-     * read.
+     * Return the open {@link FileChannel} on the toplevel slice, reopening it if a previous read on an interrupted
+     * thread closed it.
      *
-     * <p>
-     * A file channel is closed by a read on a thread that has been interrupted, or that is interrupted during the
-     * read, and every slice of the file reads through the same channel. So that one interrupted thread cannot stop
-     * every other thread from reading the file, a thread that has been interrupted is not allowed to read the
-     * channel, and a channel that was closed by an interruption during a read is reopened.
-     *
-     * @return the {@link FileChannel}
+     * @return the open {@link FileChannel}
      * @throws InterruptedIOException
-     *             if this thread has been interrupted
+     *             if the current thread is interrupted
      * @throws IOException
-     *             if {@link #close()} has been called, or if the channel had to be reopened and could not be
+     *             if this slice is closed or the channel could not be reopened
      */
     private FileChannel fileChannel() throws IOException {
         if (Thread.currentThread().isInterrupted()) {
@@ -183,8 +157,8 @@ public final class PathSlice extends Slice {
     /**
      * Get the {@link File} that this slice reads.
      *
-     * @return the {@link File} that this slice reads, or null if this slice reads a {@link Path} in a filesystem
-     *         that has no {@link File} view of its files.
+     * @return the {@link File}, or null if backed by a {@link Path} whose filesystem does not support
+     *         {@link Path#toFile()}.
      */
     public @Nullable File getFile() {
         if (file != null) {
@@ -232,29 +206,26 @@ public final class PathSlice extends Slice {
     }
 
     /**
-     * Constructor for toplevel file slice. At least one of {@code path} and {@code file} is non-null, and the file
-     * is opened through {@code path} if it is non-null.
+     * Constructor for a toplevel file slice. At least one of {@code path} and {@code file} must be non-null.
      *
      * @param path
-     *            the path, or null if the file is only reachable through the {@link File} API
+     *            the {@link Path}, or null if only reachable via {@code file}
      * @param file
-     *            the file, if this slice is opened from a {@link File}, or null if it is opened from a {@link Path}
+     *            the {@link File}, or null if opened from {@code path}
      * @param pathStr
-     *            the path of the file, as it was given, for use in log and exception messages
+     *            the file path string for log and exception messages
      * @param vfs
      *            the {@link Vfs} that opened this slice
      * @param checkAccess
-     *            if true, check that the path is a readable regular file before opening it
+     *            if true, verify that the path is a readable regular file before opening it
      * @param memoryMapWholeFile
-     *            if true, and files are memory-mapped on this platform, memory-map the whole file. Only pass true
-     *            for a file that is read many times at random offsets, such as a zipfile -- for a file that is read
-     *            once and then closed, mapping and unmapping the file costs more than reading it.
+     *            if true, memory-map the file on platforms where memory mapping is enabled
      * @param isTempFile
-     *            if true, the file is a temporary file that this slice owns, and deletes when it is closed.
+     *            if true, delete {@code file} when this slice is closed
      * @param log
      *            the log node, or null to skip logging
      * @throws IOException
-     *             if the file cannot be opened.
+     *             if the file cannot be opened
      */
     private PathSlice(final @Nullable Path path, final @Nullable File file, final String pathStr, final Vfs vfs,
             final boolean checkAccess, final boolean memoryMapWholeFile, final boolean isTempFile,
@@ -315,18 +286,17 @@ public final class PathSlice extends Slice {
     }
 
     /**
-     * Open a file channel for a toplevel file slice, and read the length of the file, which the slice's length has
-     * to be set to before anything else in the slice can be.
+     * Open a {@link FileChannel} for a toplevel file slice and read its length.
      *
      * @param path
-     *            the path, or null if the file is only reachable through the {@link File} API
+     *            the {@link Path}, or null if only reachable via {@code file}
      * @param file
-     *            the file, if the slice is opened from a {@link File}, or null if it is opened from a {@link Path}
+     *            the {@link File}, or null if opened from {@code path}
      * @param checkAccess
-     *            if true, check that the path is a readable regular file before opening it
-     * @return the file channel, and the length of the file.
+     *            if true, verify that the path is a readable regular file before opening it
+     * @return the opened channel and its file length
      * @throws IOException
-     *             if the file cannot be opened, or its length cannot be read, in which case the channel is closed.
+     *             if the file cannot be opened or its length cannot be read
      */
     private static OpenedChannel openChannel(final @Nullable Path path, final @Nullable File file,
             final boolean checkAccess) throws IOException {
@@ -363,17 +333,15 @@ public final class PathSlice extends Slice {
     }
 
     /**
-     * Open a toplevel slice of a file in a directory, to read it once and then close it. The file is not checked
-     * before it is opened, since the caller has already found it, and it is not memory-mapped, since mapping and
-     * unmapping a file that is read once costs more than reading it.
+     * Open a non-memory-mapped toplevel slice for a directory entry.
      *
      * @param path
      *            the path of the file
      * @param vfs
      *            the {@link Vfs} that opened this slice
-     * @return the slice over the file, which the caller owns and must close.
+     * @return the slice over the file, which the caller owns and must close
      * @throws IOException
-     *             if the file cannot be opened.
+     *             if the file cannot be opened
      */
     public static PathSlice forDirEntry(final Path path, final Vfs vfs) throws IOException {
         return new PathSlice(path, /* file = */ null, path.toString(), vfs, /* checkAccess = */ false,
@@ -381,13 +349,12 @@ public final class PathSlice extends Slice {
     }
 
     /**
-     * Get the {@link Path} for a {@link File} on the default filesystem.
+     * Convert a {@link File} to a {@link Path}, returning null if {@link File#toPath()} throws
+     * {@link InvalidPathException}.
      *
      * @param file
      *            the file
-     * @return the {@link Path} for the file, or null if the file's path cannot be represented as a {@link Path}. On
-     *         Windows a filename can contain characters that {@link Path} rejects -- the name of an NTFS alternate
-     *         data stream, say -- and such a file can only be opened through the {@link File} API.
+     * @return the {@link Path}, or null if the path is rejected by {@link File#toPath()}
      */
     private static @Nullable Path pathOrNull(final File file) {
         try {
@@ -415,20 +382,18 @@ public final class PathSlice extends Slice {
     }
 
     /**
-     * Open a toplevel slice of a temporary file that a nested jarfile was extracted to, which the returned slice
-     * owns: closing the slice deletes the file. Nothing else may delete it, and nothing else may read it once the
-     * slice is closed.
+     * Open a toplevel slice over a temporary file. The returned slice takes ownership of {@code tempFile} and
+     * deletes it when closed.
      *
      * @param tempFile
-     *            the temporary file, as returned by {@link TempFile#create(String)}.
+     *            the temporary file created by {@link TempFile#create(String)}
      * @param vfs
      *            the {@link Vfs} that opened this slice
      * @param log
      *            the log node, or null to skip logging
-     * @return the slice over the temporary file.
+     * @return the slice over the temporary file
      * @throws IOException
-     *             if the file cannot be opened, in which case the temporary file is not deleted -- the caller that
-     *             created it still owns it.
+     *             if the file cannot be opened (in which case the caller retains ownership of {@code tempFile})
      */
     public static PathSlice forTempFile(final File tempFile, final Vfs vfs, final @Nullable LogNode log)
             throws IOException {
@@ -468,13 +433,12 @@ public final class PathSlice extends Slice {
     }
 
     /**
-     * Create a new {@link RandomAccessReader} for this slice. The reader reads the memory mapping of the file if
-     * the file is mapped, and otherwise reads the file channel.
+     * Create a new {@link RandomAccessReader} for this slice, reading from the memory mapping if present or from
+     * the {@link FileChannel} otherwise.
      *
      * @return the random access reader
      * @throws IOException
-     *             if this slice has been closed, so that there is neither a mapping nor a file handle left to read
-     *             through.
+     *             if this slice has been closed
      */
     @Override
     public RandomAccessReader randomAccessReader() throws IOException {
@@ -598,8 +562,7 @@ public final class PathSlice extends Slice {
     }
 
     /**
-     * Delete the temporary file that this slice owns, once the mapping and the file channel over it have been
-     * released.
+     * Delete the temporary file owned by this slice after its mapping and file channel have been closed.
      *
      * @param fileToDelete
      *            the temporary file.
@@ -634,24 +597,8 @@ public final class PathSlice extends Slice {
     }
 
     /**
-     * Ask the garbage collector to run, and wait for the references that the collection found to be processed, so
-     * that an unreachable cleaner-managed mapping is more likely to have been released by the time this returns.
-     *
-     * <p>
-     * This is best effort, and cannot be made reliable: a file is unmapped while the reference to its mapped buffer
-     * is processed, and nothing can observe that a particular reference has been processed. That is why ClassGraph
-     * maps a file in an arena and unmaps it explicitly rather than leaving it to this -- this is only for what an
-     * explicit unmapping cannot reach: unrelated memory or cleaner-managed mappings that could free address space
-     * before a retry, and third-party mappings of a temporary file that Windows would not let ClassGraph delete. A
-     * shared arena that failed to close cannot be recovered this way: GC does not close shared arenas. A JVM
-     * started with {@code -XX:+DisableExplicitGC} ignores the request to collect altogether, in which case this
-     * returns once the wait times out, having done nothing.
-     *
-     * <p>
-     * This is in {@link PathSlice} because closing a slice calls it, and closing may happen from a shutdown hook or
-     * a container's teardown code, after the classloader that loaded ClassGraph has been closed. A class that
-     * nothing loaded before then could no longer be loaded, and closing would throw {@link NoClassDefFoundError}.
-     * {@link PathSlice} is always loaded by the time one of its instances is closed.
+     * Request garbage collection and wait briefly for reference processing so unreachable cleaner-backed mapped
+     * buffers can be released.
      */
     // #939, #331
     static void freeUnreachableBuffers() {

@@ -43,64 +43,39 @@ import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
 
 /**
- * The classloaders reached from the classloaders being searched, each listed once, in the order classes are
- * resolved from them, with the handlers chosen for each.
+ * Builds the delegation order of {@link ClassLoader} instances and selects the {@link ClassLoaderHandler} instances
+ * for each classloader.
  */
 public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
-    /**
-     * The {@link ClassLoaderHandler} instances the user registered, in registration order. These are offered each
-     * classloader before the built-in handlers are, so that a user handler can override a built-in one.
-     */
+    /** User-registered {@link ClassLoaderHandler} instances, in registration order. */
     private final List<ClassLoaderHandler> userClassLoaderHandlers;
 
-    /**
-     * The {@link ClassLoader} order, with the handlers to run for each classloader. This is a list rather than a
-     * map keyed by classloader, because two classloaders that are equal are still two classloaders, and a map would
-     * keep only one of them (see the note on {@link #added}). Nothing is added twice, since {@link #added} guards
-     * that.
-     */
+    /** The ordered {@link ClassLoader} instances paired with their selected handlers. */
     private final List<HandledClassLoader> classLoaderOrder = new ArrayList<>();
 
-    /**
-     * The set of all {@link ClassLoader} instances that have been added to the order so far, so that classloaders
-     * don't get added twice.
-     */
+    /** {@link ClassLoader} instances already added to {@link #classLoaderOrder}. */
     // Need to use IdentityHashMap for maps and sets here, because TomEE weirdly makes instances of
     // CxfContainerClassLoader equal to (via .equals()) the instance of TomEEWebappClassLoader that it delegates to
     // (#515)
     private final Set<ClassLoader> added = Collections.newSetFromMap(new IdentityHashMap<>());
 
-    /**
-     * The set of all {@link ClassLoader} instances that have been delegated to so far, to prevent an infinite loop
-     * in delegation.
-     */
+    /** {@link ClassLoader} instances already delegated to. */
     private final Set<ClassLoader> delegatedTo = Collections.newSetFromMap(new IdentityHashMap<>());
 
-    /**
-     * The set of all parent {@link ClassLoader} instances that have been delegated to so far, to enable
-     * {@code ClassGraph#ignoreParentClassLoaders()}.
-     */
+    /** {@link ClassLoader} instances reached via {@link #delegateToParent(ClassLoader, ClassGraphLog)}. */
     private final Set<ClassLoader> allParentClassLoaders = Collections.newSetFromMap(new IdentityHashMap<>());
 
-    /**
-     * The handlers found for each {@link ClassLoader}, so that the handlers are chosen only once per classloader.
-     * Every classloader is looked up twice, once by {@link #delegateTo(ClassLoader, boolean, ClassGraphLog)} and
-     * once by {@link #add(ClassLoader, ClassGraphLog)}, and choosing the handlers walks the classloader's class
-     * hierarchy once per registered handler.
-     */
+    /** Cached {@link ClassLoaderHandler} lists keyed by {@link ClassLoader}. */
     private final Map<ClassLoader, List<ClassLoaderHandler>> classLoaderHandlers = //
             new IdentityHashMap<>();
 
     /**
-     * A {@link ClassLoader} in the order, with the handlers to run for it. The generated {@code equals} and
-     * {@code hashCode} compare the classloader with {@link Object#equals}, which is not identity for every
-     * classloader (see the note on {@link ClassLoaderOrderBuilder#added}), so instances must not be compared or
-     * used as map keys.
+     * Pairs a {@link ClassLoader} with the {@link ClassLoaderHandler} instances selected for it.
      *
      * @param classLoader
      *            the classloader.
      * @param handlers
-     *            the {@link ClassLoaderHandler} instances to run for the classloader, in the order to run them.
+     *            the {@link ClassLoaderHandler} instances to run for the classloader.
      */
     public record HandledClassLoader(ClassLoader classLoader, List<ClassLoaderHandler> handlers) {
     }
@@ -111,39 +86,38 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
      * Constructor.
      *
      * @param userClassLoaderHandlers
-     *            the {@link ClassLoaderHandler} instances the user registered.
+     *            user-registered {@link ClassLoaderHandler} instances.
      */
     public ClassLoaderOrderBuilder(final List<ClassLoaderHandler> userClassLoaderHandlers) {
         this.userClassLoaderHandlers = userClassLoaderHandlers;
     }
 
     /**
-     * Get the {@link ClassLoader} order.
+     * Returns the ordered list of classloaders and their selected handlers.
      *
-     * @return a copy of the {@link ClassLoader} order, with the handlers to run for each classloader.
+     * @return an immutable copy of the {@link ClassLoader} order.
      */
     public List<HandledClassLoader> getClassLoaderOrder() {
         return List.copyOf(classLoaderOrder);
     }
 
     /**
-     * Get every classloader that was reached as the parent of another.
+     * Returns all classloaders reached as parent classloaders.
      *
-     * @return the parent classloaders, as an unmodifiable view.
+     * @return the parent classloaders, as an unmodifiable set.
      */
     public Set<ClassLoader> getAllParentClassLoaders() {
         return Collections.unmodifiableSet(allParentClassLoaders);
     }
 
     /**
-     * Get the ClassLoaderHandler(s) that can handle a given ClassLoader.
+     * Returns the cached or newly selected {@link ClassLoaderHandler} list for {@code classLoader}.
      *
      * @param classLoader
-     *            the class loader
+     *            the classloader.
      * @param log
-     *            the log node, or null to skip logging
-     * @return the handlers that can handle the classloader, or a singleton list containing the fallback handler if
-     *         none can.
+     *            the log node, or null to skip logging.
+     * @return the handlers for {@code classLoader}.
      */
     private List<ClassLoaderHandler> getClassLoaderHandlers(final ClassLoader classLoader,
             final @Nullable ClassGraphLog log) {
@@ -152,14 +126,14 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
     }
 
     /**
-     * Choose the {@link ClassLoaderHandler}(s) to handle a given {@link ClassLoader}.
+     * Selects the {@link ClassLoaderHandler} instances for {@code classLoader}, falling back to
+     * {@link ClassLoaderHandlerRegistry#FALLBACK_HANDLER} if none match.
      *
      * @param classLoader
-     *            the class loader
+     *            the classloader.
      * @param log
-     *            the log node, or null to skip logging
-     * @return the handlers that can handle the classloader, or a singleton list containing the fallback handler if
-     *         none can.
+     *            the log node, or null to skip logging.
+     * @return the selected handlers for {@code classLoader}.
      */
     private List<ClassLoaderHandler> chooseClassLoaderHandlers(final ClassLoader classLoader,
             final @Nullable ClassGraphLog log) {
@@ -188,15 +162,14 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
     }
 
     /**
-     * Check whether a {@link ClassLoaderHandler} can handle a given {@link ClassLoader} class, treating a handler
-     * that throws as one that cannot, so that one failing handler does not stop every classloader from being read.
+     * Calls {@link ClassLoaderHandler#canHandle(Class, ClassGraphLog)}, logging and returning false if it throws.
      *
      * @param handler
      *            the handler.
      * @param classLoaderClass
-     *            the {@link ClassLoader} class or one of its superclasses.
+     *            the {@link ClassLoader} class or superclass.
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or null to skip logging.
      * @return true if the handler can handle the class.
      */
     private static boolean canHandle(final ClassLoaderHandler handler, final Class<?> classLoaderClass,
@@ -213,33 +186,18 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
     }
 
     /**
-     * Drop each built-in handler that only handles the classloader because it handles a superclass of it, when
-     * another handler handles a more specific class in the same hierarchy.
-     *
-     * <p>
-     * A handler declares the classloader class it handles by returning true from
-     * {@code ClassLoaderHandler#canHandle(Class, ClassGraphLog)} for that class and for every subclass of it, so
-     * the most distant ancestor of the classloader that a handler still returns true for is the class the handler
-     * was written against, and a handler whose class is further up the hierarchy is the more general of the two.
-     * Only the least general handlers are kept: a handler written for a subclass of {@link java.net.URLClassLoader}
-     * knows how that subclass really delegates and where it really keeps its classpath entries, so it must not have
-     * a general {@code URLClassLoader} handler running alongside it and placing the same classloaders in a
-     * different order. This is what makes the order the built-in handlers are registered in irrelevant.
-     *
-     * <p>
-     * Handlers the user registered are never dropped, since the user registered them for this exact purpose;
-     * dropping one would silently turn off something the caller explicitly asked for.
+     * Retains all user-registered handlers and only those built-in handlers that match the most specific
+     * classloader class in the superclass hierarchy of {@code classLoaderClass}.
      *
      * @param handlers
-     *            the handlers that can handle the classloader, user-registered ones first, in the order they should
-     *            run in. Must contain at least two handlers.
+     *            all matching handlers (user-registered handlers first).
      * @param numUserHandlers
-     *            the number of user-registered handlers at the head of {@code handlers}.
+     *            the number of user-registered handlers at the start of {@code handlers}.
      * @param classLoaderClass
      *            the class of the classloader being handled.
      * @param log
-     *            the log node, or null to skip logging
-     * @return the handlers to run, in the order they were given in.
+     *            the log node, or null to skip logging.
+     * @return the filtered list of handlers.
      */
     private static List<ClassLoaderHandler> dropMoreGeneralHandlers(final List<ClassLoaderHandler> handlers,
             final int numUserHandlers, final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
@@ -280,12 +238,12 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
     }
 
     /**
-     * Add a {@link ClassLoader} to the ClassLoader order at the current position.
+     * Adds a {@link ClassLoader} to the classloader order at the current position if not already added.
      *
      * @param classLoader
-     *            the class loader, or null (ignored)
+     *            the classloader, or null (ignored).
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or null to skip logging.
      */
     @Override
     public void add(final @Nullable ClassLoader classLoader, final @Nullable ClassGraphLog log) {
@@ -298,12 +256,12 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
     }
 
     /**
-     * Recursively delegate to a parent {@link ClassLoader}, and record it as a parent.
+     * Recursively delegates to a parent {@link ClassLoader} and records it as a parent classloader.
      *
      * @param parent
-     *            the parent class loader, or null (ignored)
+     *            the parent classloader, or null (ignored).
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or null to skip logging.
      */
     @Override
     public void delegateToParent(final @Nullable ClassLoader parent, final @Nullable ClassGraphLog log) {
@@ -311,13 +269,12 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
     }
 
     /**
-     * Recursively delegate to a {@link ClassLoader} that is not a parent, without recording it as a parent. The
-     * classloaders that a classloader source names are reached this way too.
+     * Recursively delegates to a peer {@link ClassLoader} without recording it as a parent classloader.
      *
      * @param classLoader
-     *            the class loader, or null (ignored)
+     *            the peer classloader, or null (ignored).
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or null to skip logging.
      */
     @Override
     public void delegateToPeer(final @Nullable ClassLoader classLoader, final @Nullable ClassGraphLog log) {
@@ -325,23 +282,15 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
     }
 
     /**
-     * Recursively delegate to another {@link ClassLoader}.
-     *
-     * <p>
-     * The classloader is not placed in the order here: its handler places it, by calling
-     * {@link #add(ClassLoader, ClassGraphLog)} either before or after it delegates to the classloader's parent,
-     * according to whether the classloader resolves classes parent-first or parent-last. That is what puts the
-     * classpath elements in the order that classes are resolved in, which is the order that class masking depends
-     * on. If no handler places the classloader, which includes a handler that throws before placing it, it is
-     * placed after the classloaders its handlers delegated to, so that its classpath is still read.
+     * Recursively traverses {@code classLoader} using its selected handlers, appending it after its delegates if no
+     * handler added it directly.
      *
      * @param classLoader
-     *            the class loader, or null (ignored)
+     *            the classloader, or null (ignored).
      * @param isParent
-     *            true to record the classloader as a parent, whose classpath elements
-     *            {@code ClasspathFinder#ignoreParentClassLoaders()} leaves out
+     *            true to record {@code classLoader} as a parent classloader.
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or null to skip logging.
      */
     private void delegateTo(final @Nullable ClassLoader classLoader, final boolean isParent,
             final @Nullable ClassGraphLog log) {

@@ -38,117 +38,75 @@ import org.jspecify.annotations.Nullable;
 import io.github.classgraph.base.ClassGraphLog;
 
 /**
- * The classpath entries found so far, in the order that classes are resolved from them, built up by
+ * Accumulates classpath entries in resolution order as they are extracted by
  * {@link ClassLoaderHandler#findClasspathOrder(ClassLoader, ClasspathOrder, ClassGraphLog)}.
  *
  * <p>
- * Entries are added in resolution order, and a duplicate entry is ignored, so the first classloader to contribute a
- * given classpath element is the one it is attributed to. A classpath element that names a file or directory is
- * deduplicated by the canonical path of that file, so the same file added twice under two different paths --
- * through a symbolic link, or spelled with a different case on a filesystem that ignores case -- is added only
- * once.
+ * Entries are deduplicated by canonical location (retaining the first occurrence), and local files or directories
+ * that do not exist or cannot be read are skipped.
  *
  * <p>
- * A classpath element that names a file or directory the filesystem says is not there, or that cannot be read, is
- * logged and skipped rather than added, since it cannot contribute any class to the scan.
- *
- * <p>
- * A {@code ClasspathOrder} is valid only during the {@code findClasspathOrder} call it is passed to. Do not keep a
- * reference to it: an entry added after that call returns is not recorded with the package root prefixes and lib
- * dir prefixes of the handler it was passed to, and may not be seen by the scan.
- *
- * <p>
- * ClassGraph provides the only implementation of this interface, and passes it to a {@link ClassLoaderHandler}. It
- * is not meant to be implemented outside ClassGraph, and methods may be added to it in later releases.
+ * A {@code ClasspathOrder} instance is valid only during the {@code findClasspathOrder} invocation to which it is
+ * passed. This interface is implemented only by ClassGraph and is not intended to be implemented by callers.
  */
 public interface ClasspathOrder {
     /**
-     * Add a classpath entry, or each classpath entry in an array or {@link Iterable}.
+     * Adds a classpath entry, or each entry in a nested array or {@link Iterable}.
      *
      * <p>
-     * The object may be a {@link String} path, {@link URL}, {@link URI}, {@link File} or {@link Path}, or an array
-     * or {@link Iterable} of any of those, nested to any depth. A {@link Path} is one classpath entry, although it
-     * is an {@link Iterable} of its name elements. A {@link Path} keeps its own filesystem, so it need not be on
-     * the default filesystem; do not convert it to a string first. Anything else, including an array of primitives,
-     * is converted with {@link Object#toString()}. An array or {@link Iterable} that is met again while its own
-     * elements are being added is not expanded again: an array or {@link java.util.Collection} is skipped, and any
-     * other {@link Iterable} is converted with {@link Object#toString()}.
-     *
-     * <p>
-     * A {@link String} is always one path, and is never split at the system path separator character. Pass a string
-     * that holds several paths to {@link #addClasspathPathStr(String, ClassLoader, ClassGraphLog)} or
-     * {@link #addClasspathEntryObject(Object, ClassLoader, ClassGraphLog)} instead.
+     * {@code pathElement} may be a {@link String} (treated as a single path, not split on the system path
+     * separator), {@link URL}, {@link URI}, {@link File}, {@link Path} (treated as a single entry and preserving
+     * its {@link java.nio.file.FileSystem}), or a nested array or {@link Iterable} of those types. Other objects
+     * are converted via {@link Object#toString()}.
      *
      * @param pathElement
-     *            the classpath entry, or the array or {@link Iterable} of classpath entries.
+     *            the classpath entry, or an array or {@link Iterable} of classpath entries.
      * @param classLoader
-     *            the {@link ClassLoader} that the classpath entries were obtained from.
+     *            the {@link ClassLoader} from which the entries were obtained.
      * @param log
-     *            the log node, or null to skip logging
-     * @return true if at least one classpath element was added, or false if each one was null or empty, named a
-     *         file or directory that the filesystem says is not there or cannot be read, was filtered out by the
-     *         user's classpath element filters, or duplicated a classpath element already added.
+     *            the log node, or null to skip logging.
+     * @return true if at least one new, valid classpath entry was added.
      */
     boolean addClasspathEntry(@Nullable Object pathElement, @Nullable ClassLoader classLoader,
             @Nullable ClassGraphLog log);
 
     /**
-     * Add classpath entries from a string of paths or URLs separated by the system path separator character.
+     * Splits a {@link File#pathSeparator}-delimited string of paths or URLs and adds each entry.
      *
      * @param pathStr
      *            the delimited string of paths or URLs.
      * @param classLoader
-     *            the {@link ClassLoader} that this classpath was obtained from.
+     *            the {@link ClassLoader} from which the classpath string was obtained.
      * @param log
-     *            the log node, or null to skip logging
-     * @return true if at least one classpath element was added.
+     *            the log node, or null to skip logging.
+     * @return true if at least one new, valid classpath entry was added.
      */
     boolean addClasspathPathStr(@Nullable String pathStr, @Nullable ClassLoader classLoader,
             @Nullable ClassGraphLog log);
 
     /**
-     * Add classpath entries from an object obtained by reflection, of a type that is only known at runtime. The
-     * object may be a {@link URL}, {@link URI}, {@link File}, {@link Path} or {@link String} (holding a single
-     * path, or several paths separated by the system path separator character), or an array or {@link Iterable} of
-     * any of those, nested to any depth. Anything else, including an array of primitives, is converted with
-     * {@link Object#toString()}, and the result is split at the system path separator character, as a
-     * {@link String} is.
-     *
-     * <p>
-     * This differs from {@link #addClasspathEntry(Object, ClassLoader, ClassGraphLog)} only in splitting strings,
-     * so a directory whose name holds the system path separator character cannot be added with this method. As
-     * there, an array or {@link Iterable} that is met again while its own elements are being added is not expanded
-     * again.
+     * Adds classpath entries from an arbitrary object obtained via reflection. Behaves like
+     * {@link #addClasspathEntry(Object, ClassLoader, ClassGraphLog)}, except that {@link String} values (and
+     * objects converted via {@link Object#toString()}) are split on {@link File#pathSeparator}.
      *
      * @param pathObject
-     *            the object holding a classpath entry or entries.
+     *            the object holding one or more classpath entries.
      * @param classLoader
-     *            the {@link ClassLoader} that this classpath was obtained from.
+     *            the {@link ClassLoader} from which the entries were obtained.
      * @param log
-     *            the log node, or null to skip logging
-     * @return true if at least one classpath element was added.
+     *            the log node, or null to skip logging.
+     * @return true if at least one new, valid classpath entry was added.
      */
     boolean addClasspathEntryObject(@Nullable Object pathObject, @Nullable ClassLoader classLoader,
             @Nullable ClassGraphLog log);
 
     /**
-     * Claim a piece of work that only needs doing once per scan.
-     *
-     * <p>
-     * A {@link ClassLoaderHandler} instance is shared between all scans, so it cannot remember in a field of its
-     * own that it has already done something: the field would stay set for every later scan in the same JVM. This
-     * object belongs to one scan, so it can.
-     *
-     * <p>
-     * For example, all Equinox classloaders yield the same OSGi system bundles, so the built-in Equinox handler
-     * only reads them from the first Equinox classloader it is given in each scan.
+     * Marks a named action as performed for the current scan and returns true on the first call for a given
+     * {@link ClassLoaderHandler} class and {@code key} within the scan, or false on subsequent calls.
      *
      * @param key
-     *            a name for the piece of work, unique within the handler that claims it. Handlers of different
-     *            classes have separate sets of keys, so they cannot claim each other's work, while all instances of
-     *            one handler class share one set of keys.
-     * @return true the first time a handler of a given class calls this method with a given key during a scan,
-     *         false every time thereafter.
+     *            an identifier scoped to the calling {@link ClassLoaderHandler} class.
+     * @return true if this is the first time the calling handler class has claimed {@code key} in the current scan.
      */
     boolean claimOncePerScan(String key);
 }

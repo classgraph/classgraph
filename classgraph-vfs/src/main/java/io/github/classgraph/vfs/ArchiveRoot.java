@@ -47,70 +47,63 @@ import io.github.classgraph.vfs.internal.zip.JarOpener;
 import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
 import io.github.classgraph.vfs.internal.zip.PhysicalZipFile;
 
-/** A zipfile or jarfile, which may itself be nested within other jarfiles. */
+/** A zipfile or jarfile root, which may be nested within another jarfile or scoped to a package root. */
 public final class ArchiveRoot extends VfsRoot {
-    /** The jarfile that was opened. */
+    /** The logical zipfile for this root. */
     private final LogicalZipFile logicalZipFile;
 
-    /** The package root within the jarfile, or the empty string if the whole jarfile is the package root. */
+    /** The package root prefix within the jarfile, or {@code ""} for the root of the jarfile. */
     private final String packageRoot;
 
     /**
-     * The root this root was opened within: for a package root view, the root of the whole jarfile; for a nested
-     * jarfile, the root of the jarfile that encloses it; null for a toplevel jarfile. Once this root is built, the
-     * {@link Vfs} adds it to the container's children, so closing the container closes this root.
+     * The enclosing root (the whole jarfile root for a package root view, or the outer jarfile root for a nested
+     * jarfile), or {@code null} for a top-level jarfile.
      */
     private final @Nullable ArchiveRoot container;
 
     /**
-     * The physical zipfile that was opened to read {@link #logicalZipFile}, which this root owns and closes when it
-     * is closed -- the file handle, memory mapping and temporary file behind the jarfile -- or null if this root
-     * owns nothing: a package root view reads the jarfile of the root it was opened within, and the root of a
-     * jarfile stored uncompressed within another one reads a byte range of the enclosing jarfile, and both of those
-     * belong to an ancestor of this root, which outlives it.
+     * The physical zipfile owned and closed by this root, or {@code null} if the backing storage is owned by an
+     * ancestor root.
      */
     private final @Nullable PhysicalZipFile ownedZipFile;
 
     /**
-     * The entries under the package root, and the same entries keyed by name, built together on first use.
+     * Lazily built index of entries under the package root.
      *
      * @param entries
-     *            the entries under the package root, in the order the jarfile lists them.
+     *            the entries under the package root, in archive order.
      * @param entriesByName
-     *            the same entries, keyed by their path from the root.
+     *            the entries keyed by their root-relative path.
      */
     private record EntryIndex(List<VfsEntry> entries, Map<String, VfsEntry> entriesByName) {
     }
 
-    /** The index of the entries under the package root, built on first use. */
+    /** Cached entry index, initialized on first access. */
     private volatile @Nullable EntryIndex entryIndex;
 
     /**
-     * Constructor, for the root of a jarfile that was just opened for it. The root takes ownership of whatever was
-     * opened to read the jarfile, and closes it when it is closed.
+     * Construct a root for an opened jarfile, taking ownership of its physical zipfile if any.
      *
      * @param vfs
-     *            the {@link Vfs} that opened this root.
+     *            the owning {@link Vfs}.
      * @param container
-     *            the root of the enclosing jarfile, if the jarfile is nested within another one, or null for a
-     *            toplevel jarfile.
+     *            the enclosing archive root if nested, or {@code null} for a top-level jarfile.
      * @param openedJar
-     *            the jarfile that was opened, with the physical zipfile that was opened to read it, if any.
+     *            the opened jarfile and its owned physical zipfile, if any.
      */
     ArchiveRoot(final Vfs vfs, final @Nullable ArchiveRoot container, final JarOpener.OpenedJar openedJar) {
         this(vfs, container, openedJar.zipFile(), /* packageRoot = */ "", openedJar.ownedPhysicalZipFile());
     }
 
     /**
-     * Constructor, for a package root view of a jarfile that another root owns. The view owns nothing: it reads the
-     * jarfile of the root it was opened within, which outlives it.
+     * Construct a package-root view over a jarfile owned by {@code container}.
      *
      * @param vfs
-     *            the {@link Vfs} that opened this root.
+     *            the owning {@link Vfs}.
      * @param container
-     *            the root of the whole jarfile, which owns it.
+     *            the root of the whole jarfile.
      * @param packageRoot
-     *            the package root within the jarfile.
+     *            the package root path within the jarfile.
      */
     ArchiveRoot(final Vfs vfs, final ArchiveRoot container, final String packageRoot) {
         this(vfs, container, container.logicalZipFile, packageRoot, /* ownedZipFile = */ null);
@@ -120,17 +113,15 @@ public final class ArchiveRoot extends VfsRoot {
      * Constructor.
      *
      * @param vfs
-     *            the {@link Vfs} that opened this root.
+     *            the owning {@link Vfs}.
      * @param container
-     *            the root this root is opened within -- the root of the whole jarfile for a package root view, or
-     *            of the enclosing jarfile for a nested jarfile -- or null for a toplevel jarfile.
+     *            the enclosing archive root, or {@code null} for a top-level jarfile.
      * @param logicalZipFile
-     *            the jarfile to read.
+     *            the logical zipfile.
      * @param packageRoot
-     *            the package root within the jarfile, or the empty string if the whole jarfile is the package root.
+     *            the package root within the jarfile, or {@code ""} for the whole jarfile.
      * @param ownedZipFile
-     *            the physical zipfile that was opened to read the jarfile, which this root owns and closes when it
-     *            is closed, or null if this root owns nothing.
+     *            the physical zipfile owned by this root, or {@code null} if owned by an ancestor.
      */
     private ArchiveRoot(final Vfs vfs, final @Nullable ArchiveRoot container, final LogicalZipFile logicalZipFile,
             final String packageRoot, final @Nullable PhysicalZipFile ownedZipFile) {
@@ -142,11 +133,9 @@ public final class ArchiveRoot extends VfsRoot {
     }
 
     /**
-     * Returns the index of the entries under the package root, building it the first time it is asked for. A root
-     * materialized only as the container of the root the caller asked to open may never have its entries listed at
-     * all, so the index is not built until something reads it.
+     * Return the index of entries under the package root, building it on first access.
      *
-     * @return the index of the entries under the package root.
+     * @return the entry index.
      */
     private EntryIndex entryIndex() {
         var index = entryIndex;
@@ -174,7 +163,7 @@ public final class ArchiveRoot extends VfsRoot {
     }
 
     /**
-     * Returns the jarfile this root reads.
+     * Return the underlying {@link LogicalZipFile}.
      *
      * @return the {@link LogicalZipFile}.
      */
@@ -241,11 +230,10 @@ public final class ArchiveRoot extends VfsRoot {
     }
 
     /**
-     * Returns the file this root's bytes are read from: for a nested jarfile, the enclosing jarfile if it is
-     * stored, or the temporary file it was inflated to if it is deflated and too large to hold in RAM.
+     * Return the physical {@link File} backing this jarfile (the enclosing jarfile for a stored nested jarfile, or
+     * the temporary file for a deflated nested jarfile spilled to disk).
      *
-     * @return the file, or null if the bytes are held in RAM, or are read from a {@link Path} that has no
-     *         {@link File} view.
+     * @return the backing {@link File}, or {@code null} if backed by RAM or a non-{@link File} {@link Path}.
      */
     @Nullable
     File getPhysicalFile() {
@@ -258,14 +246,12 @@ public final class ArchiveRoot extends VfsRoot {
     }
 
     /**
-     * Returns the root of the whole jarfile this root was opened within, so that the rest of the jarfile, outside
-     * the package root, can be reached: for {@code "app.jar!/BOOT-INF/classes"}, the root of {@code app.jar}. For a
-     * package root within a jarfile that is itself nested within another jarfile, that is the root of the nested
-     * jarfile, not of the jarfile that encloses it.
+     * Return the root for the whole jarfile containing this package root (e.g. {@code app.jar} for
+     * {@code "app.jar!/BOOT-INF/classes"}), or {@code this} if this root is not scoped to a package root.
      *
-     * @return the root of the whole jarfile, or this root itself if it was not opened at a package root.
+     * @return the root of the whole jarfile, or {@code this} if not opened at a package root.
      * @throws IOException
-     *             if this root, or the {@link Vfs} that opened it, has been closed.
+     *             if this root or the {@link Vfs} has been closed.
      */
     @Override
     public ArchiveRoot getContainerRoot() throws IOException {
@@ -278,13 +264,9 @@ public final class ArchiveRoot extends VfsRoot {
     }
 
     /**
-     * Returns the manifest of the whole jarfile, rather than of the package root this root was opened at: a Spring
-     * Boot jar's {@code Class-Path}, {@code Automatic-Module-Name} and the rest describe the jarfile, and are read
-     * from the manifest at its root rather than from anything under {@code "BOOT-INF/classes/"}.
+     * Return the manifest of the enclosing jarfile.
      *
-     * <p>
-     * The manifest was already parsed while the central directory was read, since the {@code Multi-Release}
-     * attribute determines the name of every entry of the jarfile, so this costs nothing to ask for.
+     * @return the manifest attributes, or {@code null} if the jarfile has no manifest.
      */
     @Override
     @Nullable

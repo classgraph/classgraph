@@ -51,39 +51,40 @@ import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 
-/** A directory in a filesystem. */
+/** A filesystem directory root. */
 public final class DirRoot extends VfsRoot {
     /**
-     * A directory to enter, or a canonical ancestor to remove after its children have been visited.
+     * A step in the iterative directory traversal stack.
      *
      * @param path
-     *            the directory to enter, or the canonical ancestor to remove for an exit step.
+     *            the directory to enter, or the canonical ancestor path to remove on exit.
      * @param namePrefix
-     *            the root-relative directory name with a trailing slash, or empty for the root or an exit step.
+     *            the root-relative directory prefix ending with {@code '/'}, or {@code ""} for the root or an exit
+     *            step.
      * @param exiting
-     *            whether this step removes an ancestor after its children have been visited.
+     *            {@code true} if exiting a directory after visiting its children.
      */
     private record WalkStep(Path path, String namePrefix, boolean exiting) {
     }
 
-    /** The directory, canonicalized. */
+    /** The canonicalized directory path. */
     private final Path dir;
 
-    /** The path of the directory, with {@code '/'} as the separator, as reported by {@link #getPath()}. */
+    /** The normalized directory path string using {@code '/'} separators. */
     private final String pathStr;
 
-    /** The entries under the directory, or null until {@link #getEntries()} is first called. */
+    /** Cached list of entries under this directory, initialized on first call to {@link #getEntries()}. */
     private volatile @Nullable List<VfsEntry> entries;
 
     /**
      * Constructor.
      *
      * @param vfs
-     *            the {@link Vfs} that opened this root.
+     *            the owning {@link Vfs}.
      * @param dir
-     *            the directory.
+     *            the directory path.
      * @throws IOException
-     *             if the directory could not be read.
+     *             if the directory does not exist or cannot be read.
      */
     DirRoot(final Vfs vfs, final Path dir) throws IOException {
         super(vfs);
@@ -169,13 +170,13 @@ public final class DirRoot extends VfsRoot {
     }
 
     /**
-     * Walk the files under this root without consuming call-stack space for each directory level.
+     * Iteratively walk the files under this directory root.
      *
      * @param visitor
-     *            the visitor to hand the entries to.
+     *            the visitor to notify of directories and entries.
      * @param log
-     *            the log node, or null to not log.
-     * @return true to go on walking, or false if the visitor asked for the walk to stop.
+     *            the log node, or {@code null}.
+     * @return {@code true} if traversal completed, or {@code false} if stopped by the visitor.
      */
     private boolean walkIteratively(final VfsVisitor visitor, final @Nullable LogNode log) {
         final Set<Path> visitedDirs = new HashSet<>();
@@ -220,20 +221,20 @@ public final class DirRoot extends VfsRoot {
     }
 
     /**
-     * Walk the files directly in a directory, then schedule its subdirectories in traversal order.
+     * Visit the files in a directory and push its subdirectories onto the traversal stack.
      *
      * @param currDir
-     *            the directory to walk.
+     *            the directory to list.
      * @param namePrefix
-     *            the name of {@code currDir} relative to the root, with a trailing {@code '/'}, or the empty string
-     *            for the root itself.
+     *            the root-relative prefix of {@code currDir} with a trailing {@code '/'}, or {@code ""} for the
+     *            root.
      * @param visitor
-     *            the visitor to hand the entries to.
+     *            the visitor to notify of entries.
      * @param pending
-     *            the traversal stack, with the directory's exit step already queued.
+     *            the traversal stack.
      * @param log
-     *            the log node, or null to not log.
-     * @return true to go on walking, or false if the visitor asked for the walk to stop.
+     *            the log node, or {@code null}.
+     * @return {@code true} to continue traversal, or {@code false} if stopped by the visitor.
      */
     private boolean walkChildren(final Path currDir, final String namePrefix, final VfsVisitor visitor,
             final Deque<WalkStep> pending, final @Nullable LogNode log) {
@@ -280,12 +281,11 @@ public final class DirRoot extends VfsRoot {
     }
 
     /**
-     * Returns the name of a file under this root, relative to the root, with {@code '/'} as the separator, which is
-     * the form of the names a walk of this root reports.
+     * Return the path of {@code file} relative to {@link #dir}, using {@code '/'} as the separator.
      *
      * @param file
-     *            the file, which must be under this root's directory.
-     * @return the name of the file relative to the root.
+     *            a path under {@link #dir}.
+     * @return the root-relative path string.
      */
     private String relativeName(final Path file) {
         // Joining the segments, rather than replacing the separator in the string form of the path, is what makes
@@ -313,13 +313,13 @@ public final class DirRoot extends VfsRoot {
     }
 
     /**
-     * Resolve an exact root-relative name without enumerating the directory or requiring read access.
+     * Resolve an exact, case-sensitive root-relative path to a filesystem {@link Path}.
      *
      * @param name
-     *            the root-relative name, or empty for the root itself.
-     * @return the native path, or null for a noncanonical or mismatched name.
+     *            the root-relative path, or {@code ""} for the root itself.
+     * @return the resolved {@link Path}, or {@code null} if invalid, outside the root, or mismatched in case.
      * @throws IOException
-     *             if case-sensitive matching fails.
+     *             if checking case-sensitive path matching fails.
      */
     @Nullable
     Path pathForNio(final String name) throws IOException {
@@ -357,13 +357,13 @@ public final class DirRoot extends VfsRoot {
     }
 
     /**
-     * Look up one file for a NIO view, including an unreadable file that still exists.
+     * Look up a regular file entry by root-relative path for a NIO view, including unreadable files.
      *
      * @param name
-     *            the root-relative name.
-     * @return the file entry, or null if the name is not a regular file.
+     *            the root-relative path.
+     * @return the file entry, or {@code null} if not a regular file.
      * @throws IOException
-     *             if case-sensitive matching fails.
+     *             if checking case-sensitive path matching fails.
      */
     @Nullable
     VfsEntry fileEntryForNio(final String name) throws IOException {

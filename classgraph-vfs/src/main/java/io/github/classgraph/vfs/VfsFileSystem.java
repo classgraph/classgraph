@@ -65,74 +65,61 @@ import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.Assert;
 
 /**
- * A read-only {@link FileSystem} view of a {@link VfsRoot}, so that a directory, a jarfile, a jarfile nested inside
- * another jarfile, a package root, a jarfile that exists only in RAM, or a module can all be read through
- * {@link java.nio.file.Files} and {@link Path}.
+ * A read-only {@link FileSystem} view of a {@link VfsRoot}.
  *
  * <p>
- * The filesystem separator is {@code '/'} for every kind of root, and the root directory is {@code "/"}.
- * Directory-backed views read native directories on each operation, including empty directories and changes made
- * after the view was created. Archive and module directories are synthesized from their resource names.
+ * The path separator is {@code '/'} and the single root directory is {@code "/"}. Directory-backed views query the
+ * underlying filesystem on each operation; archive and module views synthesize directory entries from their
+ * resource paths.
  */
 final class VfsFileSystem extends FileSystem {
-    /** The number to give the next view that is created. */
+    /** Counter for assigning unique serial numbers to filesystem views. */
     private static final AtomicLong NEXT_SERIAL = new AtomicLong();
 
     /**
-     * A number that is unique to this view, so that {@link VfsPath#compareTo(Path)} can order the paths of two
-     * different views of the same root, rather than reporting that they are equal when they are not.
+     * Unique identifier for this view, used by {@link VfsPath#compareTo(Path)} to order paths from different views.
      */
     final long serial = NEXT_SERIAL.getAndIncrement();
 
-    /** The root this is a view of. */
+    /** The underlying {@link VfsRoot}. */
     private final VfsRoot root;
 
-    /** The directory index, built on first use. */
+    /** Lazily constructed entry and directory index for archive and module roots. */
     private volatile @Nullable Index index;
 
     /** True once {@link #close()} has been called on this view. */
     private final AtomicBoolean closed = new AtomicBoolean();
 
-    /** Handles opened through this view, tracked by identity and guarded by this set's monitor. */
+    /** Open handles created through this view, guarded by {@code openHandles}. */
     private final Set<Closeable> openHandles = Collections.newSetFromMap(new IdentityHashMap<>());
 
     /**
-     * The underlying VFS this filesystem owns, or null for a borrowed root. Only a filesystem that
-     * {@link VfsFileSystemProvider} created owns the underlying VFS. A filesystem created by
-     * {@link VfsRoot#asFileSystem()} closes its own handles, but leaves the caller's VFS open.
+     * Owned {@link Vfs} and provider registration if created by {@link VfsFileSystemProvider}, or {@code null} for
+     * a borrowed view from {@link VfsRoot#asFileSystem()}.
      */
     private final @Nullable Ownership ownership;
 
-    /** The regex metacharacters that have to be escaped when a glob is compiled into a {@link Pattern}. */
+    /** Regex metacharacters that must be escaped when converting a glob to a {@link Pattern}. */
     private static final String REGEX_METACHARACTERS = "\\*?[]{}()+|^$.";
 
     /**
-     * The entries of a {@link VfsRoot}, indexed by name, plus the directory tree that is implied by those names.
-     * {@link VfsRoot#getEntries()} lists files only, since a jarfile need not contain an entry for a directory
-     * whose contents it holds, so the directories are synthesized from the entry names.
+     * Entry lookup table and synthesized directory hierarchy for an archive or module root.
      *
      * @param entriesByName
-     *            every entry of the root whose name is canonical, keyed by name. {@link VfsRoot#getEntries()}
-     *            reports each name only once (for a jarfile, the last entry of that name in its central directory,
-     *            which is the one {@link VfsRoot#getEntry(String)} returns).
+     *            canonical entries keyed by root-relative path.
      * @param childNamesByDir
-     *            the sorted simple names of the children of each directory, keyed by directory name. The root
-     *            directory is the empty string, and other directory names have no trailing {@code '/'}.
+     *            sorted child names keyed by parent directory path ({@code ""} for the root directory).
      */
     private record Index(Map<String, VfsEntry> entriesByName, Map<String, List<String>> childNamesByDir) {
     }
 
     /**
-     * What a filesystem that {@link VfsFileSystemProvider} created owns. The {@link Vfs} was created to open the
-     * root the caller named, and the filesystem is the only reference the caller is given to it, so nothing else
-     * could release what it opened.
+     * Resources owned by a standalone filesystem created via {@link VfsFileSystemProvider}.
      *
      * @param vfs
-     *            the {@link Vfs} that was created to open the root, which closing the filesystem closes.
+     *            the dedicated {@link Vfs} instance to close when the filesystem closes.
      * @param registeredPath
-     *            the path {@link VfsFileSystemProvider} registered the filesystem under, which closing the
-     *            filesystem takes back out of the registry, or null if the filesystem was created from a
-     *            {@link Path} and so is not registered.
+     *            the registration key in {@link VfsFileSystemProvider}, or {@code null} if unregistered.
      */
     record Ownership(Vfs vfs, @Nullable String registeredPath) {
     }
@@ -143,7 +130,7 @@ final class VfsFileSystem extends FileSystem {
      * @param root
      *            the root to view as a filesystem.
      * @param ownership
-     *            the underlying VFS to release when closed, or null for a borrowed root.
+     *            the owned {@link Vfs} and registration key, or {@code null} for a borrowed root.
      */
     VfsFileSystem(final VfsRoot root, final @Nullable Ownership ownership) {
         this.root = root;
@@ -151,7 +138,7 @@ final class VfsFileSystem extends FileSystem {
     }
 
     /**
-     * Returns the root this is a view of.
+     * Return the underlying {@link VfsRoot}.
      *
      * @return the root.
      */
@@ -162,10 +149,10 @@ final class VfsFileSystem extends FileSystem {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Check that this filesystem, and the root behind it, are still open.
+     * Throw {@link ClosedFileSystemException} if this filesystem view or its root is closed.
      *
      * @throws ClosedFileSystemException
-     *             if either has been closed.
+     *             if closed.
      */
     void ensureOpen() {
         if (!isOpen()) {
@@ -174,17 +161,18 @@ final class VfsFileSystem extends FileSystem {
     }
 
     /**
-     * Register a handle atomically with respect to closure, closing it ourselves if closure won the race.
+     * Register an open handle with this view and its root, closing it and throwing
+     * {@link ClosedFileSystemException} if either has already closed.
      *
      * @param <T>
      *            the handle type.
      * @param handle
      *            the newly opened handle.
-     * @return the registered handle.
+     * @return {@code handle}.
      * @throws IOException
-     *             if an unregistrable handle could not be closed.
+     *             if closing {@code handle} on registration failure fails.
      * @throws ClosedFileSystemException
-     *             if the view or root has closed.
+     *             if this view or its root is closed.
      */
     <T extends Closeable> T register(final T handle) throws IOException {
         final boolean registered;
@@ -202,7 +190,7 @@ final class VfsFileSystem extends FileSystem {
     }
 
     /**
-     * Remove a handle from both owners when it closes.
+     * Unregister a closed handle from this view and its root.
      *
      * @param handle
      *            the closed handle.
@@ -215,13 +203,13 @@ final class VfsFileSystem extends FileSystem {
     }
 
     /**
-     * Open a stream whose lifetime belongs to this view as well as to its root.
+     * Open an {@link InputStream} for {@code entry} tracked by both this view and its root.
      *
      * @param entry
-     *            the entry to read.
-     * @return the registered stream.
+     *            the entry to open.
+     * @return the opened stream.
      * @throws IOException
-     *             if the entry could not be opened.
+     *             if the entry cannot be opened.
      */
     InputStream openInputStream(final VfsEntry entry) throws IOException {
         final var stream = entry.open();
@@ -237,18 +225,21 @@ final class VfsFileSystem extends FileSystem {
         }
     }
 
-    /** A stream that drops its delegate and owner when closed, and rejects further reads even for RAM content. */
+    /**
+     * An {@link InputStream} tracked by a {@link VfsFileSystem} view that rejects reads after the view or stream is
+     * closed.
+     */
     private static final class ViewInputStream extends InputStream {
-        /** The resources retained only while open. */
+        /** Open stream state, cleared atomically on close. */
         private final AtomicReference<@Nullable OpenStream> state;
 
-        /** Whether the original stream supports marks, independent of its lifetime. */
+        /** Whether the underlying stream supports {@link #mark(int)}. */
         private final boolean supportsMark;
 
-        /** The reported entry path, retained without retaining its root. */
+        /** The entry path for error messages. */
         private final String path;
 
-        /** The reason for closure, including the original root-close diagnostic when appropriate. */
+        /** Exception message used for reads after closure. */
         private volatile String closedMessage = "Stream closed";
 
         /**
@@ -351,13 +342,13 @@ final class VfsFileSystem extends FileSystem {
     }
 
     /**
-     * Returns the directory index, building it on first use.
+     * Return the entry and directory index, building it on first use.
      *
      * @return the index.
      * @throws ClosedFileSystemException
-     *             if this filesystem has been closed.
+     *             if this filesystem view is closed.
      * @throws IOException
-     *             if the entries of the root could not be listed.
+     *             if the root's entries cannot be listed.
      */
     private Index index() throws IOException {
         // Directory listings and aggregate file-store statistics need the index. Point lookups use the root's
@@ -416,13 +407,13 @@ final class VfsFileSystem extends FileSystem {
     }
 
     /**
-     * Look up an entry by name.
+     * Look up a file entry by root-relative path.
      *
      * @param name
-     *            the entry name, relative to the root, with no leading {@code '/'}.
-     * @return the entry, or null if there is no file with that name (in particular, if the name is a directory).
+     *            the root-relative path without a leading {@code '/'}.
+     * @return the file entry, or {@code null} if not found or if {@code name} names a directory.
      * @throws IOException
-     *             if the entry could not be looked up.
+     *             if the lookup fails.
      */
     @Nullable
     VfsEntry entry(final String name) throws IOException {
@@ -431,14 +422,13 @@ final class VfsFileSystem extends FileSystem {
     }
 
     /**
-     * Returns whether a name is a directory of this filesystem.
+     * Return whether {@code name} names a directory in this filesystem.
      *
      * @param name
-     *            the name, relative to the root, with no leading {@code '/'}. The root directory is the empty
-     *            string.
-     * @return true if the name is a directory.
+     *            the root-relative path without a leading {@code '/'} ({@code ""} for the root directory).
+     * @return {@code true} if {@code name} is a directory.
      * @throws IOException
-     *             if the entries of the root could not be listed.
+     *             if the lookup fails.
      */
     boolean isDirectory(final String name) throws IOException {
         ensureOpen();
@@ -453,26 +443,26 @@ final class VfsFileSystem extends FileSystem {
     }
 
     /**
-     * Returns whether a name is a file or a directory of this filesystem.
+     * Return whether {@code name} names an existing file or directory in this filesystem.
      *
      * @param name
-     *            the name, relative to the root, with no leading {@code '/'}.
-     * @return true if the name exists.
+     *            the root-relative path without a leading {@code '/'}.
+     * @return {@code true} if the file or directory exists.
      * @throws IOException
-     *             if the entries of the root could not be listed.
+     *             if the lookup fails.
      */
     boolean exists(final String name) throws IOException {
         return entry(name) != null || isDirectory(name);
     }
 
     /**
-     * Returns the sorted simple names of the children of a directory.
+     * Return the sorted simple names of the immediate children of directory {@code name}.
      *
      * @param name
-     *            the directory name, relative to the root, with no leading {@code '/'}.
-     * @return the simple names of the children, or null if the name is not a directory.
+     *            the root-relative directory path without a leading {@code '/'}.
+     * @return the sorted child names, or {@code null} if {@code name} is not a directory.
      * @throws IOException
-     *             if the entries of the root could not be listed.
+     *             if listing the directory fails.
      */
     @Nullable
     List<String> childNames(final String name) throws IOException {
@@ -495,12 +485,11 @@ final class VfsFileSystem extends FileSystem {
     }
 
     /**
-     * Returns the URI of a path of this filesystem.
+     * Return the underlying storage {@link URI} ({@code file:}, {@code jar:}, or {@code jrt:}) for {@code path}.
      *
      * @param path
      *            the path.
-     * @return the URI of the underlying storage the path names, such as a {@code file:}, {@code jar:} or
-     *         {@code jrt:} URI, rather than a URI of this filesystem's own provider.
+     * @return the storage {@link URI}.
      */
     URI uriOf(final VfsPath path) {
         final var name = path.entryName();
@@ -538,31 +527,14 @@ final class VfsFileSystem extends FileSystem {
      * {@inheritDoc}
      *
      * <p>
-     * A filesystem is a view of a {@link VfsRoot}, and the two do not close each other. This closes the view: after
-     * it returns, neither this filesystem nor a {@link Path} of it can be read through, each throwing
-     * {@link ClosedFileSystemException}, while the root it was a view of stays open and readable, as does every
-     * other view of it. Streams, channels and directory streams opened through this view are closed, without
-     * closing handles opened directly through the root or through another view. The purely syntactic {@link Path}
-     * methods go on working, since they read nothing. Closing the root closes this view in the same one-way manner:
-     * the view then reports itself closed, but closing it was not what closed the root.
-     *
-     * <p>
-     * The exception is a filesystem created by {@link java.nio.file.FileSystems#newFileSystem(URI, Map)} or
-     * {@link java.nio.file.FileSystems#newFileSystem(Path, Map)}, which is the only reference the caller is given
-     * to the {@link Vfs} that was created to open the root: that filesystem owns the {@link Vfs}, and closing it
-     * closes the {@link Vfs} too, releasing every file handle, memory mapping and temporary file it took. It is
-     * still not the root that is closing it -- the root, and the {@link Vfs} that holds it, are both released
-     * because nothing else can reach them.
-     *
-     * <p>
-     * A root and a view of it are therefore closed independently, and a try-with-resources block that holds both
-     * should list the root first, so that the view is closed before the root it reads through.
-     *
-     * <p>
-     * Closing an already-closed filesystem has no effect.
+     * Closes this filesystem view and any streams, channels, or directory streams opened through it. If this view
+     * was obtained via {@link VfsRoot#asFileSystem()}, the underlying {@link VfsRoot} and {@link Vfs} remain open;
+     * if it was created as a standalone filesystem via {@link VfsFileSystemProvider}, closing it also unregisters
+     * it and closes the dedicated {@link Vfs} backing it. Calling this method on an already-closed view has no
+     * effect.
      *
      * @throws IOException
-     *             if an opened handle could not be closed; other handles are still closed.
+     *             if an open handle fails to close.
      */
     @Override
     public void close() throws IOException {
@@ -648,9 +620,7 @@ final class VfsFileSystem extends FileSystem {
      * {@inheritDoc}
      *
      * <p>
-     * Only the {@code "basic"} view is supported. A jarfile entry or a file in a directory may still record POSIX
-     * permissions, which {@link VfsEntry#getPosixFilePermissions()} reports, but a {@code "posix"} view would also
-     * have to name an owner and a group, which no kind of root records.
+     * Only the {@code "basic"} file attribute view is supported.
      */
     @Override
     public Set<String> supportedFileAttributeViews() {

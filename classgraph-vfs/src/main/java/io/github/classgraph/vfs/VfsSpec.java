@@ -41,11 +41,10 @@ import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
 
 /**
- * The settings a {@link Vfs} is constructed with: how archives are opened and read.
+ * Configuration settings for a {@link Vfs}.
  *
  * <p>
- * Each setting is changed by a method that returns this same object, so they can be chained onto the constructor
- * call:
+ * Settings can be chained when constructing a {@link Vfs}:
  *
  * <pre>
  * try (Vfs vfs = new Vfs(new VfsSpec().disableMultiReleaseVersions().setMaxBufferedJarRAMSize(65536))) {
@@ -54,15 +53,10 @@ import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
  * </pre>
  *
  * <p>
- * A {@link Vfs} copies the {@link VfsSpec} it is constructed with, so that everything it opens is read with the
- * same settings. A setting changed after that applies only to a {@link Vfs} constructed afterward. The copy, which
- * {@link Vfs#getVfsSpec()} returns, cannot be changed: each method that would change one of its settings throws
- * {@link IllegalStateException}.
- *
- * <p>
- * A setting is safe to change from any thread: each is held in a volatile field, and {@link #denyURLScheme(String)}
- * publishes an unmodifiable set rather than adding to one in place. A {@link Vfs} constructed while another thread
- * is changing settings may copy some of the changes and not others.
+ * A {@link Vfs} stores an immutable copy of the {@link VfsSpec} it was constructed with (returned by
+ * {@link Vfs#getVfsSpec()}). Modifying a {@link VfsSpec} after constructing a {@link Vfs} affects only subsequently
+ * constructed {@link Vfs} instances, and calling a mutator on the frozen copy returned by {@link Vfs#getVfsSpec()}
+ * throws {@link IllegalStateException}.
  */
 public final class VfsSpec {
     /** The default value of {@link #isNestedJarsEnabled()}. */
@@ -74,40 +68,36 @@ public final class VfsSpec {
     /** The default value of {@link #getMaxBufferedJarRAMSize()}, in bytes. */
     public static final int DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE = 64 * 1024 * 1024;
 
-    /** If true, open jarfiles nested within other jarfiles (jarfiles within jarfiles). */
+    /** If true, open jarfiles nested within other jarfiles. */
     private volatile boolean nestedJarsEnabled = DEFAULT_ENABLE_NESTED_JARS;
 
-    /** If true, multi-release versioning is honored, so that an entry is served in the version this JVM runs. */
+    /** If true, honor multi-release jarfile versioning for the running JVM. */
     private volatile boolean multiReleaseVersionsEnabled = DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS;
 
-    /**
-     * URL schemes that a jarfile or directory may not be opened from. Every scheme the JVM has a handler for is
-     * allowed unless it appears here. Only ever assigned an unmodifiable set, so that a reader can iterate it while
-     * another thread denies a further scheme, and so that a copy can share it.
-     */
+    /** Unmodifiable set of disallowed URL schemes. */
     private volatile Set<String> deniedURLSchemes = Set.of();
 
-    /** The maximum size of a jarfile that may be held in RAM rather than spilled to disk, in bytes. */
+    /** Maximum jarfile size to hold in RAM before spilling to a temporary file, in bytes. */
     private volatile int maxBufferedJarRAMSize = DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE;
 
     /**
-     * How long to wait for another thread that is opening the same path while it makes no progress, or zero or
+     * Timeout for waiting on another thread that is opening the same path without making progress, or zero or
      * negative to wait indefinitely.
      */
     private volatile Duration openWaitTimeout = Duration.ZERO;
 
-    /** True if this is the copy that a {@link Vfs} holds, whose settings cannot be changed. */
+    /** True if this instance is an immutable copy held by a {@link Vfs}. */
     private final boolean frozen;
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Constructor, using the default value of every setting. */
+    /** Creates a {@link VfsSpec} with default settings. */
     public VfsSpec() {
         this.frozen = false;
     }
 
     /**
-     * Copy constructor, for the copy that a {@link Vfs} holds, whose settings cannot be changed.
+     * Copy constructor that creates an immutable copy for a {@link Vfs}.
      *
      * @param vfsSpec
      *            the settings to copy.
@@ -122,10 +112,10 @@ public final class VfsSpec {
     }
 
     /**
-     * Refuse to change a setting of the copy that a {@link Vfs} holds.
+     * Throws {@link IllegalStateException} if this instance is frozen.
      *
      * @throws IllegalStateException
-     *             if this is the copy that a {@link Vfs} holds.
+     *             if this instance is frozen.
      */
     private void checkNotFrozen() {
         if (frozen) {
@@ -135,10 +125,9 @@ public final class VfsSpec {
     }
 
     /**
-     * Copy these settings. Unlike the copy that a {@link Vfs} holds, the returned copy can be changed, even when
-     * this object is the copy that a {@link Vfs} holds.
+     * Returns a mutable copy of these settings.
      *
-     * @return a copy of these settings, which can be changed without changing this object.
+     * @return a mutable copy of these settings.
      */
     public VfsSpec copy() {
         final var copy = new VfsSpec();
@@ -154,12 +143,11 @@ public final class VfsSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Open jarfiles nested within other jarfiles, so that a path containing {@code "!/"} can name a jarfile within
-     * a jarfile, and not just a package root within a jarfile. This is the default.
+     * Enable opening jarfiles nested within other jarfiles (the default).
      *
      * @return this (for method chaining).
      * @throws IllegalStateException
-     *             if this is the copy that a {@link Vfs} holds, which {@link Vfs#getVfsSpec()} returns.
+     *             if this is the immutable copy returned by {@link Vfs#getVfsSpec()}.
      */
     public VfsSpec enableNestedJars() {
         checkNotFrozen();
@@ -168,12 +156,12 @@ public final class VfsSpec {
     }
 
     /**
-     * Do not open jarfiles nested within other jarfiles, so that a path containing {@code "!/"} only ever names a
-     * package root within a jarfile.
+     * Disable opening jarfiles nested within other jarfiles, so that {@code "!/"} in a path only names a package
+     * root directory within a jarfile.
      *
      * @return this (for method chaining).
      * @throws IllegalStateException
-     *             if this is the copy that a {@link Vfs} holds, which {@link Vfs#getVfsSpec()} returns.
+     *             if this is the immutable copy returned by {@link Vfs#getVfsSpec()}.
      */
     public VfsSpec disableNestedJars() {
         checkNotFrozen();
@@ -182,7 +170,7 @@ public final class VfsSpec {
     }
 
     /**
-     * Whether jarfiles nested within other jarfiles are opened.
+     * Returns whether jarfiles nested within other jarfiles are opened.
      *
      * @return true if nested jarfiles are opened.
      */
@@ -191,13 +179,12 @@ public final class VfsSpec {
     }
 
     /**
-     * Honor the multi-release versioning of a jarfile, as the JVM does: serve each entry that
-     * {@code "META-INF/versions/<version>/"} holds a versioned copy of in the newest version that is not newer than
-     * the running JVM, under the entry's unversioned path. This is the default.
+     * Enable multi-release jarfile versioning (the default), serving the newest version compatible with the running
+     * JVM from {@code "META-INF/versions/<version>/"} under each entry's unversioned path.
      *
      * @return this (for method chaining).
      * @throws IllegalStateException
-     *             if this is the copy that a {@link Vfs} holds, which {@link Vfs#getVfsSpec()} returns.
+     *             if this is the immutable copy returned by {@link Vfs#getVfsSpec()}.
      */
     public VfsSpec enableMultiReleaseVersions() {
         checkNotFrozen();
@@ -206,18 +193,12 @@ public final class VfsSpec {
     }
 
     /**
-     * Do not honor the multi-release versioning of a jarfile: report every entry under the path it is stored under,
-     * so that the versioned copies of an entry are reported beneath {@code "META-INF/versions/"} rather than
-     * masking the entry they are copies of.
-     *
-     * <p>
-     * This shows a caller what a jarfile holds, rather than what the JVM would load out of it. Note that a
-     * versioned copy is then only reachable under a path that does not correspond to its package, e.g.
-     * {@code "META-INF/versions/11/com/xyz/Widget.class"} for a class in package {@code "com.xyz"}.
+     * Disable multi-release jarfile versioning, reporting every entry under its raw path in the archive (including
+     * entries beneath {@code "META-INF/versions/"}).
      *
      * @return this (for method chaining).
      * @throws IllegalStateException
-     *             if this is the copy that a {@link Vfs} holds, which {@link Vfs#getVfsSpec()} returns.
+     *             if this is the immutable copy returned by {@link Vfs#getVfsSpec()}.
      */
     public VfsSpec disableMultiReleaseVersions() {
         checkNotFrozen();
@@ -226,50 +207,30 @@ public final class VfsSpec {
     }
 
     /**
-     * Whether the multi-release versioning of a jarfile is honored.
+     * Returns whether multi-release jarfile versioning is enabled.
      *
-     * @return true if each entry is served in the newest version this JVM can run, or false if every entry is
-     *         reported under the path it is stored under.
+     * @return true if multi-release versioning is enabled.
      */
     public boolean isMultiReleaseVersionsEnabled() {
         return multiReleaseVersionsEnabled;
     }
 
     /**
-     * Refuse to open a jarfile or directory named by a URL with the given scheme. Every scheme is allowed by
-     * default, so this is only needed to take one away.
+     * Disallow opening jarfiles or directories from URLs with the given scheme. All schemes are allowed by default.
      *
      * <p>
-     * A {@link Vfs} opens whatever the JVM can open. A scheme is openable because the JDK ships a
-     * {@link java.net.URLStreamHandler} for it ({@code file}, {@code jar}, {@code http}, {@code https},
-     * {@code ftp}, {@code mailto}, {@code jrt} and {@code jmod}), or because something registered a handler or a
-     * {@link java.nio.file.spi.FileSystemProvider} for it. Denying a scheme is how a caller that reads paths it
-     * does not control keeps anything from being read over one -- {@code ClassGraph} denies the four schemes whose
-     * handlers connect over a network ({@code http}, {@code https}, {@code ftp} and {@code mailto}, which connects
-     * to a mail server even though it cannot fetch a jarfile) for exactly that reason. A path with a denied scheme
-     * is refused even if a {@link java.nio.file.spi.FileSystemProvider} installed for the scheme serves a directory
-     * there.
-     *
-     * <p>
-     * The scheme is checked whether the path is given as a string, a {@link java.net.URL}, a {@link java.net.URI}
-     * or a {@link java.nio.file.Path}. The scheme of a {@link java.nio.file.Path} is the scheme of its URI, so a
-     * path in a filesystem whose provider serves the denied scheme is refused. A path in a zipfile mounted as a
-     * filesystem has a {@code jar:} URI, so what is checked for it is the scheme of the filesystem that holds the
-     * zipfile.
-     *
-     * <p>
-     * Denying {@code file:} or {@code jar:} has no effect. A {@code file:} URL names a local file, and a
-     * {@code jar:} URL is only a wrapper around another URL; both prefixes are stripped from a path before it is
-     * opened, so what is checked here is the scheme of the URL inside a {@code jar:} URL, if it still has one.
+     * Applies to string paths, {@link java.net.URL}s, {@link java.net.URI}s, and {@link java.nio.file.Path}s
+     * (checked via the scheme of the path's URI, or the underlying filesystem's scheme for a {@code jar:} URI).
+     * Denying {@code file} or {@code jar} has no effect; for {@code jar:} URLs, the scheme of the wrapped URL is
+     * checked.
      *
      * @param scheme
-     *            the scheme, e.g. {@code "https"}. The scheme name only, without the trailing {@code ':'}.
+     *            the URL scheme (e.g. {@code "https"}), without a trailing {@code ':'}.
      * @return this (for method chaining).
      * @throws IllegalArgumentException
-     *             if the scheme is shorter than two characters (a one-character scheme cannot be told apart from a
-     *             Windows drive letter), or is not a valid URL scheme.
+     *             if the scheme is shorter than two characters or is not a valid URL scheme.
      * @throws IllegalStateException
-     *             if this is the copy that a {@link Vfs} holds, which {@link Vfs#getVfsSpec()} returns.
+     *             if this is the immutable copy returned by {@link Vfs#getVfsSpec()}.
      */
     public synchronized VfsSpec denyURLScheme(final String scheme) {
         checkNotFrozen();
@@ -284,24 +245,16 @@ public final class VfsSpec {
     }
 
     /**
-     * Allow a jarfile or directory named by a URL with the given scheme to be opened again, undoing a
-     * {@link #denyURLScheme(String)}. Every scheme is allowed by default, so this is only needed to take back a
-     * scheme that was denied.
-     *
-     * <p>
-     * A jarfile fetched from a URL is downloaded in full before its entries can be read, since a zipfile's central
-     * directory is at the end of the file. A URL whose scheme has a {@link java.nio.file.spi.FileSystemProvider}
-     * installed for it is read in place through that filesystem instead, without being copied.
+     * Allow opening jarfiles or directories from URLs with the given scheme, reversing a previous call to
+     * {@link #denyURLScheme(String)}. All schemes are allowed by default.
      *
      * @param scheme
-     *            the scheme, e.g. {@code "https"}. The scheme name only, without the trailing {@code ':'}.
+     *            the URL scheme (e.g. {@code "https"}), without a trailing {@code ':'}.
      * @return this (for method chaining).
      * @throws IllegalArgumentException
-     *             if the scheme is shorter than two characters (a one-character scheme cannot be told apart from a
-     *             Windows drive letter), or is not a valid URL scheme.
+     *             if the scheme is shorter than two characters or is not a valid URL scheme.
      * @throws IllegalStateException
-     *             if this is the copy that a {@link Vfs} holds, which {@link Vfs#getVfsSpec()} returns, even if the
-     *             scheme is not denied.
+     *             if this is the immutable copy returned by {@link Vfs#getVfsSpec()}.
      */
     public synchronized VfsSpec allowURLScheme(final String scheme) {
         checkNotFrozen();
@@ -318,45 +271,30 @@ public final class VfsSpec {
     }
 
     /**
-     * The URL schemes that a jarfile or directory may not be opened from. Every other scheme the JVM has a handler
-     * for is allowed, as are {@code file:} and {@code jar:}, which denying has no effect on.
+     * Returns the disallowed URL schemes.
      *
-     * @return the denied schemes, sorted by scheme name, as an unmodifiable set, which is empty if no scheme has
-     *         been denied.
+     * @return the denied schemes, sorted by name, as an unmodifiable set.
      */
     public @Unmodifiable Set<String> getDeniedURLSchemes() {
         return deniedURLSchemes;
     }
 
     /**
-     * Set the number of bytes of a jarfile that may be held in RAM before it is spilled to a temporary file on
-     * disk.
+     * Set the maximum size of a jarfile (in bytes) that may be buffered in RAM before spilling to a temporary file
+     * on disk.
      *
      * <p>
-     * This only applies to jarfiles that cannot be read in place: a nested jarfile that is stored deflated (i.e.
-     * compressed) rather than uncompressed within its enclosing jarfile, a jarfile downloaded from a URL, and a
-     * jarfile read from an {@link InputStream}. All three are rare: adding a jarfile to another jarfile normally
-     * stores the inner jar rather than deflating it, since deflating a jarfile does not usually produce any further
-     * compression gains, and a stored nested jar is read in place with file slicing; and there are not normally any
-     * {@code http://} or {@code https://} classpath entries.
-     *
-     * <p>
-     * Defaults to {@value #DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE} bytes (64MB), i.e. writing to disk is avoided
-     * wherever possible. Setting a lower value decreases memory usage if any of the above situations does occur.
-     *
-     * <p>
-     * At most {@code Integer.MAX_VALUE - 8} bytes of a jarfile are held in RAM, since some JVMs cannot allocate a
-     * larger array, so a larger value, such as {@link Integer#MAX_VALUE}, has the same effect as
-     * {@code Integer.MAX_VALUE - 8}. {@link #getMaxBufferedJarRAMSize()} still returns the value that was set.
+     * Applies to jarfiles that cannot be read in place: deflated nested jarfiles, jarfiles downloaded from URLs,
+     * and jarfiles read from an {@link InputStream}. Defaults to {@value #DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE} bytes
+     * (64 MiB), capped internally at {@code Integer.MAX_VALUE - 8} bytes.
      *
      * @param maxBufferedJarRAMSize
-     *            the maximum number of bytes of a jarfile to hold in RAM, before the content is spilled to a
-     *            temporary file. This is the limit per jarfile, not for the whole classpath.
+     *            the maximum number of bytes per jarfile to hold in RAM before spilling to a temporary file.
      * @return this (for method chaining).
      * @throws IllegalArgumentException
      *             if {@code maxBufferedJarRAMSize} is negative.
      * @throws IllegalStateException
-     *             if this is the copy that a {@link Vfs} holds, which {@link Vfs#getVfsSpec()} returns.
+     *             if this is the immutable copy returned by {@link Vfs#getVfsSpec()}.
      */
     public VfsSpec setMaxBufferedJarRAMSize(final int maxBufferedJarRAMSize) {
         checkNotFrozen();
@@ -368,7 +306,8 @@ public final class VfsSpec {
     }
 
     /**
-     * The number of bytes of a jarfile that may be held in RAM before it is spilled to a temporary file on disk.
+     * Returns the maximum size of a jarfile (in bytes) that may be buffered in RAM before spilling to a temporary
+     * file on disk.
      *
      * @return the maximum number of bytes to hold in RAM per jarfile.
      */
@@ -378,41 +317,18 @@ public final class VfsSpec {
 
     /**
      * Set how long a thread opening a path waits for another thread that is already opening the same directory or
-     * jarfile, while that thread makes no progress. A path is only opened once, however many threads ask for it at
-     * the same time, so the threads that ask for it while it is being opened wait for the thread that is opening
-     * it. That thread can be stuck, for example reading a jarfile from a server that stops sending it, or from a
-     * network filesystem that does not answer, and without a timeout every thread that needs the same jarfile --
-     * including a thread that opens a jarfile nested within it, or a package root within it -- would then be stuck
-     * too.
+     * jarfile while no progress is made across the {@link Vfs}.
      *
      * <p>
-     * The timeout counts only time in which no thread reading through the {@link Vfs} made progress, so a thread
-     * that is opening a path slowly but steadily is waited for however long it takes. Progress is reported for the
-     * bytes read while a jarfile is downloaded from a URL, or while a deflated nested jarfile is read into memory;
-     * for the bytes written while either is written to a temporary file; and for each entry listed in a directory.
-     * Reading a local jarfile, or a jarfile nested within it without compression, reports no progress, so a read of
-     * a local file that blocks forever still times out. The wait is made in slices of one tenth of the timeout, or
-     * one second if that is shorter. A slice in which the whole JVM was paused, for example at a breakpoint that
-     * suspends all threads, counts as at most one slice, so a pause can only make the wait time out if the other
-     * thread had already gone that close to the timeout with no progress. A breakpoint that suspends only the
-     * thread that is opening the path is not a pause of the whole JVM, so set a longer timeout, or 0, while
-     * debugging.
-     *
-     * <p>
-     * This applies only to the wait for another thread, not to the time a thread takes to open a path itself. When
-     * the wait times out, the {@code open} method that was waiting throws {@link java.io.IOException}. The thread
-     * that was opening the path is not stopped, and a later {@code open} of the same path gets its root if it
-     * finishes.
-     *
-     * <p>
-     * Default: zero, which waits indefinitely, as does any timeout that is negative or too long to express in
-     * nanoseconds. {@code ClassGraph} sets this to its worker timeout.
+     * Applies only when waiting for another thread; if the wait times out, the waiting {@code open} call throws
+     * {@link java.io.IOException} without interrupting the thread performing the open. Defaults to
+     * {@link Duration#ZERO}, which (like any negative or overflowing duration) waits indefinitely.
      *
      * @param openWaitTimeout
-     *            how long to wait for another thread to open the same path while it makes no progress.
+     *            how long to wait for another thread to open the same path without progress.
      * @return this (for method chaining).
      * @throws IllegalStateException
-     *             if this is the copy that a {@link Vfs} holds, which {@link Vfs#getVfsSpec()} returns.
+     *             if this is the immutable copy returned by {@link Vfs#getVfsSpec()}.
      */
     public VfsSpec setOpenWaitTimeout(final Duration openWaitTimeout) {
         checkNotFrozen();
@@ -422,20 +338,20 @@ public final class VfsSpec {
     }
 
     /**
-     * How long a thread opening a path waits for another thread that is already opening the same directory or
-     * jarfile, while that thread makes no progress. See {@link #setOpenWaitTimeout(Duration)}.
+     * Returns how long a thread opening a path waits for another thread that is already opening the same path
+     * without progress. See {@link #setOpenWaitTimeout(Duration)}.
      *
-     * @return the timeout, which waits indefinitely if it is zero or negative.
+     * @return the timeout (zero or negative waits indefinitely).
      */
     public Duration getOpenWaitTimeout() {
         return openWaitTimeout;
     }
 
     /**
-     * Get {@link #getOpenWaitTimeout()} in nanoseconds, for {@link Vfs} to pass to a timed wait.
+     * Returns {@link #getOpenWaitTimeout()} in nanoseconds, or {@link Long#MAX_VALUE} if zero, negative, or
+     * overflowing.
      *
-     * @return the number of nanoseconds to wait, or {@link Long#MAX_VALUE} to wait indefinitely, if the timeout is
-     *         zero, negative, or too long to express in nanoseconds.
+     * @return the timeout in nanoseconds, or {@link Long#MAX_VALUE} to wait indefinitely.
      */
     long openWaitTimeoutNanos() {
         try {
@@ -450,12 +366,12 @@ public final class VfsSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Check whether an entry path names a multi-release versioned section that these settings say to ignore. This
-     * is for the other ClassGraph modules, which filter the entries they read, and is not part of the API.
+     * Returns whether an entry path lies within {@code "META-INF/versions/"} when multi-release versioning is
+     * enabled.
      *
      * @param relativePath
-     *            the path of an entry, relative to the root it was read from.
-     * @return true if the path is within a versioned section, and versioned sections are not being reported.
+     *            the path of an entry relative to its root.
+     * @return true if the path is within a versioned section that should be ignored.
      * @hidden
      */
     public boolean isIgnoredVersionedPath(final String relativePath) {
@@ -465,8 +381,7 @@ public final class VfsSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns a description of these settings, for the verbose log. This is meant to be read by a person, and is
-     * not a stable format to parse.
+     * Returns a string representation of these settings.
      *
      * @return a description of the settings.
      */

@@ -54,54 +54,46 @@ import io.github.classgraph.vfs.internal.slice.Slice;
 import io.github.classgraph.vfs.reader.RandomAccessReader;
 
 /**
- * A zipfile, read from a byte range of a {@link PhysicalZipFile}: the whole of it, for a toplevel zipfile or a
- * nested zipfile that was inflated, or the bytes of one entry of an enclosing zipfile, for a nested zipfile that
- * was stored rather than deflated.
+ * A logical zipfile backed by a {@link Slice} of a {@link PhysicalZipFile} (either the entire physical zipfile, or
+ * a stored nested zipfile entry within an enclosing zipfile).
  */
 public final class LogicalZipFile {
     /**
-     * The value a 32-bit central directory field holds when its real value did not fit in 32 bits, in which case
-     * the real value is held by the Zip64 extended information extra field instead.
+     * Sentinel value (0xffffffffL) in a 32-bit central directory field indicating that the true value is stored in
+     * the Zip64 extended information extra field.
      */
     private static final long ZIP64_OVERFLOWED = 0xffffffffL;
 
     /**
-     * Bit 11 of an entry's general purpose bit flag, the "language encoding flag", which declares that the entry's
-     * name is encoded in UTF-8 rather than in the zip specification's default of IBM Code Page 437.
+     * Bit 11 of an entry's general purpose bit flag (the language encoding flag), indicating that the entry name is
+     * UTF-8 encoded.
      */
     private static final int UTF8_NAME_FLAG_BIT = 1 << 11;
 
-    /** The zipfile that this zipfile is nested within, or null if this is a toplevel zipfile. */
+    /** The enclosing zipfile, or null if this is a toplevel zipfile. */
     private final @Nullable LogicalZipFile parent;
 
-    /**
-     * The physical zipfile that this zipfile is read through. This zipfile only reads through it and does not own
-     * it: it is owned, and released, by the root it was opened for, which for a zipfile stored within another
-     * zipfile is the root of an enclosing zipfile -- see {@link JarOpener.OpenedJar}.
-     */
+    /** The backing physical zipfile. */
     private final PhysicalZipFile physicalZipFile;
 
     /**
-     * For a toplevel zipfile, the zipfile path; for a nested zipfile, the name of the zip entry it was read from.
+     * The zipfile path for a toplevel zipfile, or the zip entry name within {@link #parent} for a nested zipfile.
      */
     private final String pathWithinParent;
 
-    /**
-     * The {@link Slice} that holds the bytes of this zipfile: the whole of the physical zipfile, or, for a nested
-     * zipfile that was stored rather than deflated, the byte range of the entry it is stored in.
-     */
+    /** The {@link Slice} covering the bytes of this zipfile. */
     public final Slice slice;
 
-    /** The zipfile entries, as an unmodifiable list. */
+    /** The unmodifiable list of zipfile entries. */
     private final List<FastZipEntry> entries;
 
-    /** The main section of the manifest file, or null if the zipfile has no manifest file. */
+    /** The main section attributes of {@code META-INF/MANIFEST.MF}, or null if no manifest is present. */
     private final @Nullable Map<String, String> manifest;
 
-    /** If true, multi-release version prefixes are stripped from resource names, and mask the base entry. */
+    /** If true, multi-release version prefixes are stripped from entry names and mask base entries. */
     private final boolean multiReleaseVersionsEnabled;
 
-    /** The vfs that owns what is opened to read this zipfile and the jarfiles nested within it. */
+    /** The {@link Vfs} that opened this zipfile. */
     final Vfs vfs;
 
     // -------------------------------------------------------------------------------------------------------------
@@ -121,25 +113,25 @@ public final class LogicalZipFile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Construct a zipfile from a byte range of a physical zipfile, and read its central directory.
+     * Construct a logical zipfile from a slice of a physical zipfile and read its central directory.
      *
      * @param parent
-     *            the zipfile that this zipfile is nested within, or null if this is a toplevel zipfile
+     *            the enclosing zipfile, or null if this is a toplevel zipfile
      * @param physicalZipFile
-     *            the physical zipfile to read through, which this zipfile does not own
+     *            the backing physical zipfile
      * @param pathWithinParent
-     *            for a toplevel zipfile, the zipfile path; for a nested zipfile, the name of the entry of the
-     *            parent zipfile that it is read from
+     *            the zipfile path (for a toplevel zipfile) or the entry name within {@code parent} (for a nested
+     *            zipfile)
      * @param slice
-     *            the bytes of this zipfile: the slice of {@code physicalZipFile}, or a byte range of it
+     *            the slice containing the bytes of this zipfile
      * @param vfs
-     *            the {@link Vfs} that is opening this jarfile
+     *            the {@link Vfs} opening this jarfile
      * @param log
      *            the log node, or null to skip logging
      * @param multiReleaseVersionsEnabled
-     *            if true, multi-release version prefixes are stripped from resource names
+     *            if true, strip multi-release version prefixes from resource names and mask base entries
      * @throws IOException
-     *             If an I/O exception occurs.
+     *             if an I/O exception occurs while reading the central directory
      */
     LogicalZipFile(final @Nullable LogicalZipFile parent, final PhysicalZipFile physicalZipFile,
             final String pathWithinParent, final Slice slice, final Vfs vfs, final @Nullable LogNode log,
@@ -185,14 +177,11 @@ public final class LogicalZipFile {
     }
 
     /**
-     * Get the physical {@link File} that this zipfile is read from. For a nested jarfile stored uncompressed, this
-     * is the file of the jarfile that encloses it, since the nested jarfile is read in place as a byte range of
-     * that file. For a jarfile that was read from a stream, downloaded from a URL or inflated from a deflated
-     * nested entry, and was too large to hold in RAM, it is the temporary file the jarfile was spilled to.
+     * Get the physical {@link File} backing this zipfile (for a stored nested jarfile, the enclosing jarfile's
+     * file; for a stream-backed jarfile spilled to disk, the temporary file).
      *
-     * @return the physical {@link File} that this zipfile is read from, or null if the physical zipfile is held in
-     *         RAM (read from a stream, downloaded from a URL, or inflated from a nested jar), or is a {@link Path}
-     *         in a filesystem that has no {@link File} view of its files.
+     * @return the physical {@link File}, or null if backed by an in-memory buffer or a {@link Path} whose
+     *         filesystem does not support {@link Path#toFile()}.
      */
     public @Nullable File getPhysicalFile() {
         final var path = physicalZipFile.getPath();
@@ -209,11 +198,9 @@ public final class LogicalZipFile {
     }
 
     /**
-     * Get the physical {@link Path} that this zipfile is read from, chosen the same way as
-     * {@link #getPhysicalFile()}.
+     * Get the physical {@link Path} backing this zipfile.
      *
-     * @return the physical {@link Path} that this zipfile is read from, or null if the physical zipfile is held in
-     *         RAM (read from a stream, downloaded from a URL, or inflated from a nested jar).
+     * @return the physical {@link Path}, or null if backed by an in-memory buffer.
      */
     public @Nullable Path getPhysicalPath() {
         final var path = physicalZipFile.getPath();
@@ -227,19 +214,17 @@ public final class LogicalZipFile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Open a jarfile nested within this one. Nothing here is cached: the caller decides how the nested jarfile is
-     * shared. The nested jarfile is wrapped in place if it is stored, or inflated to RAM or to a temporary file if
-     * it is deflated, and its central directory is then read.
+     * Open a jarfile nested within this zipfile, reading it in place if stored or inflating it to RAM or a
+     * temporary file if deflated.
      *
      * @param zipEntry
-     *            the entry of this zipfile that holds the nested jarfile, found with {@link #findEntry(String)}.
+     *            the entry of this zipfile holding the nested jarfile.
      * @param log
-     *            the log node, or null to skip logging
-     * @return the nested jarfile, with the physical zipfile it was inflated to if it was deflated, which the caller
-     *         owns. A stored nested jarfile is read in place, as a byte range of this zipfile's physical zipfile,
-     *         which belongs to whatever owns this jarfile, so nothing is handed over to own for one.
+     *            the log node, or null to skip logging.
+     * @return the opened nested jarfile and its owned {@link PhysicalZipFile} (or null if stored and read in
+     *         place).
      * @throws IllegalArgumentException
-     *             if the entry is not an entry of this zipfile.
+     *             if {@code zipEntry} does not belong to this zipfile.
      * @throws IOException
      *             if the nested jarfile could not be opened.
      */
@@ -320,10 +305,9 @@ public final class LogicalZipFile {
     }
 
     /**
-     * Get the main section of the manifest file of this zipfile.
+     * Get the main section attributes of this zipfile's {@code META-INF/MANIFEST.MF}.
      *
-     * @return the manifest attributes, keyed case-insensitively by attribute name, or null if this zipfile has no
-     *         {@code META-INF/MANIFEST.MF} entry, under that name or one that differs from it only in case.
+     * @return a case-insensitive map of manifest attributes, or null if this zipfile has no manifest.
      */
     public @Nullable Map<String, String> getManifest() {
         return manifest;
@@ -332,27 +316,19 @@ public final class LogicalZipFile {
     /**
      * Get the entries of this zipfile.
      *
-     * @return the entries, in the order of the central directory, without directories, without the earlier of two
-     *         entries with the same name, and, for a multi-release jarfile, without the versions that are masked by
-     *         a newer one. Unmodifiable.
+     * @return an unmodifiable list of non-directory entries in central directory order, deduplicated and (if
+     *         enabled) multi-release masked.
      */
     public List<FastZipEntry> getEntries() {
         return entries;
     }
 
     /**
-     * Find a non-directory entry of this zipfile with a given name. Directory entries ending with a slash are
-     * discarded when the central directory is read, so only file entries can be matched.
-     *
-     * <p>
-     * N.B. this performs an O(N) search, because the number of classpath elements containing {@code '!'} sections
-     * is assumed to be small relative to the total number of entries in all jarfiles (i.e. building a map from
-     * entry path to entry for every jarfile would generally be more expensive than performing this linear search,
-     * and unless the classpath is enormous, the overall time performance will not tend towards O(N^2)).
+     * Find a non-directory entry of this zipfile with the given unversioned name.
      *
      * @param entryName
      *            the entry name to search for
-     * @return the matching {@link FastZipEntry}, or null if there is no entry with that name
+     * @return the matching {@link FastZipEntry}, or null if not found
      */
     public @Nullable FastZipEntry findEntry(final String entryName) {
         for (final FastZipEntry entry : entries) {
@@ -368,8 +344,7 @@ public final class LogicalZipFile {
     }
 
     /**
-     * Test whether any entry of this zipfile is within a given directory, i.e. whether the directory path is a
-     * prefix of any entry name.
+     * Test whether any entry of this zipfile is within the given directory path.
      *
      * @param dirPath
      *            the directory path, without a trailing slash
@@ -390,61 +365,52 @@ public final class LogicalZipFile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * The central directory of the zipfile, as located by the End Of Central Directory record.
+     * Location and size of the central directory, as read from the End Of Central Directory record.
      *
      * @param numEnt
-     *            the number of entries in the central directory, or -1 if the End Of Central Directory record and
-     *            its Zip64 counterpart disagreed on the number, so that the entries have to be counted manually
+     *            the number of entries in the central directory, or -1 if the EOCD and Zip64 EOCD counts differed
      * @param cenSize
      *            the size of the central directory, in bytes
      * @param cenPos
-     *            the position of the central directory within the zipfile slice
+     *            the offset of the central directory within the zipfile slice
      * @param locPos
-     *            the position within the zipfile slice that the local file header offset of an entry is relative to
+     *            the base offset within the zipfile slice to which entry local header offsets are relative
      */
     private record CentralDirectory(long numEnt, long cenSize, long cenPos, long locPos) {
     }
 
     /**
-     * The fields of a zip entry that the entry's extra field area can override.
+     * Mutable zip entry fields that may be overridden by extra fields in the central directory record.
      */
     private static final class EntryFields {
-        /** The sanitized entry name, which the Info-ZIP Unicode path extra field can replace. */
+        /** The sanitized entry name (may be overridden by the Info-ZIP Unicode path extra field). */
         String entryNameSanitized;
 
-        /** The compressed size of the entry, which the Zip64 extra field can replace. */
+        /** The compressed size of the entry (may be overridden by the Zip64 extra field). */
         long compressedSize;
 
-        /** The uncompressed size of the entry, which the Zip64 extra field can replace. */
+        /** The uncompressed size of the entry (may be overridden by the Zip64 extra field). */
         long uncompressedSize;
 
-        /** The offset of the entry's local file header, which the Zip64 extra field can replace. */
+        /** The offset of the entry's local file header (may be overridden by the Zip64 extra field). */
         long pos;
 
-        /** The last modified time of the entry, in milliseconds, if {@link #hasExtraFieldTimestamp} is true. */
+        /** The last modified time in epoch milliseconds, if {@link #hasExtraFieldTimestamp} is true. */
         long lastModifiedMillis;
 
-        /**
-         * True if an extended timestamp extra field or an Info-ZIP Unix extra field set
-         * {@link #lastModifiedMillis}. (A flag rather than a test for 0, since 0 is a valid time: the Unix epoch.)
-         */
+        /** True if an extended timestamp or Unix extra field set {@link #lastModifiedMillis}. */
         boolean hasExtraFieldTimestamp;
 
-        /** True if the Info-ZIP Unicode path extra field renamed the entry to a directory, or to nothing. */
+        /** True if the Info-ZIP Unicode path extra field renamed the entry to a directory or empty name. */
         boolean renamedToDirectoryEntry;
 
-        /**
-         * True if the entry has a Zip64 extra field. This is not the same as any of the three fields above having
-         * been replaced: a value moved into the Zip64 extra field can itself be {@link #ZIP64_OVERFLOWED}, since a
-         * value of exactly that is one of the values that has to be moved there, so whether a field still holds the
-         * overflow marker does not say whether it was replaced.
-         */
+        /** True if the entry has a Zip64 extra field. */
         boolean hasZip64ExtraField;
 
-        /** The offset of the entry's name within the central directory, before it was decoded or sanitized. */
+        /** The offset of the entry's raw name within the central directory. */
         final long filenameStartOff;
 
-        /** The length in bytes of the entry's name as stored in the central directory. */
+        /** The byte length of the entry's raw name in the central directory. */
         final int filenameLen;
 
         /**
@@ -475,14 +441,13 @@ public final class LogicalZipFile {
     }
 
     /**
-     * Find the End Of Central Directory (EOCD) record, which is the last record in the zipfile, apart from the
-     * zipfile comment.
+     * Locate the End Of Central Directory (EOCD) record near the end of the zipfile slice.
      *
      * @param reader
      *            a reader for the whole zipfile slice
-     * @return the position of the End Of Central Directory record within the zipfile slice
+     * @return the offset of the EOCD record within the zipfile slice
      * @throws IOException
-     *             If an I/O exception occurs, or the record could not be found.
+     *             if an I/O exception occurs or the EOCD record could not be found
      */
     @SuppressWarnings("resource")
     private long findEndOfCentralDirectoryPos(final RandomAccessReader reader) throws IOException {
@@ -542,24 +507,18 @@ public final class LogicalZipFile {
     }
 
     /**
-     * Read one of the 64-bit unsigned fields of a Zip64 record.
-     *
-     * <p>
-     * These fields are unsigned, but a Java {@code long} is signed, so a value of 2^63 or greater is read back as a
-     * negative number. No real zipfile holds such a value in any of these fields, whereas a corrupted or hostile
-     * zipfile can, and a negative value slips past every subsequent range check (which can only test for values
-     * that are too large) and then goes on to be truncated to a positive {@code int}. Reject the value at the point
-     * it is read instead.
+     * Read a 64-bit unsigned field from a Zip64 record, throwing {@link IOException} if its value does not fit in a
+     * non-negative signed {@code long}.
      *
      * @param reader
      *            a reader for the zipfile
      * @param offset
      *            the offset of the field within the zipfile
      * @param fieldName
-     *            the name of the field, for the exception message
-     * @return the value of the field
+     *            the field name for the exception message
+     * @return the non-negative field value
      * @throws IOException
-     *             If an I/O exception occurs, or the field's value does not fit in a signed 64-bit integer.
+     *             if an I/O exception occurs or the value is negative when read as a signed {@code long}
      */
     private long readZip64Long(final RandomAccessReader reader, final long offset, final String fieldName)
             throws IOException {
@@ -790,16 +749,8 @@ public final class LogicalZipFile {
     }
 
     /**
-     * Read a Zip64 extended information extra field, which gives the true uncompressed size, compressed size and
-     * local file header offset of an entry whose value for those fields was too large to store in the 32 bits the
-     * central directory record has for each of them.
-     *
-     * <p>
-     * Each of the three values is present in this extra field only if the central directory field it belongs to
-     * holds {@link #ZIP64_OVERFLOWED}, and the values that are present appear in this fixed order, so which value
-     * each 8 bytes of this field holds depends on which of the central directory fields overflowed. (The three
-     * values can be followed by the 4-byte number of the disk the entry starts on, which is of no use here, since
-     * multi-disk zipfiles are not supported.)
+     * Read a Zip64 extended information extra field, overriding any {@link #ZIP64_OVERFLOWED} values in
+     * {@code entryFields} in the fixed order: uncompressed size, compressed size, local header offset.
      *
      * @param cenReader
      *            a reader for the central directory
@@ -808,10 +759,9 @@ public final class LogicalZipFile {
      * @param size
      *            the size of the extra field's data area
      * @param entryFields
-     *            the fields of the entry, which are overridden in place
+     *            the fields of the entry, updated in place
      * @throws IOException
-     *             If an I/O exception occurs, or a central directory field overflowed but this extra field does not
-     *             hold the value that overflowed it.
+     *             if an I/O exception occurs or the Zip64 extra field is too short for the overflowed fields
      */
     private static void readZip64ExtraField(final RandomAccessReader cenReader, final long tagOff, final int size,
             final EntryFields entryFields) throws IOException {
@@ -844,21 +794,13 @@ public final class LogicalZipFile {
     }
 
     /**
-     * Check that no central directory field of an entry was left holding {@link #ZIP64_OVERFLOWED} by an entry that
-     * has no Zip64 extra field at all.
-     *
-     * <p>
-     * The overflow marker says that the real value is in the Zip64 extra field, so an entry that carries the marker
-     * without carrying that extra field has no real value for the field at all. The marker must not be mistaken for
-     * one: it would be read as a size or an offset of just under 4GB, which is not a value the entry could have had
-     * and still have been written this way. An entry whose Zip64 extra field is present but too short to hold a
-     * value that overflowed is rejected by {@link #readZip64ExtraField} instead, with the same message; this covers
-     * the case where the extra field is missing entirely, which that method never sees.
+     * Verify that no field in {@code entryFields} still holds {@link #ZIP64_OVERFLOWED} when no Zip64 extra field
+     * was present.
      *
      * @param entryFields
-     *            the fields of the entry, after every extra field has been read
+     *            the fields of the entry after reading all extra fields
      * @throws IOException
-     *             If a central directory field overflowed but the entry has no Zip64 extra field.
+     *             if a central directory field overflowed but the entry had no Zip64 extra field
      */
     private static void checkNoOverflowMarkerWasLeftBehind(final EntryFields entryFields) throws IOException {
         if (entryFields.hasZip64ExtraField) {
@@ -1173,22 +1115,14 @@ public final class LogicalZipFile {
     }
 
     /**
-     * Of two or more entries with the same name, keep only the one that JarFile, and so a classloader, finds under
-     * that name. The entry that is kept stays at its own position in the central directory.
-     *
-     * <p>
-     * JarFile finds the last entry stored under the name. An entry whose name is not the name it is stored under
-     * (because sanitizing changed it, as with {@code "./a.txt"} or {@code "/a.txt"}, or because a Unicode path
-     * extra field supplied it) is never found under its name by JarFile, so it does not replace an entry stored
-     * under that exact name, wherever it is in the central directory. Of entries none of which is stored under the
-     * name, the last one is kept, so that a name that exists only after sanitizing still names an entry.
+     * Deduplicate entries with the same name in central directory order, retaining the last verbatim-named entry
+     * (or the last non-verbatim entry if no entry is stored verbatim under that name).
      *
      * @param entries
-     *            the entries, in the order of the central directory
+     *            the entries in central directory order
      * @param log
      *            the log node, or null to skip logging
-     * @return the entries with only the kept entry of each name, or {@code entries} itself if no two have the same
-     *         name
+     * @return the deduplicated entries in central directory order
      */
     private static List<FastZipEntry> dropDuplicateEntries(final List<FastZipEntry> entries,
             final @Nullable LogNode log) {
@@ -1277,18 +1211,11 @@ public final class LogicalZipFile {
     }
 
     /**
-     * For a jarfile whose manifest does not have the {@code Multi-Release} key, put back the version prefix of any
-     * entry stored beneath {@code META-INF/versions/}.
-     *
-     * <p>
-     * A jarfile is only a multi-release jarfile if its manifest says so, and the version prefixes of one that does
-     * not say so name no version of anything: the JVM reads such an entry from the path it is stored under, and
-     * loads the base entry for the path the prefix would have named. Whether the manifest has the key is only known
-     * once the manifest has been parsed, which cannot happen until the central directory has been read, so the
-     * version prefix is resolved for every entry as it is read and put back here.
+     * Restore the {@code META-INF/versions/} prefix on all entries of a jarfile whose manifest does not declare
+     * {@code Multi-Release: true}.
      *
      * @param entries
-     *            the entries, each of which is replaced in place if its version prefix is put back
+     *            the entries, updated in place
      * @param log
      *            the log node, or null to skip logging
      */

@@ -58,83 +58,57 @@ import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClasspathOrder;
 
-/** A class to find the unique ordered classpath elements. */
+/** Builds the deduplicated, ordered list of classpath elements. */
 public class ClasspathOrderBuilder implements ClasspathOrder {
-    /** A "%" that is not followed by two hex digits, so does not start a percent escape. */
+    /** Matches a {@code '%'} that is not followed by two hexadecimal digits. */
     private static final Pattern LONE_PERCENT = Pattern.compile("%(?![0-9A-Fa-f]{2})");
 
-    /** The scan spec. */
+    /** The classpath configuration. */
     private final ClasspathSpec classpathSpec;
 
-    /** The {@link Entry#location()} of every classpath element found so far, which is what deduplicates them. */
+    /** Canonical locations of classpath elements added so far, used for deduplication. */
     private final Set<String> classpathEntryUniqueLocations = new HashSet<>();
 
-    /** The classpath elements found so far, in classpath order. */
+    /** The ordered list of unique classpath elements. */
     private final List<Entry> order = new ArrayList<>();
 
-    /**
-     * The package root prefixes of the {@code ClassLoaderHandler} whose {@code findClasspathOrder} method is
-     * currently being called, or no prefixes at all if classpath entries are not currently being obtained from a
-     * {@code ClassLoaderHandler} (e.g. for {@code java.class.path} entries, or an overridden classpath).
-     */
+    /** Package root prefixes for the currently active {@link ClassLoaderHandler}. */
     private List<String> currPackageRootPrefixes = ClassLoaderHandler.NO_PACKAGE_ROOT_PREFIXES;
 
-    /**
-     * The lib dirs of the {@code ClassLoaderHandler} whose {@code findClasspathOrder} method is currently being
-     * called, or no lib dirs at all if classpath entries are not currently being obtained from a
-     * {@code ClassLoaderHandler} (e.g. for {@code java.class.path} entries, or an overridden classpath).
-     */
+    /** Automatic lib directory prefixes for the currently active {@link ClassLoaderHandler}. */
     private List<String> currLibDirPrefixes = ClassLoaderHandler.NO_LIB_DIR_PREFIXES;
 
-    /**
-     * The class of the {@code ClassLoaderHandler} whose {@code findClasspathOrder} method is currently being
-     * called, or null if classpath entries are not currently being obtained from a {@code ClassLoaderHandler}.
-     */
+    /** Class of the currently active {@link ClassLoaderHandler}, or null if none. */
     private @Nullable Class<?> currHandlerClass;
 
     /**
-     * A key claimed through {@link #claimOncePerScan(String)}, with the class of the handler that claimed it.
+     * A per-scan claim key scoped to a {@link ClassLoaderHandler} class.
      *
      * @param handlerClass
-     *            the class of the handler that claimed the key, or {@link ClasspathOrderBuilder} for a claim made
-     *            outside any handler.
+     *            the claiming handler class (or {@link ClasspathOrderBuilder} if outside a handler).
      * @param key
-     *            the key.
+     *            the claim key.
      */
     private record Claim(Class<?> handlerClass, String key) {
     }
 
-    /**
-     * The keys that {@link #claimOncePerScan(String)} has already been called with. A key is kept with the class of
-     * the handler that claimed it, since a key only has to be unique within that handler.
-     */
+    /** Keys already claimed via {@link #claimOncePerScan(String)}. */
     private final Set<Claim> claimedOncePerScan = new HashSet<>();
 
     /**
-     * A classpath element and the string form of the {@link ClassLoader} it was obtained from.
+     * A discovered classpath element and its associated classloader metadata.
      *
      * @param classpathEntryObj
-     *            the classpath entry object (a {@link String} path, {@link File}, {@link Path}, {@link URL} or
+     *            the raw classpath entry object ({@link String}, {@link File}, {@link Path}, {@link URL}, or
      *            {@link URI}).
      * @param location
-     *            the location of the classpath element: the canonical path of a directory or jarfile of a
-     *            filesystem, with {@code '/'} as the separator on every platform, or the URL or URI of anything
-     *            that is not reached through a filesystem. This is the form the classpath element is reported in,
-     *            and the form it is deduplicated by, so a file reached through two different paths is reported
-     *            once, under the name it is stored under. It is kept alongside the classpath entry object because
-     *            the object's {@link Object#toString()} is not in that form: the {@link Path} of a local file
-     *            spells the path with the platform's separator, so on Windows it uses backslashes, and a
-     *            {@link URI} keeps its scheme.
+     *            the normalized canonical location string used for reporting and deduplication.
      * @param classLoaderName
-     *            the string form of the classloader the classpath element was obtained from, or null if unknown.
-     *            Only the string is kept, not the classloader itself, so that finding the classpath does not keep a
-     *            classloader alive.
+     *            the string representation of the originating classloader, or null if none.
      * @param packageRootPrefixes
-     *            the automatic package root prefixes to look for within this classpath element, as declared by the
-     *            {@code ClassLoaderHandler} that found it.
+     *            automatic package root prefixes declared by the originating {@link ClassLoaderHandler}.
      * @param libDirPrefixes
-     *            the lib dirs whose jarfiles should be added to the classpath, within this classpath element, as
-     *            declared by the {@code ClassLoaderHandler} that found it.
+     *            automatic lib directory prefixes declared by the originating {@link ClassLoaderHandler}.
      */
     public record Entry(Object classpathEntryObj, String location, @Nullable String classLoaderName,
             List<String> packageRootPrefixes, List<String> libDirPrefixes) {
@@ -148,7 +122,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
      * Constructor.
      *
      * @param classpathSpec
-     *            the scan spec
+     *            the classpath configuration.
      */
     ClasspathOrderBuilder(final ClasspathSpec classpathSpec) {
         this.classpathSpec = classpathSpec;
@@ -161,24 +135,22 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
     }
 
     /**
-     * Get the order of classpath elements, uniquified and in order.
+     * Returns the deduplicated list of classpath entries in resolution order.
      *
-     * @return the classpath order, as an unmodifiable view.
+     * @return the classpath entries, as an unmodifiable list.
      */
     public List<Entry> getOrder() {
         return Collections.unmodifiableList(order);
     }
 
     /**
-     * Set the automatic package root prefixes to record for subsequently-added classpath entries. Called before and
-     * after invoking the {@code findClasspathOrder} method of a {@code ClassLoaderHandler}, so that each classpath
-     * entry records the package roots of the classloader it was obtained from. The prefixes are normalized and
-     * copied, as {@link #normalizePrefixes(List, ClassGraphLog)} describes.
+     * Sets the package root prefixes to attach to subsequently added classpath entries.
      *
      * @param packageRootPrefixes
-     *            the package root prefixes, or null to reset to no prefixes at all.
+     *            the package root prefixes, or null to reset to
+     *            {@link ClassLoaderHandler#NO_PACKAGE_ROOT_PREFIXES}.
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or null to skip logging.
      */
     void setPackageRootPrefixes(final @Nullable List<String> packageRootPrefixes,
             final @Nullable ClassGraphLog log) {
@@ -187,15 +159,12 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
     }
 
     /**
-     * Set the lib dirs to record for subsequently-added classpath entries. Called before and after invoking the
-     * {@code findClasspathOrder} method of a {@code ClassLoaderHandler}, so that each classpath entry records the
-     * lib dirs of the classloader it was obtained from. The prefixes are normalized and copied, as
-     * {@link #normalizePrefixes(List, ClassGraphLog)} describes.
+     * Sets the automatic lib directory prefixes to attach to subsequently added classpath entries.
      *
      * @param libDirPrefixes
-     *            the lib dir prefixes, or null to reset to no lib dirs at all.
+     *            the lib directory prefixes, or null to reset to {@link ClassLoaderHandler#NO_LIB_DIR_PREFIXES}.
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or null to skip logging.
      */
     void setLibDirPrefixes(final @Nullable List<String> libDirPrefixes, final @Nullable ClassGraphLog log) {
         this.currLibDirPrefixes = libDirPrefixes == null ? ClassLoaderHandler.NO_LIB_DIR_PREFIXES
@@ -203,32 +172,23 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
     }
 
     /**
-     * Set the class of the handler whose claims {@link #claimOncePerScan(String)} records. Called before and after
-     * invoking the {@code findClasspathOrder} method of a {@code ClassLoaderHandler}, so that each handler class
-     * has its own set of keys.
+     * Sets the active {@link ClassLoaderHandler} class for scoping {@link #claimOncePerScan(String)} calls.
      *
      * @param handlerClass
-     *            the class of the handler, or null if no handler is running.
+     *            the active handler class, or null if no handler is active.
      */
     void setCurrentHandlerClass(final @Nullable Class<?> handlerClass) {
         this.currHandlerClass = handlerClass;
     }
 
     /**
-     * Normalize the package root or lib dir prefixes that a {@code ClassLoaderHandler} declared into the form the
-     * rest of ClassGraph relies on: a relative path, with {@code '/'} as the separator and no empty, {@code "."} or
-     * {@code ".."} segments, ending in {@code '/'}. A backslash is read as a separator, and leading slashes are
-     * removed. A null prefix, and a prefix that names no dir once normalized (such as {@code ""} or {@code "/"}),
-     * is dropped, as is a prefix that duplicates an earlier one. Each change is logged.
-     *
-     * <p>
-     * The result is an immutable copy, so it does not change if the handler later changes the list it handed over.
-     * A list that is already immutable and in normal form is returned unchanged.
+     * Normalizes directory prefixes into relative paths with {@code '/'} separators and a trailing {@code '/'},
+     * removing empty, root, or duplicate prefixes.
      *
      * @param prefixes
-     *            the prefixes the handler declared.
+     *            the raw directory prefixes.
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or null to skip logging.
      * @return the normalized prefixes, as an immutable list.
      */
     static List<String> normalizePrefixes(final List<String> prefixes, final @Nullable ClassGraphLog log) {
@@ -264,38 +224,29 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
     }
 
     /**
-     * Test to see if a classpath element has been filtered out by the user.
+     * Tests whether a classpath element is accepted by all configured URL and path filters.
      *
      * @param classpathElementURL
-     *            the classpath element URL, or null if the classpath element was not given as a URL
+     *            the classpath element URL, or null.
      * @param classpathElementPath
-     *            the classpath element path
-     * @return true if the classpath element passes every filter
+     *            the classpath element path, or null.
+     * @return true if the classpath element is accepted.
      */
     private boolean filter(final @Nullable URL classpathElementURL, final @Nullable String classpathElementPath) {
         return classpathSpec.acceptsClasspathElement(classpathElementURL, classpathElementPath);
     }
 
     /**
-     * Get the location of a classpath element: the form it is reported in, and the form it is deduplicated by.
-     *
-     * <p>
-     * A classpath element that names a file or directory of a filesystem is located by the canonical path of that
-     * file, so that the same file reached through two different paths -- through a symbolic link, through a Windows
-     * junction or 8.3 short name, or spelled with a different case on a filesystem that ignores case -- is reported
-     * once, under the name it is stored under. A classpath element stored inside an archive is located by the
-     * canonical path of the archive, followed by the path within it. Anything that is reached through a URL handler
-     * rather than through a filesystem is located by its URL or URI, which has no canonical form.
+     * Resolves the canonical location string for a classpath element, or returns null if the local file or
+     * directory does not exist or cannot be read.
      *
      * @param pathElement
-     *            the {@link String} path, {@link File}, {@link Path}, {@link URL} or {@link URI} of the classpath
-     *            element.
+     *            the classpath element object.
      * @param pathElementStr
-     *            the resolved path of the classpath element.
+     *            the resolved path string of the classpath element.
      * @param log
-     *            the log node, or null to skip logging
-     * @return the location of the classpath element, or null if the filesystem says it is not there or that it
-     *         cannot be read, in which case the reason has been logged.
+     *            the log node, or null to skip logging.
+     * @return the canonical location string, or null if nonexistent or unreadable.
      */
     public static @Nullable String toLocation(final Object pathElement, final String pathElementStr,
             final @Nullable ClassGraphLog log) {
@@ -352,14 +303,13 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
     }
 
     /**
-     * Describe a classpath element for the log, showing the resolved form of the path if it differs from the form
-     * the classpath element was found in.
+     * Formats a classpath element path and its resolved form for logging.
      *
      * @param pathElementStr
-     *            the path of the classpath element.
+     *            the original path string.
      * @param pathElementStrResolved
-     *            the resolved path of the classpath element.
-     * @return the description of the classpath element.
+     *            the resolved path string.
+     * @return the formatted description string.
      */
     private static String describe(final String pathElementStr, final String pathElementStrResolved) {
         return pathElementStr
@@ -367,17 +317,17 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
     }
 
     /**
-     * Test a classpath element against the user's classpath element filters, logging it if it is filtered out.
+     * Tests a classpath element against configured filters and logs a message if rejected.
      *
      * @param pathElementURL
-     *            the classpath element URL, or null if the classpath element was not given as a URL
+     *            the classpath element URL, or null.
      * @param pathElementStr
-     *            the path of the classpath element.
+     *            the original path string.
      * @param pathElementStrResolved
-     *            the resolved path of the classpath element.
+     *            the resolved path string.
      * @param log
-     *            the log node, or null to skip logging
-     * @return true if the classpath element passes the filters.
+     *            the log node, or null to skip logging.
+     * @return true if the element passes all filters.
      */
     private boolean passesFilters(final @Nullable URL pathElementURL, final String pathElementStr,
             final String pathElementStrResolved, final @Nullable ClassGraphLog log) {
@@ -395,21 +345,19 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
     }
 
     /**
-     * Add a classpath entry, and log whether it was added, was a duplicate of an entry already found, or was
-     * skipped because it does not exist or cannot be read.
+     * Resolves, deduplicates, and adds a classpath entry, logging the outcome.
      *
      * @param pathElement
-     *            the {@link String} path, {@link File}, {@link Path}, {@link URL} or {@link URI} of the classpath
-     *            element.
+     *            the classpath element object.
      * @param pathElementStr
-     *            the path of the classpath element.
+     *            the original path string.
      * @param pathElementStrResolved
-     *            the resolved path of the classpath element.
+     *            the resolved path string.
      * @param classLoader
-     *            the classloader
+     *            the originating classloader, or null.
      * @param log
-     *            the log node, or null to skip logging
-     * @return true if the classpath element was added, false if it was a duplicate or could not be found
+     *            the log node, or null to skip logging.
+     * @return true if the classpath element was added.
      */
     // new URL(String) is deprecated from JDK 20, but it accepts URLs that new URI(String) rejects (such as one
     // containing a space), and a URL classpath element is rebuilt here with the same leniency it was given with
@@ -524,11 +472,11 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
     }
 
     /**
-     * Get the string form of a classpath element object.
+     * Converts a classpath element object to its string representation.
      *
      * @param pathElement
      *            the classpath element object.
-     * @return the string form of the classpath element.
+     * @return the string representation of the classpath element.
      */
     private static String toPathElementStr(final Object pathElement) {
         if (pathElement instanceof final Path pathElementPath) {
@@ -545,15 +493,15 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
     }
 
     /**
-     * Convert a classpath element whose path has a URL scheme into a {@link URL}.
+     * Converts a classpath element with a URL scheme into a {@link URL}, or returns null if conversion fails.
      *
      * @param pathElement
      *            the classpath element object.
      * @param pathElementStr
-     *            the path of the classpath element.
+     *            the path string of the classpath element.
      * @param log
-     *            the log node, or null to skip logging
-     * @return the {@link URL} of the classpath element, or null if it could not be converted to a {@link URL}.
+     *            the log node, or null to skip logging.
+     * @return the {@link URL}, or null if conversion failed.
      */
     // new URL(String) is deprecated from JDK 20, but it accepts URLs that new URI(String) rejects (such as one
     // containing a space), which is what the parsing of the path string below relies on
@@ -599,17 +547,16 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
     }
 
     /**
-     * Add every jarfile in a directory to the classpath, for a wildcarded classpath entry, i.e. a directory path
-     * with a {@code "/*"} suffix (allowable for local classpaths as of JDK 6). As in the java launcher, a jarfile
-     * is any directory entry whose name ends in {@code ".jar"} or {@code ".JAR"}.
+     * Expands a wildcarded directory entry (ending in {@code "/*"}) by adding all {@code .jar} and {@code .JAR}
+     * files in the directory.
      *
      * @param baseDirPath
-     *            the resolved path of the directory, i.e. the classpath entry with the {@code "/*"} suffix removed.
+     *            the resolved directory path with the {@code "/*"} suffix removed.
      * @param classLoader
-     *            the ClassLoader that this classpath element was obtained from.
+     *            the originating classloader, or null.
      * @param log
-     *            the log node, or null to skip logging
-     * @return true if the contents of the directory could be listed.
+     *            the log node, or null to skip logging.
+     * @return true if the directory exists and could be listed.
      */
     private boolean addWildcardedDirEntries(final String baseDirPath, final @Nullable ClassLoader classLoader,
             final @Nullable ClassGraphLog log) {
@@ -697,16 +644,15 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
     }
 
     /**
-     * Add a single classpath entry.
+     * Resolves and adds a single classpath entry (or expands a wildcarded directory entry).
      *
      * @param pathElement
-     *            the {@link String} path, {@link URL}, {@link URI}, {@link File} or {@link Path} of the classpath
-     *            element, or some other object whose {@link Object#toString()} method gives the classpath element.
+     *            the classpath element object.
      * @param classLoader
-     *            the {@link ClassLoader} that this classpath element was obtained from.
+     *            the originating {@link ClassLoader}, or null.
      * @param log
-     *            the log node, or null to skip logging
-     * @return true if the classpath element was added.
+     *            the log node, or null to skip logging.
+     * @return true if at least one classpath element was added.
      */
     private boolean addSingleClasspathEntry(final Object pathElement, final @Nullable ClassLoader classLoader,
             final @Nullable ClassGraphLog log) {

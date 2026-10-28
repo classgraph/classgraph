@@ -42,8 +42,7 @@ import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
 
 /**
- * Finds the classpath of an Apache Felix OSGi bundle classloader: the bundle jar, the jars and directories on its
- * {@code Bundle-ClassPath}, and the same for each bundle it is wired to.
+ * Extracts classpath entries from an Apache Felix OSGi bundle classloader and its wired bundles.
  *
  * @author elrufaie
  */
@@ -68,11 +67,11 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Get the content location.
+     * Returns the filesystem location for a Felix {@code Content} object.
      *
      * @param content
-     *            the content object
-     * @return the content location, or null if it could not be determined
+     *            the content object.
+     * @return the content location, or {@code null} if it could not be determined.
      */
     private static @Nullable String getContentLocation(final Object content) {
         final var file = (File) ReflectionUtils.invokeMethod(false, content, "getFile");
@@ -99,18 +98,18 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Adds the bundle.
+     * Adds classpath entries for a bundle wiring and its embedded content.
      *
      * @param bundleWiring
-     *            the bundle wiring, or null
+     *            the bundle wiring, or {@code null}.
      * @param classLoader
-     *            the classloader
+     *            the classloader.
      * @param classpathOrderOut
-     *            the classpath order out
+     *            the classpath order.
      * @param bundles
-     *            the bundles
+     *            visited bundle wirings.
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or {@code null} to skip logging.
      */
     private static void addBundle(final @Nullable Object bundleWiring, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final Set<@Nullable Object> bundles,

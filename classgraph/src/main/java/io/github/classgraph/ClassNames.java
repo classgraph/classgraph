@@ -29,8 +29,7 @@
 package io.github.classgraph;
 
 /**
- * The mapping between the name of a class or package and the path of the classfile or directory that holds it, and
- * the tests on the {@code ".class"} extension that the mapping is built on.
+ * Utility methods for converting and validating class names, package names, and classfile paths.
  */
 final class ClassNames {
     /** The filename extension of a classfile. */
@@ -45,11 +44,8 @@ final class ClassNames {
     }
 
     /**
-     * Check if a path is the path of a classfile, i.e. whether it ends with a {@code ".class"} extension.
-     *
-     * <p>
-     * The extension is matched ignoring case, since a classfile that has been through a filesystem or archiving
-     * tool that upper-cases filenames still declares the same class, and can still be read.
+     * Check whether a path ends with a {@code ".class"} extension (matched case-insensitively) and has a non-empty
+     * class name before the extension.
      *
      * @param path
      *            A file path.
@@ -67,8 +63,7 @@ final class ClassNames {
     }
 
     /**
-     * Check if a classfile is stored at the path implied by the name of the class it declares, i.e. whether the
-     * path of the classfile is the name of the class in path form, plus a {@code ".class"} extension.
+     * Check whether {@code classfilePath} equals {@code classNamePath} followed by a {@code ".class"} extension.
      *
      * @param classfilePath
      *            the path of a classfile, with {@code '/'} as the separator.
@@ -82,23 +77,8 @@ final class ClassNames {
     }
 
     /**
-     * Check whether a classfile is to be scanned: whether its path, without the {@code ".class"} extension, is a
-     * class name in internal form, and the classfile is not beneath {@code "META-INF/"}. A classfile that is not
-     * scanned is still listed as a resource, since it is still a file of the classpath element.
-     *
-     * <p>
-     * A class name in internal form is a sequence of segments separated by {@code '/'}, none of them empty, and
-     * none of them containing {@code '.'}, {@code ';'} or {@code '['} (JVMS 4.2.1). These are the JVM's rules, not
-     * the Java language's: the JVM loads a class in a package such as {@code "my-pkg"} or {@code "1pkg"}, which is
-     * not a Java identifier. A path that breaks these rules holds no class the JVM can load from there, and a
-     * {@code '.'} in it would give the same class name as a different path: {@code "x.Y.class"} and
-     * {@code "x/Y.class"} both give {@code "x.Y"}, and the scan would then find two classfiles for one class.
-     *
-     * <p>
-     * {@code "META-INF/"} holds the metadata of a jarfile, not its packages. In particular, when
-     * {@code disableMultiReleaseVersions()} is set, the versioned copies of the classfiles of a multi-release
-     * jarfile are reported under the {@code "META-INF/versions/<N>/"} paths they are stored under. They are not
-     * scanned, so that each class is scanned once, from the base copy at its unversioned path.
+     * Check whether a classfile path is not under {@code "META-INF/"} and its name without the {@code ".class"}
+     * extension is a valid JVM internal class name (JVMS 4.2.1).
      *
      * @param classfilePath
      *            the path of a classfile, as accepted by {@link #isClassfilePath(String)}, with {@code '/'} as the
@@ -112,12 +92,8 @@ final class ClassNames {
     }
 
     /**
-     * Check whether the name of a class that a classfile refers to, read from its constant pool with {@code '/'}
-     * replaced by {@code '.'}, is a legal class name: a sequence of segments separated by {@code '.'}, none of them
-     * empty, and none of them containing {@code ';'} or {@code '['} (JVMS 4.2.1). An array class name, which starts
-     * with {@code '['}, is not a legal class name in this sense. A {@code '.'} that the classfile wrote in place of
-     * a {@code '/'} cannot be told apart from a separator once {@code '/'} has been replaced, so it is accepted: it
-     * gives the name of the same class as the name with {@code '/'}.
+     * Check whether a dot-separated class name has valid non-empty segments containing no {@code ';'} or
+     * {@code '['} characters (JVMS 4.2.1).
      *
      * @param className
      *            the class name, with {@code '.'} as the separator.
@@ -128,9 +104,8 @@ final class ClassNames {
     }
 
     /**
-     * Check whether the start of a string is a sequence of segments separated by a separator character, none of
-     * them empty, and none of them containing {@code '.'}, {@code ';'} or {@code '['} (other than as the
-     * separator).
+     * Check whether {@code name.substring(0, end)} consists of non-empty {@code separator}-delimited segments
+     * containing no {@code '.'}, {@code ';'}, or {@code '['} characters.
      *
      * @param name
      *            the string.
@@ -159,11 +134,7 @@ final class ClassNames {
     }
 
     /**
-     * Lower-case the {@code ".class"} extension of the path of a classfile.
-     *
-     * <p>
-     * Accept and reject criteria for classfiles are built from class names, so they name a classfile with a
-     * lower-case extension, and the extension of a path has to be lower-cased before it is matched against them.
+     * Return {@code classfilePath} with its {@code ".class"} extension converted to lower case.
      *
      * @param classfilePath
      *            the path of a classfile, as accepted by {@link #isClassfilePath(String)}.

@@ -46,10 +46,7 @@ public final class PackageInfo implements Comparable<PackageInfo>, HasName, HasA
     private final String name;
 
     /**
-     * {@link AnnotationInfo} objects for any annotations on the package-info.class file, if present, else null. The
-     * same package-info.class can be found in more than one classpath element, so an annotation equal to one
-     * already in the list is not added again. A list rather than a set is used, because the repeats of a repeatable
-     * annotation, which are added after the scan, can be equal to each other.
+     * {@link AnnotationInfo} objects for any annotations on the {@code package-info.class} file, or null if none.
      */
     private @Nullable List<AnnotationInfo> annotationInfoList;
 

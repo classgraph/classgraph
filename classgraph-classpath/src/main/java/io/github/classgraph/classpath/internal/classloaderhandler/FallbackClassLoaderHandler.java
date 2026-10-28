@@ -42,10 +42,8 @@ import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
 
 /**
- * The handler for a classloader that no other handler recognizes. It reads the classpath from any of a range of
- * common method and field names, and from a {@code URLClassPath} field if there is one. If neither finds a
- * classpath element that was not already found, it asks the classloader for resources that are found at the root of
- * most classpath elements, and works back from their URLs to the classpath elements.
+ * Fallback {@link ClassLoaderHandler} for classloaders not matched by any other handler. Probes common classpath
+ * method and field names, {@code URLClassPath} fields, and root resources via {@link ClassLoader#getResources}.
  */
 class FallbackClassLoaderHandler implements ClassLoaderHandler {
     /** Constructor. */
@@ -69,7 +67,7 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
      * A method or field of a {@link ClassLoader} that may hold classpath entries.
      *
      * @param isMethod
-     *            true if this is a method, false if it is a field.
+     *            {@code true} for a method, {@code false} for a field.
      * @param name
      *            the name of the method or field.
      */
@@ -77,7 +75,7 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * A method of a {@link ClassLoader} that may hold classpath entries.
+     * Creates a {@link ClasspathSource} for a method name.
      *
      * @param name
      *            the method name.
@@ -88,7 +86,7 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * A field of a {@link ClassLoader} that may hold classpath entries.
+     * Creates a {@link ClasspathSource} for a field name.
      *
      * @param name
      *            the field name.
@@ -98,10 +96,7 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
         return new ClasspathSource(/* isMethod = */ false, name);
     }
 
-    /**
-     * The methods and fields that are probed for classpath entries, in the order they are probed -- an unknown
-     * classloader may have more than one of them, and this order becomes the classpath order.
-     */
+    /** Methods and fields probed for classpath entries, in probe order. */
     private static final List<ClasspathSource> CLASSPATH_SOURCES = List.of(
             // Classpaths
             method("getClassPath"), method("getClasspath"), method("classpath"), method("classPath"), method("cp"),
@@ -147,30 +142,21 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
         }
     }
 
-    /**
-     * Resources that are present in the root of many classpath elements, so that the classpath element can be
-     * recovered from the URL of the resource. The empty path is the package root itself, which is only returned by
-     * some classloaders, and only for classpath elements that are directories.
-     */
+    /** Root resource paths probed via {@link ClassLoader#getResources(String)} to recover classpath elements. */
     private static final String[] CLASSPATH_ELEMENT_ROOT_RESOURCE_PATHS = { "META-INF/MANIFEST.MF", "META-INF/",
             "module-info.class", "" };
 
     /**
-     * Ask a {@link ClassLoader} for resources that are present in the root of most classpath elements, and strip
-     * the resource path from each returned URL to recover the classpath element that contains it.
-     *
-     * <p>
-     * {@link ClassLoader#getResources(String)} delegates to the parent classloader, so any resource that is also
-     * visible to the parent is skipped -- the parent's classpath elements are found by handling the parent
-     * classloader itself, and adding them here would ignore {@code ClassGraph#ignoreParentClassLoaders()}.
+     * Queries a {@link ClassLoader} for common root resources and strips the resource path from each returned URL
+     * to recover the containing classpath element, excluding resources inherited from the parent classloader.
      *
      * @param classLoader
      *            the {@link ClassLoader} to probe.
      * @param classpathOrder
-     *            a {@link ClasspathOrder} object to update.
+     *            the {@link ClasspathOrder} to update.
      * @param log
-     *            the log node, or null to skip logging
-     * @return true if any classpath entries were added.
+     *            the log node, or {@code null} to skip logging.
+     * @return {@code true} if any classpath entries were added.
      */
     private static boolean findClasspathOrderByProbingForResources(final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final @Nullable ClassGraphLog log) {
@@ -195,13 +181,13 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Get the URLs of a resource in a {@link ClassLoader}, as strings.
+     * Returns the URLs of a resource in a {@link ClassLoader} as strings.
      *
      * @param classLoader
-     *            the {@link ClassLoader} to query, or null for the bootstrap classloader.
+     *            the {@link ClassLoader} to query, or {@code null} for the bootstrap classloader.
      * @param resourcePath
      *            the path of the resource.
-     * @return the URLs of the resource, or the empty set if the resource could not be found.
+     * @return the URLs of the resource, or an empty set if none were found.
      */
     private static Set<String> getResourceURLs(final @Nullable ClassLoader classLoader, final String resourcePath) {
         final Set<String> resourceURLs = new LinkedHashSet<>();
@@ -222,16 +208,14 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Strip a resource path from the end of the URL of the resource, to recover the classpath element that contains
-     * the resource.
+     * Strips a resource path suffix from a resource URL to recover the containing classpath element.
      *
      * @param resourceURL
      *            the URL of the resource.
      * @param resourcePath
      *            the path of the resource within its classpath element.
-     * @return the classpath element, or null if the resource path is not a suffix of the URL (which happens if the
-     *         classloader percent-encodes the resource path, or names the resource some other way), or if nothing
-     *         is left of the URL once the resource path has been stripped.
+     * @return the classpath element, or {@code null} if {@code resourcePath} is not a suffix of {@code resourceURL}
+     *         or nothing remains after stripping.
      */
     private static @Nullable String stripResourcePath(final String resourceURL, final String resourcePath) {
         if (!resourceURL.endsWith(resourcePath)) {

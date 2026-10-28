@@ -36,85 +36,52 @@ import org.jspecify.annotations.Nullable;
 import io.github.classgraph.base.internal.utils.Assert;
 
 /**
- * A wrapper for {@link ByteBuffer} that implements the {@link AutoCloseable} interface, releasing the
- * {@link ByteBuffer} when it is no longer needed.
+ * An {@link AutoCloseable} wrapper for a {@link ByteBuffer} that releases its underlying resources when closed.
  *
  * <p>
- * Closing an already-closed wrapper has no effect, and two threads closing at once release the buffer once between
- * them.
+ * Closing this wrapper is idempotent and thread-safe. If this buffer was obtained from a {@link VfsRoot}, closing
+ * that {@link VfsRoot} or its owning {@link Vfs} also closes this wrapper. Once closed, {@link #getByteBuffer()}
+ * returns {@code null}.
  *
  * <p>
- * The wrapped buffer may be a view of a memory mapping of a file, so it must only be read while this wrapper is
- * open, and while the {@link VfsRoot} it was read from, and the {@link Vfs} that opened that root, are open.
- * {@link #getByteBuffer()} returns null once this wrapper has been closed; a reference to the buffer taken before
- * that close, or one that outlives {@link VfsRoot#close()} or {@link Vfs#close()}, reads memory that the file may
- * no longer be mapped into.
- *
- * <p>
- * Closing the {@link VfsRoot} this buffer was read from, or the {@link Vfs} that opened that root, closes this
- * wrapper too, whether or not the caller has: the root closes every buffer it handed out as the step before it
- * releases what it owns, so that a buffer that is a view of a memory mapping stops holding that mapping open and
- * the file can be unmapped, and deleted if it was a temporary one, as the root closes. {@link #getByteBuffer()}
- * returns null from that point on.
- *
- * <p>
- * This is the one place in the {@link Vfs} API where reading after a close is not reported as an
- * {@link java.io.IOException}: this is a raw {@link ByteBuffer} handed to the caller, so nothing sits between it
- * and the caller to check whether the file is still there, and a reference to it taken before the close is not
- * revoked by the close. Reading through such a reference is a bug in the calling code: if the buffer is a view of a
- * memory mapping, the read throws {@link IllegalStateException}, since the file is unmapped by closing an arena
- * that knows it has been closed. Read the buffer only inside the try-with-resources block that holds this wrapper,
- * and only while the root it came from is open.
+ * The wrapped {@link ByteBuffer} may be backed by a memory-mapped file and must only be accessed while this
+ * wrapper, its originating {@link VfsRoot}, and the owning {@link Vfs} remain open; reading a retained
+ * {@link ByteBuffer} reference after closure may throw {@link IllegalStateException}.
  */
 public final class CloseableByteBuffer implements AutoCloseable {
-    /**
-     * The wrapped {@link ByteBuffer}, or null once this wrapper has been closed.
-     */
+    /** The wrapped {@link ByteBuffer}, or {@code null} once closed. */
     private volatile @Nullable ByteBuffer byteBuffer;
 
-    /**
-     * The method to run on close, or null if this wrapper has already been closed. Held in an
-     * {@link AtomicReference}, so that only the thread that takes it out runs it.
-     */
+    /** The close callback, cleared atomically when {@link #close()} runs. */
     private final AtomicReference<@Nullable Runnable> onClose;
 
-    /**
-     * The {@link VfsRoot} that produced this buffer and closes it if it is still open when that root closes, or
-     * null for a buffer that no root is tracking.
-     */
+    /** The {@link VfsRoot} tracking this wrapper, or {@code null} if untracked. */
     private final @Nullable VfsRoot owner;
 
-    /**
-     * The wrapper whose buffer this wrapper wraps, so that {@link #getByteBuffer()} returns null once that wrapper
-     * is closed, or null if this wrapper was not built on another one.
-     */
+    /** The inner {@link CloseableByteBuffer} wrapped by this instance, or {@code null} if none. */
     private final @Nullable CloseableByteBuffer inner;
 
     /**
-     * A wrapper for {@link ByteBuffer} that implements the {@link AutoCloseable} interface, releasing the
-     * {@link ByteBuffer} when it is no longer needed.
+     * Wrap a {@link ByteBuffer} with a close callback.
      *
      * @param byteBuffer
-     *            The {@link ByteBuffer} to wrap
+     *            the {@link ByteBuffer} to wrap.
      * @param onClose
-     *            The method to run when {@link #close()} is called.
+     *            the callback to run when {@link #close()} is called.
      */
     public CloseableByteBuffer(final ByteBuffer byteBuffer, final Runnable onClose) {
         this(byteBuffer, onClose, /* owner = */ null);
     }
 
     /**
-     * A wrapper for {@link ByteBuffer} that the given {@link VfsRoot} tracks, so that closing that root closes this
-     * wrapper if the caller has not.
+     * Wrap a {@link ByteBuffer} tracked by a {@link VfsRoot}.
      *
      * @param byteBuffer
-     *            The {@link ByteBuffer} to wrap.
+     *            the {@link ByteBuffer} to wrap.
      * @param onClose
-     *            The method to run when {@link #close()} is called.
+     *            the callback to run when {@link #close()} is called.
      * @param owner
-     *            The root that produced the buffer, or null if no root is tracking it. The caller registers the
-     *            wrapper with the root -- this constructor does not, so that the wrapper is not published before it
-     *            is built.
+     *            the owning {@link VfsRoot}, or {@code null} if untracked.
      */
     CloseableByteBuffer(final ByteBuffer byteBuffer, final Runnable onClose, final @Nullable VfsRoot owner) {
         Assert.notNull(byteBuffer, "byteBuffer");
@@ -126,17 +93,17 @@ public final class CloseableByteBuffer implements AutoCloseable {
     }
 
     /**
-     * A wrapper for the buffer of another {@link CloseableByteBuffer}, which runs its own close action when it is
-     * closed. Closing the other wrapper, including by closing the {@link VfsRoot} or {@link Vfs} that it was read
-     * from, makes {@link #getByteBuffer()} on this wrapper return null too, since the buffer has been released.
-     * Closing this wrapper does not close the other one unless the given close action does.
+     * Wrap the {@link ByteBuffer} of another open {@link CloseableByteBuffer} with an additional close callback.
+     * Closing {@code inner} (or its owning {@link VfsRoot} or {@link Vfs}) also causes {@link #getByteBuffer()} on
+     * this wrapper to return {@code null}; closing this wrapper does not close {@code inner} unless {@code onClose}
+     * does so.
      *
      * @param inner
-     *            The open wrapper whose buffer to wrap.
+     *            the open wrapper whose buffer to wrap.
      * @param onClose
-     *            The method to run when {@link #close()} is called.
+     *            the callback to run when {@link #close()} is called.
      * @throws IllegalArgumentException
-     *             if {@code inner} has already been closed.
+     *             if {@code inner} is already closed.
      */
     public CloseableByteBuffer(final CloseableByteBuffer inner, final Runnable onClose) {
         Assert.notNull(inner, "inner");
@@ -152,30 +119,18 @@ public final class CloseableByteBuffer implements AutoCloseable {
     }
 
     /**
-     * Get the wrapped {@link ByteBuffer}.
+     * Return the wrapped {@link ByteBuffer}, or {@code null} if this wrapper (or any wrapping/owning resource) has
+     * been closed. The returned buffer must not be accessed after this wrapper, its {@link VfsRoot}, or its
+     * {@link Vfs} is closed.
      *
-     * <p>
-     * <b>The returned {@link ByteBuffer} must not be read after this wrapper is closed, or after the
-     * {@link VfsRoot} it was read from or the {@link Vfs} that opened that root is closed</b> -- any of those
-     * closes releases the buffer, and the buffer may be a memory mapping of a file rather than a copy of its
-     * content. This method returns null once any of them has happened, but a reference taken before that is not
-     * revoked.
-     *
-     * <p>
-     * Reading such a reference throws {@link IllegalStateException} where the file was memory-mapped, which is on
-     * Windows: files are read through the file channel API on every other platform, so the buffer is a copy there
-     * and reading it late does not throw. Do not rely on that -- read the buffer inside the try-with-resources
-     * block that holds this wrapper.
-     *
-     * @return The wrapped {@link ByteBuffer}, or null if this wrapper, the wrapper it was built on, the root it was
-     *         read from, or the {@link Vfs} that opened that root has been closed.
+     * @return the wrapped {@link ByteBuffer}, or {@code null} if closed.
      */
     public @Nullable ByteBuffer getByteBuffer() {
         final var innerWrapper = inner;
         return innerWrapper != null && innerWrapper.getByteBuffer() == null ? null : byteBuffer;
     }
 
-    /** Release the wrapped {@link ByteBuffer}. */
+    /** Release the wrapped {@link ByteBuffer} and run the close callback if not already closed. */
     @Override
     public void close() {
         // Take the close action out atomically, so that a second call (or a concurrent one) runs it zero times

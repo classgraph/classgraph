@@ -30,20 +30,18 @@
 import org.jspecify.annotations.NullMarked;
 
 /**
- * The classes shared by the libraries of
- * <a href="https://github.com/classgraph/classgraph">ClassGraph</a>: path and
- * URL handling, logging, reflection, and concurrency.
+ * Shared logging, path, URL, reflection, and concurrency utilities for
+ * <a href="https://github.com/classgraph/classgraph">ClassGraph</a>.
  *
  * <p>
- * This module is not useful on its own. Its only public API is
- * {@link io.github.classgraph.base.LogNode}, the verbose log that ClassGraph
- * writes what it is doing to, and {@link io.github.classgraph.base.ClassGraphLog},
- * the narrower view of that log which is handed to code ClassGraph calls out
- * to; every other package is exported only to the other ClassGraph modules.
+ * The public API of this module consists of {@link io.github.classgraph.base.LogNode} and
+ * {@link io.github.classgraph.base.ClassGraphLog}; all other packages are exported only to other ClassGraph
+ * modules.
  *
  * <p>
- * This module is {@link org.jspecify.annotations.NullMarked}: unless a type is
- * annotated {@link org.jspecify.annotations.Nullable}, it is never null.
+ * This module is {@link org.jspecify.annotations.NullMarked}: parameters and return values are non-null unless
+ * annotated with {@link org.jspecify.annotations.Nullable}, and passing {@code null} for a non-null parameter
+ * throws {@link NullPointerException}.
  *
  * @author Luke Hutchison
  */

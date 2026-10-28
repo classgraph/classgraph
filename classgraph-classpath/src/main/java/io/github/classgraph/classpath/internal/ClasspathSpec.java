@@ -51,54 +51,19 @@ import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ModulePathInfo;
 
 /**
- * The settings that determine which classpath and module path elements are found.
- *
- * <p>
- * Everything here is read while the classpath is being built. Settings that only affect what happens to a classpath
- * element after it has been found (whether jarfiles or directories are scanned, which packages and classes are
- * accepted, and so on) belong in the specs of the libraries layered on top of this one.
+ * Configuration settings for classpath and module path discovery.
  */
 public class ClasspathSpec {
-    /**
-     * If true, scan the JDK's own modules found in the module layers that are searched: the modules whose name
-     * starts with {@code java.}, {@code jdk.}, {@code javafx.} or {@code oracle.}, and which
-     * {@link java.lang.module.ModuleFinder#ofSystem()} finds at the same location.
-     *
-     * <p>
-     * {@link ModuleFinder} lists the system modules of the module layers it searches whether or not this is true,
-     * since the classfile of a class in a system module that is not being scanned may still have to be read in
-     * order to complete the class graph above an accepted class (#902).
-     */
+    /** Whether system modules are enabled. */
     private boolean scanSystemModules;
 
-    /**
-     * If true, scan the non-system modules found in the module layers that are searched.
-     *
-     * <p>
-     * {@link ModuleFinder} lists the non-system modules of the module layers it searches whether or not this is
-     * true, for the same reason as it lists the system modules whether or not {@link #scanSystemModules} is true.
-     *
-     * <p>
-     * There are no corresponding settings for jarfiles and directories: the classpath finder always reports every
-     * classpath element it finds, and it is the scanner that decides whether to open a given element. The module
-     * path is different, because it has to be enumerated through a separate API, which can be skipped entirely.
-     */
+    /** Whether non-system modules are enabled. */
     private boolean scanNonSystemModules;
 
-    /**
-     * URL schemes that may start a classpath element, so that a {@code ':'}-separated classpath string is not split
-     * at a scheme's own colon. This is a parsing aid, not a permission check -- whether a jarfile or directory may
-     * be read over a scheme is {@link io.github.classgraph.vfs.VfsSpec#denyURLScheme(String)}'s business.
-     * {@code "jar:"} and {@code "file:"} are recognized without being listed here.
-     */
+    /** Custom URL schemes recognized when splitting {@code ':'}-delimited classpath strings. */
     private final Set<String> allowedURLSchemes = new HashSet<>();
 
-    /**
-     * The URL schemes that a scan or a classpath walk does not fetch a jarfile from unless asked to. These are the
-     * schemes whose handler in every JVM connects over a network, so a classpath element naming one would otherwise
-     * open a network connection, which is not something to do with a path that was merely handed over. The
-     * {@code mailto} handler cannot fetch a jarfile, but it still connects to a mail server before it fails.
-     */
+    /** Network URL schemes denied by default unless explicitly permitted. */
     public static final List<String> NETWORK_URL_SCHEMES = List.of("http", "https", "ftp", "mailto");
 
     // -----------------------------------------------------------------------------------------------------------
@@ -107,24 +72,19 @@ public class ClasspathSpec {
     // ScanSourceSpec, since a ScanResult holds its ClasspathSpec, and a scan must not keep a classloader or a
     // module layer alive after it has finished with it
 
-    /** The filters to apply to classpath element path strings. */
+    /** Filters applied to classpath element path strings. */
     private final List<Predicate<String>> classpathElementPathFilters = new ArrayList<>(2);
 
-    /** The filters to apply to classpath element {@link URL}s. */
+    /** Filters applied to classpath element {@link URL}s. */
     private final List<Predicate<URL>> classpathElementURLFilters = new ArrayList<>(2);
 
-    /** If true, do not fetch paths from parent classloaders. */
+    /** Whether parent classloaders are ignored. */
     private boolean ignoreParentClassLoaders;
 
-    /**
-     * The {@link ClassLoaderHandler} instances the user registered, in registration order. These are offered each
-     * classloader before the built-in handlers are.
-     */
+    /** User-registered {@link ClassLoaderHandler} instances, in registration order. */
     private final List<ClassLoaderHandler> classLoaderHandlers = new ArrayList<>();
 
-    /**
-     * If true, do not search module layers that are the parent of other module layers.
-     */
+    /** Whether parent module layers are ignored. */
     private boolean ignoreParentModuleLayers;
 
     // -----------------------------------------------------------------------------------------------------------
@@ -135,10 +95,10 @@ public class ClasspathSpec {
     }
 
     /**
-     * Create a copy of another set of settings.
+     * Copy constructor.
      *
      * @param other
-     *            The settings to copy.
+     *            the {@link ClasspathSpec} to copy.
      */
     private ClasspathSpec(final ClasspathSpec other) {
         scanSystemModules = other.scanSystemModules;
@@ -152,10 +112,9 @@ public class ClasspathSpec {
     }
 
     /**
-     * Copy these settings.
+     * Returns a shallow copy of this {@link ClasspathSpec}.
      *
-     * @return a copy of these settings, which can be changed without changing this object. The filters and the
-     *         {@link ClassLoaderHandler} instances themselves are shared, not copied.
+     * @return a copy of this {@link ClasspathSpec}.
      */
     public ClasspathSpec copy() {
         return new ClasspathSpec(this);
@@ -164,15 +123,10 @@ public class ClasspathSpec {
     // -----------------------------------------------------------------------------------------------------------
 
     /**
-     * Add a classpath element path filter. The provided filter should return true if the path string passed to it
-     * is a path that should be scanned. The filter is applied to every classpath element: those named directly,
-     * each jarfile that a wildcarded directory is expanded into, and those that another classpath element declares.
-     * The filter may be called by several threads at once, since the classpath elements that another classpath
-     * element declares are tested while worker threads open it, so it must be thread-safe.
+     * Adds a filter predicate applied to the path string of discovered classpath elements.
      *
      * @param filter
-     *            The filter to apply to the path string of all discovered classpath elements, to decide which
-     *            should be scanned.
+     *            the path filter predicate.
      */
     public void filterClasspathElements(final Predicate<String> filter) {
         Assert.notNull(filter, "filter");
@@ -180,15 +134,10 @@ public class ClasspathSpec {
     }
 
     /**
-     * Add a classpath element {@link URL} filter. The provided filter should return true if the {@link URL} passed
-     * to it is a classpath element that should be scanned. The filter is applied to the same classpath elements as
-     * the filters added by {@link #filterClasspathElements(Predicate)}, except a classpath element whose path has
-     * no {@link URL} form, which is tested only by the path filters. Like those filters, it may be called by
-     * several threads at once, so it must be thread-safe.
+     * Adds a filter predicate applied to the {@link URL} of discovered classpath elements.
      *
      * @param filter
-     *            The filter to apply to the {@link URL} of all discovered classpath elements, to decide which
-     *            should be scanned.
+     *            the {@link URL} filter predicate.
      */
     public void filterClasspathElementsByURL(final Predicate<URL> filter) {
         Assert.notNull(filter, "filter");
@@ -196,12 +145,12 @@ public class ClasspathSpec {
     }
 
     /**
-     * Convert a resolved classpath element path back into a {@link URL}, so that it can be tested against the
-     * user's {@link URL} filters.
+     * Converts a resolved classpath element path string into a {@link URL} for URL filtering, or returns null if
+     * conversion fails.
      *
      * @param classpathElementPath
-     *            the resolved classpath element path
-     * @return the {@link URL} of the classpath element, or null if the path could not be converted to a {@link URL}
+     *            the resolved classpath element path.
+     * @return the {@link URL}, or null if conversion failed.
      */
     // new URL(String) is deprecated from JDK 20, but it accepts URLs that new URI(String) rejects (such as one
     // containing a space), and a classpath element that is already a URL is passed on as it was written
@@ -236,17 +185,13 @@ public class ClasspathSpec {
     }
 
     /**
-     * Test a classpath element against the filters added by {@link #filterClasspathElements(Predicate)} and
-     * {@link #filterClasspathElementsByURL(Predicate)}.
+     * Tests a classpath element against all registered path and URL filters.
      *
      * @param classpathElementURL
-     *            the {@link URL} of the classpath element, or null if it was not given as a {@link URL}, in which
-     *            case the {@link URL} filters are given the {@link URL} of the classpath element path. If that path
-     *            has no {@link URL} form, such as the {@link java.nio.file.Path#toUri()} form of a path in a
-     *            filesystem whose URI scheme has no URL handler, the {@link URL} filters are skipped.
+     *            the {@link URL} of the classpath element, or null to derive it from {@code classpathElementPath}.
      * @param classpathElementPath
-     *            the resolved path of the classpath element, or null if it has none
-     * @return true if the classpath element passes every filter
+     *            the resolved path of the classpath element, or null.
+     * @return true if the classpath element passes all filters.
      */
     public boolean acceptsClasspathElement(final @Nullable URL classpathElementURL,
             final @Nullable String classpathElementPath) {
@@ -274,14 +219,12 @@ public class ClasspathSpec {
     }
 
     /**
-     * Recognize a URL scheme at the start of a classpath element, so that a {@code ':'}-separated classpath string
-     * is not split at that scheme's own colon.
+     * Registers a URL scheme to recognize when splitting {@code ':'}-delimited classpath strings.
      *
      * @param scheme
-     *            the scheme, e.g. "http". The scheme name only, without the trailing {@code ':'}.
+     *            the URL scheme without {@code ':'} (e.g. {@code "http"}).
      * @throws IllegalArgumentException
-     *             if the scheme is shorter than two characters (a one-character scheme cannot be told apart from a
-     *             Windows drive letter), or is not a valid URL scheme.
+     *             if the scheme is shorter than two characters or is not a valid URL scheme.
      */
     public void allowURLScheme(final String scheme) {
         Assert.notNull(scheme, "scheme");
@@ -289,21 +232,21 @@ public class ClasspathSpec {
     }
 
     /**
-     * Get the URL schemes that may start a classpath element.
+     * Returns the registered URL schemes in lowercase.
      *
-     * @return the schemes added by {@link #allowURLScheme(String)}, in lowercase.
+     * @return the allowed URL schemes, as an unmodifiable set.
      */
     public Set<String> getAllowedURLSchemes() {
         return Collections.unmodifiableSet(allowedURLSchemes);
     }
 
-    /** Scan the JDK's own modules. */
+    /** Enables system modules. */
     public void enableSystemModules() {
         scanSystemModules = true;
     }
 
     /**
-     * Check whether the JDK's own modules are scanned.
+     * Returns whether system modules are enabled.
      *
      * @return true if {@link #enableSystemModules()} was called.
      */
@@ -311,13 +254,13 @@ public class ClasspathSpec {
         return scanSystemModules;
     }
 
-    /** Scan the non-system modules. */
+    /** Enables non-system modules. */
     public void enableNonSystemModules() {
         scanNonSystemModules = true;
     }
 
     /**
-     * Check whether the non-system modules are scanned.
+     * Returns whether non-system modules are enabled.
      *
      * @return true if {@link #enableNonSystemModules()} was called.
      */
@@ -326,7 +269,7 @@ public class ClasspathSpec {
     }
 
     /**
-     * Check whether any kind of module is scanned.
+     * Returns whether either system or non-system modules are enabled.
      *
      * @return true if {@link #enableSystemModules()} or {@link #enableNonSystemModules()} was called.
      */
@@ -334,13 +277,13 @@ public class ClasspathSpec {
         return scanSystemModules || scanNonSystemModules;
     }
 
-    /** Do not fetch paths from parent classloaders. */
+    /** Excludes parent classloaders. */
     public void ignoreParentClassLoaders() {
         ignoreParentClassLoaders = true;
     }
 
     /**
-     * Check whether parent classloaders are ignored.
+     * Returns whether parent classloaders are ignored.
      *
      * @return true if {@link #ignoreParentClassLoaders()} was called.
      */
@@ -348,13 +291,13 @@ public class ClasspathSpec {
         return ignoreParentClassLoaders;
     }
 
-    /** Do not search module layers that are the parent of other module layers. */
+    /** Excludes parent module layers. */
     public void ignoreParentModuleLayers() {
         ignoreParentModuleLayers = true;
     }
 
     /**
-     * Check whether parent module layers are ignored.
+     * Returns whether parent module layers are ignored.
      *
      * @return true if {@link #ignoreParentModuleLayers()} was called.
      */
@@ -363,10 +306,10 @@ public class ClasspathSpec {
     }
 
     /**
-     * Register a {@link ClassLoaderHandler}.
+     * Registers a custom {@link ClassLoaderHandler}.
      *
      * @param classLoaderHandler
-     *            the handler, which is offered each classloader before the built-in handlers are.
+     *            the handler to register.
      */
     public void addClassLoaderHandler(final ClassLoaderHandler classLoaderHandler) {
         Assert.notNull(classLoaderHandler, "classLoaderHandler");
@@ -374,9 +317,9 @@ public class ClasspathSpec {
     }
 
     /**
-     * Get the registered {@link ClassLoaderHandler} instances.
+     * Returns the user-registered {@link ClassLoaderHandler} instances in registration order.
      *
-     * @return the handlers, in registration order.
+     * @return the handlers, as an unmodifiable list.
      */
     public List<ClassLoaderHandler> getClassLoaderHandlers() {
         return Collections.unmodifiableList(classLoaderHandlers);
@@ -385,10 +328,10 @@ public class ClasspathSpec {
     // -----------------------------------------------------------------------------------------------------------
 
     /**
-     * Log the settings.
+     * Logs the fields of this {@link ClasspathSpec} and {@link ModulePathInfo#current()}.
      *
      * @param log
-     *            The {@link LogNode} to log to.
+     *            the {@link LogNode} to log to, or null.
      */
     public void log(final @Nullable LogNode log) {
         if (log != null) {

@@ -36,8 +36,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Check if this thread or any other thread that shares this InterruptionChecker instance has been interrupted or
- * has thrown an exception.
+ * Tracks interruption status, uncaught worker exceptions, and progress across a group of worker threads.
  */
 public class InterruptionChecker {
     /** Constructor. */
@@ -55,8 +54,7 @@ public class InterruptionChecker {
     private final AtomicLong progressCount = new AtomicLong();
 
     /**
-     * Record that a thread that shares this InterruptionChecker made progress, so that a thread waiting for it with
-     * an {@link IdleTimeout} does not time out.
+     * Record that a worker thread has made progress, resetting any active {@link IdleTimeout}.
      */
     public void progress() {
         progressCount.incrementAndGet();
@@ -72,8 +70,7 @@ public class InterruptionChecker {
     }
 
     /**
-     * Interrupt this thread, and record the interruption so that the other threads that share this
-     * InterruptionChecker interrupt themselves the next time they check.
+     * Interrupt the current thread and mark all threads sharing this {@link InterruptionChecker} as interrupted.
      */
     public void interrupt() {
         interrupted.set(true);
@@ -81,9 +78,8 @@ public class InterruptionChecker {
     }
 
     /**
-     * Set the {@link ExecutionException} that was thrown by a worker. An exception that was caused by an
-     * interruption is recorded as an interruption instead, since a worker that was interrupted was cancelled rather
-     * than broken.
+     * Record an {@link ExecutionException} thrown by a worker thread. If the root cause is an
+     * {@link InterruptedException}, records an interruption instead.
      *
      * @param executionException
      *            the execution exception that was thrown
@@ -106,20 +102,20 @@ public class InterruptionChecker {
     }
 
     /**
-     * Get the {@link ExecutionException} that was thrown by a worker, or null if none.
+     * Return the first {@link ExecutionException} thrown by a worker thread, or {@code null} if none.
      *
-     * @return the {@link ExecutionException} that was thrown by a worker, or null if none.
+     * @return the {@link ExecutionException} thrown by a worker thread, or {@code null} if none.
      */
     public @Nullable ExecutionException getExecutionException() {
         return thrownExecutionException.get();
     }
 
     /**
-     * Get the cause of an {@link ExecutionException}.
+     * Unwrap nested {@link ExecutionException} instances and return the root cause.
      *
      * @param throwable
      *            the Throwable
-     * @return the cause
+     * @return the root cause
      */
     public static Throwable getCause(final Throwable throwable) {
         // Unwrap possibly-nested ExecutionExceptions to get to root cause
@@ -131,12 +127,10 @@ public class InterruptionChecker {
     }
 
     /**
-     * Check for interruption and return interruption status. (An exception thrown by a worker is not reported here,
-     * only by {@link #check()}, unless it was caused by an interruption, which is recorded as an interruption
-     * rather than as an exception.)
+     * Check whether the current thread or any other thread sharing this {@link InterruptionChecker} has been
+     * interrupted.
      *
-     * @return true if this thread or any other thread that shares this InterruptionChecker instance has been
-     *         interrupted.
+     * @return {@code true} if any thread sharing this instance has been interrupted.
      */
     public boolean checkAndReturn() {
         // Check if any thread has been interrupted
@@ -155,11 +149,11 @@ public class InterruptionChecker {
     }
 
     /**
-     * Check if this thread or any other thread that shares this InterruptionChecker instance has been interrupted
-     * or has thrown an exception, and if so, throw InterruptedException.
+     * Throw {@link ExecutionException} if a worker thread has thrown an uncaught exception, or
+     * {@link InterruptedException} if any thread sharing this instance has been interrupted.
      *
      * @throws InterruptedException
-     *             If a thread has been interrupted.
+     *             if a thread has been interrupted.
      * @throws ExecutionException
      *             if a thread has thrown an uncaught exception.
      */

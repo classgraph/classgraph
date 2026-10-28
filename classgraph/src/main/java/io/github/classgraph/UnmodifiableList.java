@@ -43,23 +43,7 @@ import java.util.function.UnaryOperator;
 import org.jetbrains.annotations.Unmodifiable;
 
 /**
- * The unmodifiable list that the lists returned by the ClassGraph API are built on.
- *
- * <p>
- * {@link AbstractList} supplies most of the unmodifiability: the methods that add, remove or replace a single
- * element are left unimplemented by it, so they throw {@link UnsupportedOperationException}. The bulk methods that
- * {@link java.util.AbstractCollection} and {@link List} build on top of those, however, only reach them if there is
- * something to change, so on an empty list, or with an argument that would not change the list, they would
- * otherwise silently succeed. They are therefore overridden here to be rejected unconditionally, which is also what
- * the unmodifiable views returned by {@link java.util.Collections} do.
- *
- * <p>
- * Every mutator is overridden here, including the ones that {@link AbstractList} already rejects, so that it can be
- * marked {@link Deprecated}. That makes the compiler warn about a call to one of them through any of the list types
- * that the ClassGraph API returns. This matters most for Kotlin, which treats a Java class that implements
- * {@link List} as a {@code MutableList}, so that without the deprecation a call to a mutator compiles with no
- * warning. Guava marks the mutators of its immutable collections deprecated for the same reason. Kotlin provides no
- * way for a Java class to declare that it implements only Kotlin's read-only {@code List} (KT-70485).
+ * Base class for unmodifiable lists returned by the ClassGraph API.
  *
  * @param <T>
  *            the element type
@@ -77,16 +61,7 @@ abstract class UnmodifiableList<T> extends AbstractList<T> implements RandomAcce
     private final List<T> elements;
 
     /**
-     * Constructor.
-     *
-     * <p>
-     * This list takes ownership of the given list rather than copying it, so the caller must not use the list again
-     * after handing it over. A constructor that is reachable from outside this package therefore has to make the
-     * copy itself, since it cannot make that demand of its caller.
-     *
-     * <p>
-     * Sorting is also the caller's job, for lists whose order would otherwise be undefined, so that a list is never
-     * sorted twice.
+     * Construct an {@link UnmodifiableList} backed by the given list.
      *
      * @param elements
      *            the elements of the list

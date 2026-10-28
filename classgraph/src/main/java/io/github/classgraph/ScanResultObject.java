@@ -68,12 +68,11 @@ abstract class ScanResultObject {
     }
 
     /**
-     * Get the {@link ScanResult} this object was obtained from, for use in code paths that can only be reached
-     * through a completed scan.
+     * Get the {@link ScanResult} this object was obtained from.
      *
      * @return the scan result
      * @throws NullPointerException
-     *             if the scan result has not been set (i.e. if this object was created outside a scan).
+     *             if the scan result has not been set.
      */
     final ScanResult scanResult() {
         return Objects.requireNonNull(scanResult);
@@ -99,8 +98,7 @@ abstract class ScanResultObject {
      *
      * @param classNameToClassInfo
      *            the map to add a {@link ClassInfo} object to, for a referenced class that has none in
-     *            {@link ScanResult#classNameToClassInfo}: that map itself while the {@link ScanResult} is being
-     *            built, or {@link ScanResult#classNameToClassInfoMadeAfterScan} after that.
+     *            {@link ScanResult#classNameToClassInfo}
      * @param refdClassInfo
      *            the referenced class info
      * @param log
@@ -117,14 +115,7 @@ abstract class ScanResultObject {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * The name of the class (used by {@code getClassInfo()} to fetch the {@link ClassInfo} object for the class).
-     *
-     * <p>
-     * The subclasses that do not refer to a single class ({@link AnnotationParameterValue},
-     * {@link MethodTypeSignature}, {@link TypeArgument} and {@link TypeParameter}) throw
-     * {@link UnsupportedOperationException} from this method and from {@code getClassInfo()}, so code that collects
-     * the classes referred to by any {@link ScanResultObject} must call {@code findReferencedClassInfo}, which is
-     * overridden for those subclasses so that it does not call either method.
+     * Get the name of the referenced class (used by {@link #getClassInfo()}).
      *
      * @return The class name.
      */

@@ -34,45 +34,28 @@ import java.io.InputStream;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * The number of bytes that the deflated jarfiles nested within a toplevel zipfile may still inflate to, all
- * together and at any depth of nesting. It starts at {@value #MAX_INFLATION_RATIO} times the length of the toplevel
- * zipfile, or {@value #MIN_MAX_BYTES} bytes if that is more, and is shared by the toplevel zipfile and every
- * zipfile inflated out of it.
- *
- * <p>
- * Without a limit, a small crafted jarfile could fill the heap or the temporary directory, since deflate compresses
- * repeated bytes about a thousand times, and that factor multiplies with each level of nesting. The limit covers
- * all the nested jarfiles together rather than each one separately, since a limit for each one alone would be
- * defeated by splitting the content among many entries, or among many entries that share the same compressed bytes.
- * A real nested jarfile holds content that is already compressed, so it inflates to about 1.0 to 1.5 times its
- * compressed size: of 611 deflated nested archives measured in the jarfiles of a local Maven repository and in
- * ClassGraph's test resources, the highest was 2.8, for a 22-byte jarfile.
+ * Tracks the remaining byte budget for inflating deflated jarfiles nested at any depth within a toplevel zipfile,
+ * bounded to the greater of {@value #MAX_INFLATION_RATIO} times the toplevel zipfile's length and
+ * {@value #MIN_MAX_BYTES} bytes.
  */
 final class NestedJarInflationAllowance {
-    /**
-     * The number of times the length of a toplevel zipfile that the jarfiles nested within it may inflate to, all
-     * together.
-     */
+    /** Maximum cumulative inflation ratio for nested jarfiles relative to the toplevel zipfile length. */
     static final long MAX_INFLATION_RATIO = 100L;
 
-    /**
-     * The number of bytes that the jarfiles nested within a toplevel zipfile may always inflate to, all together,
-     * however short the toplevel zipfile is, so that a small jarfile holding a large file that compresses very
-     * well, such as a sparse database or disk image used as a test fixture, is not refused.
-     */
+    /** Minimum cumulative inflation budget in bytes for nested jarfiles within a toplevel zipfile. */
     static final long MIN_MAX_BYTES = 256L * 1024 * 1024;
 
-    /** The path of the toplevel zipfile, for the error message. */
+    /** The path of the toplevel zipfile, for error messages. */
     private final String toplevelPath;
 
-    /** The number of bytes the nested jarfiles may inflate to in all. */
+    /** Total byte budget for inflating nested jarfiles. */
     private final long maxBytes;
 
-    /** The number of bytes the nested jarfiles may still inflate to. */
+    /** Remaining byte budget for inflating nested jarfiles. */
     private final AtomicLong bytesLeft;
 
     /**
-     * Construct the allowance of a toplevel zipfile.
+     * Construct the inflation allowance for a toplevel zipfile.
      *
      * @param toplevelPath
      *            the path of the toplevel zipfile.
@@ -87,56 +70,53 @@ final class NestedJarInflationAllowance {
     }
 
     /**
-     * Get the number of bytes the nested jarfiles may still inflate to, all together. A stream wrapped by
-     * {@link #limit(InputStream, String)} cannot be read further than this without throwing, though other streams
-     * may take from the allowance or give back to it at the same time.
+     * Return the remaining byte budget available for inflating nested jarfiles.
      *
-     * @return the number of bytes left.
+     * @return the number of bytes remaining.
      */
     long bytesLeft() {
         return bytesLeft.get();
     }
 
     /**
-     * Give back bytes that were taken from this allowance, when what they were inflated to is released.
+     * Return bytes to this allowance when an inflated nested jarfile is closed.
      *
      * @param numBytes
-     *            the number of bytes to give back.
+     *            the number of bytes to return.
      */
     void giveBack(final long numBytes) {
         bytesLeft.addAndGet(numBytes);
     }
 
     /**
-     * Wrap the stream that a nested jarfile is inflated from, so that each byte read from it is taken from this
-     * allowance, and a read that would take more than is left throws {@link IOException}.
+     * Wrap an inflated nested jarfile stream so that each byte read deducts from this allowance and throws
+     * {@link IOException} if the allowance is exceeded.
      *
      * @param inflatedInputStream
-     *            the stream that inflates the nested jarfile.
+     *            the stream inflating the nested jarfile.
      * @param nestedJarPath
-     *            the path of the nested jarfile, for the error message.
-     * @return the wrapped stream. Closing it closes {@code inflatedInputStream}, but does not give back what was
-     *         taken: whoever keeps what was read gives that back when it is released, with {@link #giveBack(long)}.
+     *            the path of the nested jarfile, for error messages.
+     * @return the budget-limited stream.
      */
     LimitedInputStream limit(final InputStream inflatedInputStream, final String nestedJarPath) {
         return new LimitedInputStream(inflatedInputStream, nestedJarPath);
     }
 
-    /** A stream that takes each byte read from it from the allowance. */
+    /** A {@link FilterInputStream} that deducts each read or skipped byte from the enclosing allowance. */
     final class LimitedInputStream extends FilterInputStream {
-        /** The path of the nested jarfile, for the error message. */
+        /** The path of the nested jarfile, for error messages. */
         private final String nestedJarPath;
 
-        /** The number of bytes taken from the allowance so far. */
+        /** The number of bytes deducted from the allowance by this stream. */
         private long bytesTaken;
 
         /**
          * Constructor.
          *
          * @param inflatedInputStream
-         *            the stream that inflates the nested jarfile.
+         *            the stream inflating the nested jarfile.
          * @param nestedJarPath
-         *            the path of the nested jarfile, for the error message.
+         *            the path of the nested jarfile, for error messages.
          */
         private LimitedInputStream(final InputStream inflatedInputStream, final String nestedJarPath) {
             super(inflatedInputStream);
@@ -144,21 +124,21 @@ final class NestedJarInflationAllowance {
         }
 
         /**
-         * Get the number of bytes taken from the allowance so far, i.e. the number of bytes read or skipped.
+         * Return the number of bytes deducted from the allowance by this stream so far.
          *
-         * @return the number of bytes taken from the allowance.
+         * @return the number of bytes taken.
          */
         long getBytesTaken() {
             return bytesTaken;
         }
 
         /**
-         * Take bytes that were read or skipped from the allowance.
+         * Deduct {@code numBytes} from the allowance.
          *
          * @param numBytes
          *            the number of bytes read or skipped.
          * @throws IOException
-         *             if fewer than that many bytes are left.
+         *             if fewer than {@code numBytes} remain in the allowance.
          */
         private void take(final long numBytes) throws IOException {
             if (numBytes <= 0) {

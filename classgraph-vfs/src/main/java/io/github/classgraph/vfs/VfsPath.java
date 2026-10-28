@@ -51,13 +51,12 @@ import org.jspecify.annotations.Nullable;
 import io.github.classgraph.base.internal.utils.Assert;
 
 /**
- * A path within a {@link VfsFileSystem}. Paths are separated by {@code '/'}, whichever kind of root the filesystem
- * is a view of, and the root directory is {@code "/"}.
+ * A path within a {@link VfsFileSystem}. Paths use {@code '/'} as the separator and {@code "/"} as the root
+ * directory.
  *
  * <p>
- * Paths are made by {@link VfsFileSystem#getPath(String, String...)} and by every method that returns a
- * {@link Path} of such a filesystem, rather than being constructed directly. The type is public only because
- * {@link #toCgvfsUri()} has no equivalent on {@link Path}: cast to this type to call it.
+ * Obtain instances via {@link VfsFileSystem#getPath(String, String...)} or other {@link VfsFileSystem} methods;
+ * cast a {@link Path} to {@code VfsPath} to call {@link #toCgvfsUri()}.
  */
 public final class VfsPath implements Path {
     /** The filesystem this path belongs to. */
@@ -66,10 +65,7 @@ public final class VfsPath implements Path {
     /** True if this path starts at the root directory. */
     private final boolean absolute;
 
-    /**
-     * The name elements of this path. A relative path with no name elements is stored as a single empty name, which
-     * is how {@link Path#of(String, String...)} stores the empty path.
-     */
+    /** The name elements of this path (a single empty string for the empty relative path). */
     private final String[] names;
 
     /**
@@ -132,7 +128,7 @@ public final class VfsPath implements Path {
     }
 
     /**
-     * Returns whether this is the empty path, i.e. a relative path whose only name element is the empty string.
+     * Returns whether this is the empty relative path.
      *
      * @return true if this is the empty path.
      */
@@ -141,8 +137,7 @@ public final class VfsPath implements Path {
     }
 
     /**
-     * Returns the name elements of this path, with the empty path treated as having none, which is what the
-     * relative-path arithmetic needs.
+     * Returns the name elements of this path, or an empty array for the empty relative path.
      *
      * @return the name elements.
      */
@@ -151,10 +146,10 @@ public final class VfsPath implements Path {
     }
 
     /**
-     * Returns the name of the entry this path names, i.e. the path made absolute and normalized, with the leading
-     * {@code '/'} removed, which is the form that {@link VfsRoot#getEntry(String)} takes.
+     * Returns the normalized absolute entry path without a leading {@code '/'}, suitable for
+     * {@link VfsRoot#getEntry(String)}.
      *
-     * @return the entry name, which is the empty string for the root directory.
+     * @return the entry name, or the empty string for the root directory.
      */
     String entryName() {
         final var normalized = (VfsPath) toAbsolutePath().normalize();
@@ -169,7 +164,7 @@ public final class VfsPath implements Path {
     }
 
     /**
-     * Returns the filesystem this path belongs to, as the type the rest of the package reads it through.
+     * Returns the {@link VfsFileSystem} this path belongs to.
      *
      * @return the filesystem.
      */
@@ -297,13 +292,11 @@ public final class VfsPath implements Path {
      * {@inheritDoc}
      *
      * <p>
-     * Both paths are normalized first, as the default filesystem does, so a {@code "."} or {@code ".."} segment is
-     * not counted as a directory to climb out of. The empty path gives the other path unchanged.
+     * Both paths are normalized before computing the relative path.
      *
      * @throws IllegalArgumentException
      *             if the paths belong to different filesystem views, if one path is absolute and the other is
-     *             relative, or if the normalized base path still has a {@code ".."} segment after the segments the
-     *             two paths share, since no relative path then leads to the other path.
+     *             relative, or if no relative path can be constructed.
      */
     @Override
     public Path relativize(final Path other) {
@@ -344,11 +337,8 @@ public final class VfsPath implements Path {
      * {@inheritDoc}
      *
      * <p>
-     * This is the URI of the storage the path is read from -- a {@code "file:"} URI for a file in a directory, a
-     * {@code "jar:"} URI for an entry of a jarfile, whatever URI the module names it by for a file of a module (a
-     * {@code "jrt:"} URI for a module of the running JDK) -- and not a {@code "cgvfs:"} URI, so it names the same
-     * bytes to code that has never heard of ClassGraph. See {@link #toCgvfsUri()} for the URI that names this path
-     * through this provider.
+     * Returns the URI of the underlying storage ({@code "file:"}, {@code "jar:"}, or module URI) rather than a
+     * {@code "cgvfs:"} URI. See {@link #toCgvfsUri()} for the provider URI.
      */
     @Override
     public URI toUri() {
@@ -356,24 +346,17 @@ public final class VfsPath implements Path {
     }
 
     /**
-     * Returns the {@code "cgvfs:"} URI of this path, which names it through this provider, so that
-     * {@link Path#of(URI)} and {@link java.nio.file.Paths#get(URI)} give back an equal path.
+     * Returns the {@code "cgvfs:"} URI of this path for resolution via {@link Path#of(URI)} or
+     * {@link java.nio.file.Paths#get(URI)}.
      *
      * <p>
-     * Resolving the returned URI needs the filesystem to still be open, and to have been created by
-     * {@link java.nio.file.FileSystems#newFileSystem(URI, Map)} rather than by {@link VfsRoot#asFileSystem()} or
-     * {@link java.nio.file.FileSystems#newFileSystem(Path, Map)}, since only a filesystem created from a URI is
-     * registered under its path -- the same rule zipfs follows for {@code "jar:"} URIs.
-     *
-     * <p>
-     * See {@link #toUri()} for the URI of the underlying storage, which is what an unrelated library can read.
+     * Resolving the returned URI requires the filesystem to remain open and to have been created via
+     * {@link java.nio.file.FileSystems#newFileSystem(URI, java.util.Map)}. See {@link #toUri()} for the URI of the
+     * underlying storage.
      *
      * @return the {@code "cgvfs:"} URI of this path.
      * @throws FileSystemNotFoundException
-     *             if the {@code "cgvfs:"} scheme is not installed in this JVM, so that the returned URI could not
-     *             be resolved by anything. This happens when classgraph-vfs was loaded by a class loader other than
-     *             the system class loader, since that is the only one {@link java.nio.file.spi.FileSystemProvider}
-     *             searches for installed providers.
+     *             if the {@code "cgvfs:"} provider is not installed in the system class loader.
      */
     public URI toCgvfsUri() {
         if (!VfsFileSystemProvider.isInstalled()) {

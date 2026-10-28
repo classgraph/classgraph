@@ -34,140 +34,136 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Reads values of a fixed width from the current position of some content, advancing the position by the width of
- * each value read.
+ * Sequential reader for primitive values and strings from a cursor position that advances with each read.
  *
  * <p>
- * The byte order is a property of the content and is fixed when the reader is constructed -- see
- * {@link RandomAccessReader} for what that means and why none of these readers follows the byte order of the
- * machine. A value that is not wholly within the content throws an {@link IOException}, since half of a value is
- * not a value.
+ * Multi-byte values are read in the fixed {@link #byteOrder()} configured at construction time. Any read or skip
+ * that extends past the end of the content throws {@link IOException}.
  */
 public interface SequentialReader {
     /**
-     * The byte order this reader reads multi-byte values in, which is fixed when the reader is constructed and does
-     * not follow the byte order of the machine.
+     * Returns the byte order used to read multi-byte values.
      *
      * @return the byte order.
      */
     ByteOrder byteOrder();
 
     /**
-     * The position that the next value is read from, relative to the start of the content. It starts at zero, and
-     * is advanced by each read, and by {@link #skip(int)}.
+     * Returns the current read position relative to the start of the content.
      *
      * @return the current position.
      */
     int position();
 
     /**
-     * Read a byte at the current position.
+     * Read a signed 8-bit byte at the current position and advance the position by 1.
      *
-     * @return The byte at the current position.
+     * @return the byte at the current position.
      * @throws IOException
-     *             If the value is not wholly within the content, or could not be read.
+     *             if the value is not wholly within the content, or could not be read.
      */
     byte readByte() throws IOException;
 
     /**
-     * Read an unsigned byte at the current position.
+     * Read an unsigned 8-bit byte at the current position and advance the position by 1.
      *
-     * @return The unsigned byte at the current position.
+     * @return the unsigned byte at the current position.
      * @throws IOException
-     *             If the value is not wholly within the content, or could not be read.
+     *             if the value is not wholly within the content, or could not be read.
      */
     int readUnsignedByte() throws IOException;
 
     /**
-     * Read a short at the current position.
+     * Read a signed 16-bit short at the current position and advance the position by 2.
      *
-     * @return The short at the current position.
+     * @return the short at the current position.
      * @throws IOException
-     *             If the value is not wholly within the content, or could not be read.
+     *             if the value is not wholly within the content, or could not be read.
      */
     short readShort() throws IOException;
 
     /**
-     * Read an unsigned short at the current position.
+     * Read an unsigned 16-bit short at the current position and advance the position by 2.
      *
-     * @return The unsigned short at the current position.
+     * @return the unsigned short at the current position.
      * @throws IOException
-     *             If the value is not wholly within the content, or could not be read.
+     *             if the value is not wholly within the content, or could not be read.
      */
     int readUnsignedShort() throws IOException;
 
     /**
-     * Read an int at the current position.
+     * Read a signed 32-bit int at the current position and advance the position by 4.
      *
-     * @return The int at the current position.
+     * @return the int at the current position.
      * @throws IOException
-     *             If the value is not wholly within the content, or could not be read.
+     *             if the value is not wholly within the content, or could not be read.
      */
     int readInt() throws IOException;
 
     /**
-     * Read an unsigned int at the current position.
+     * Read an unsigned 32-bit int at the current position and advance the position by 4.
      *
-     * @return The int at the current position, as a long.
+     * @return the unsigned int at the current position, as a long.
      * @throws IOException
-     *             If the value is not wholly within the content, or could not be read.
+     *             if the value is not wholly within the content, or could not be read.
      */
     long readUnsignedInt() throws IOException;
 
     /**
-     * Read a long at the current position.
+     * Read a signed 64-bit long at the current position and advance the position by 8.
      *
-     * @return The long at the current position.
+     * @return the long at the current position.
      * @throws IOException
-     *             If the value is not wholly within the content, or could not be read.
+     *             if the value is not wholly within the content, or could not be read.
      */
     long readLong() throws IOException;
 
     /**
-     * Skip the given number of bytes, advancing the position past them.
+     * Advance the position by {@code bytesToSkip} bytes.
      *
      * @param bytesToSkip
-     *            The number of bytes to skip.
+     *            the number of bytes to skip.
      * @throws IOException
-     *             If {@code bytesToSkip} is negative, if skipping would go past the end of the content, or if the
-     *             content could not be read.
+     *             if {@code bytesToSkip} is negative, skipping would go past the end of the content, or the content
+     *             could not be read.
      */
     void skip(int bytesToSkip) throws IOException;
 
     /**
-     * Read a string in the "modified UTF-8" format that the Java classfile format stores its strings in.
+     * Read a Java classfile "modified UTF-8" string at the current position and advance the position by
+     * {@code numBytes}.
      *
      * @param numBytes
-     *            The number of bytes of the modified UTF-8 encoding of the string.
-     * @return The string.
+     *            the number of encoded bytes.
+     * @return the decoded string.
      * @throws IOException
-     *             If the bytes are not wholly within the content, or could not be read, or are not valid modified
-     *             UTF-8 (a {@link java.io.UTFDataFormatException}).
+     *             if the bytes are not wholly within the content, could not be read, or are not valid modified
+     *             UTF-8.
      */
     String readStringModifiedUtf8(int numBytes) throws IOException;
 
     /**
-     * Read a string in a given character encoding.
+     * Read a string at the current position using the specified {@link Charset} and advance the position by
+     * {@code numBytes}.
      *
      * @param numBytes
-     *            The number of bytes of the encoding of the string.
+     *            the number of encoded bytes.
      * @param charset
-     *            The character encoding to decode the bytes with.
-     * @return The string.
+     *            the character encoding.
+     * @return the decoded string.
      * @throws IOException
-     *             If the bytes are not wholly within the content, or could not be read.
+     *             if the bytes are not wholly within the content, or could not be read.
      */
     String readString(int numBytes, Charset charset) throws IOException;
 
     /**
-     * Read a string in UTF-8, the standard encoding, rather than the "modified UTF-8" format that the classfile
-     * format stores its strings in.
+     * Read a standard UTF-8 string at the current position and advance the position by {@code numBytes}.
      *
      * @param numBytes
-     *            The number of bytes of the UTF-8 encoding of the string.
-     * @return The string.
+     *            the number of UTF-8 bytes.
+     * @return the decoded string.
      * @throws IOException
-     *             If the bytes are not wholly within the content, or could not be read.
+     *             if the bytes are not wholly within the content, or could not be read.
      */
     default String readString(final int numBytes) throws IOException {
         return readString(numBytes, StandardCharsets.UTF_8);

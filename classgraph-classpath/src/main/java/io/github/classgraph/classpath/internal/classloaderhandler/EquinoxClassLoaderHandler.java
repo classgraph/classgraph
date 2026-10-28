@@ -39,9 +39,7 @@ import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
 
-/**
- * Extract classpath entries from the Eclipse Equinox ClassLoader.
- */
+/** Extracts classpath entries from the Eclipse Equinox {@code EquinoxClassLoader} and {@code ModuleClassLoader}. */
 class EquinoxClassLoaderHandler implements ClassLoaderHandler {
     /** Constructor. */
     EquinoxClassLoaderHandler() {

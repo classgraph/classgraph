@@ -45,39 +45,31 @@ import org.jspecify.annotations.Nullable;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.vfs.internal.slice.PathSlice;
 
-/** One file in a directory tree. */
+/** A file entry in a directory root. */
 final class DirEntry extends VfsEntry {
-    /** The file. */
+    /** The filesystem path of the file. */
     private final Path path;
 
-    /** The name of this entry, relative to the root directory. */
+    /** The entry path relative to the root directory. */
     private final String name;
 
-    /**
-     * The attributes of the file, if they were read while listing the directory that contains it, otherwise null.
-     */
+    /** Pre-fetched file attributes from directory listing, or {@code null} if not yet read. */
     private final @Nullable BasicFileAttributes attributes;
 
-    /**
-     * The length of the file, or -1 if it has not been read yet. Volatile, so that a thread that asks a second time
-     * sees the length another thread read, rather than reading the file's attributes again -- or, worse, seeing a
-     * half-written 64-bit value on a 32-bit JVM.
-     */
+    /** Cached file length in bytes, or {@code -1} if not yet read. */
     private volatile long length = -1L;
 
     /**
      * Constructor.
      *
      * @param root
-     *            the directory this entry was found in.
+     *            the directory root containing this entry.
      * @param path
-     *            the file.
+     *            the file path.
      * @param name
-     *            the name of this entry, relative to the root directory.
+     *            the entry path relative to the root directory.
      * @param attributes
-     *            the attributes of the file, if they have already been read, otherwise null. Listing a directory
-     *            has to read the attributes of each of its children anyway, in order to tell the files from the
-     *            subdirectories, so handing them to the entry saves reading them a second time.
+     *            the file's attributes if already read, or {@code null}.
      */
     DirEntry(final DirRoot root, final Path path, final String name,
             final @Nullable BasicFileAttributes attributes) {
@@ -172,13 +164,11 @@ final class DirEntry extends VfsEntry {
     }
 
     /**
-     * Copies the permissions the filesystem provider returned into an unmodifiable {@link EnumSet}, so that the
-     * caller cannot modify them, and so that they iterate in {@link PosixFilePermission} declaration order rather
-     * than in whatever order the provider's own set happens to use.
+     * Copy a set of {@link PosixFilePermission} values into an unmodifiable {@link EnumSet} in declaration order.
      *
      * @param permissions
-     *            the permissions returned by the filesystem provider.
-     * @return the permissions, as an unmodifiable {@link EnumSet}.
+     *            the permissions to copy.
+     * @return an unmodifiable {@link Set} of permissions in declaration order.
      */
     private static Set<PosixFilePermission> unmodifiableEnumSet(final Set<PosixFilePermission> permissions) {
         final Set<PosixFilePermission> enumSet = EnumSet.noneOf(PosixFilePermission.class);
@@ -189,12 +179,11 @@ final class DirEntry extends VfsEntry {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Open a {@link PathSlice} over the file.
+     * Open a {@link PathSlice} for this file.
      *
-     * @return the slice, which the caller owns and must close.
+     * @return the opened {@link PathSlice}.
      * @throws IOException
-     *             if the file could not be opened, or if the root, or the {@link Vfs} that opened it, has been
-     *             closed.
+     *             if the file cannot be opened, or if the root or {@link Vfs} has been closed.
      */
     private PathSlice openSlice() throws IOException {
         final var root = getRoot();

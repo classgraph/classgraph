@@ -38,18 +38,15 @@ import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
 
-/** Extract classpath entries from the Tomcat/Catalina WebappClassLoaderBase. */
+/** Extracts classpath entries from the Apache Tomcat/Catalina {@code WebappClassLoaderBase}. */
 class TomcatWebappClassLoaderBaseHandler extends URLClassLoaderHandler {
-    /**
-     * The path within a webapp's resources that its classloader loads from: {@code StandardRoot} looks up every
-     * classloader resource {@code "x"} as the webapp resource {@code "/WEB-INF/classes/x"}.
-     */
+    /** The webapp resource mount path from which the webapp classloader loads classes and resources. */
     private static final String CLASSLOADER_RESOURCES_PATH = "/WEB-INF/classes";
 
-    /** The TomEE classloader, which has its own delegation rules. */
+    /** The TomEE webapp classloader class name. */
     private static final String TOMEE_WEBAPP_CLASS_LOADER = "org.apache.tomee.catalina.TomEEWebappClassLoader";
 
-    /** The superclass of the {@code WebResourceSet}s that serve resources from a jarfile or a WAR file. */
+    /** The superclass of {@code WebResourceSet} implementations backed by a JAR or WAR archive. */
     private static final String ARCHIVE_RESOURCE_SET = "org.apache.catalina.webresources.AbstractArchiveResourceSet";
 
     /** Constructor. */
@@ -62,11 +59,11 @@ class TomcatWebappClassLoaderBaseHandler extends URLClassLoaderHandler {
     }
 
     /**
-     * Return true if this classloader delegates to its parent.
+     * Checks whether the classloader delegates to its parent before searching its own resources.
      *
      * @param classLoader
      *            the {@link ClassLoader}.
-     * @return true if this classloader delegates to its parent.
+     * @return {@code true} if the classloader uses parent-first delegation.
      */
     private static boolean isParentFirst(final ClassLoader classLoader) {
         final var delegateObject = ReflectionUtils.getFieldVal(false, classLoader, "delegate");
@@ -141,33 +138,17 @@ class TomcatWebappClassLoaderBaseHandler extends URLClassLoaderHandler {
     }
 
     /**
-     * Add the part of a single Catalina {@code WebResourceSet} that the webapp's classloader loads from, if any.
-     *
-     * <p>
-     * A resource set serves the files under a path within its directory or archive (its internal path) at a path
-     * within the webapp's resources (its mount), and the classloader loads only what is served under
-     * {@code "/WEB-INF/classes"}. So:
-     * <ul>
-     * <li>A resource set mounted at {@code "/WEB-INF/classes"}, as every jarfile in {@code WEB-INF/lib} is, is on
-     * the classpath as a whole.
-     * <li>A resource set mounted above {@code "/WEB-INF/classes"}, as the webapp's own directory or WAR file is, is
-     * on the classpath only as far as its {@code WEB-INF/classes} dir. The rest of the webapp, e.g.
-     * {@code index.jsp} or {@code WEB-INF/web.xml}, is not on the classpath.
-     * <li>A resource set mounted anywhere else, e.g. static content mounted at {@code "/static"}, is not on the
-     * classpath. Neither is a resource set marked as serving static content only, as the {@code META-INF/resources}
-     * dir of each resource jar is.
-     * </ul>
+     * Adds the classpath entry corresponding to the portion of a Catalina {@code WebResourceSet} mounted at or
+     * above {@code "/WEB-INF/classes"}, if any.
      *
      * @param webResourceSet
-     *            the {@code WebResourceSet}, one of {@code DirResourceSet}, {@code FileResourceSet},
-     *            {@code JarResourceSet}, {@code JarWarResourceSet}, {@code WarResourceSet} or
-     *            {@code EmptyResourceSet}.
+     *            the {@code WebResourceSet}.
      * @param classLoader
-     *            the classloader the {@code WebResourceSet} was found in.
+     *            the classloader.
      * @param classpathOrder
-     *            the classpath order to add the classpath entry to.
+     *            the classpath order to populate.
      * @param log
-     *            the log.
+     *            the log node, or {@code null} to skip logging.
      */
     private void addWebResourceSet(final Object webResourceSet, final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final @Nullable ClassGraphLog log) {

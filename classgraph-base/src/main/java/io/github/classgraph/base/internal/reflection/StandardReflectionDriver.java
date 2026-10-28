@@ -35,8 +35,8 @@ import java.lang.reflect.Method;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Standard reflection driver (uses {@link AccessibleObject#setAccessible(boolean)} to access non-public fields if
- * necessary).
+ * Standard reflection driver using {@link AccessibleObject#trySetAccessible()} to access non-public members where
+ * permitted.
  */
 class StandardReflectionDriver extends ReflectionDriver {
     /** Create the standard reflection driver. */

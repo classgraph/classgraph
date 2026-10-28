@@ -36,7 +36,7 @@ import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
 
-/** Extract classpath entries from the Ant ClassLoader. */
+/** Extracts classpath entries from the Apache Ant {@code AntClassLoader}. */
 class AntClassLoaderHandler implements ClassLoaderHandler {
     /** Constructor. */
     AntClassLoaderHandler() {

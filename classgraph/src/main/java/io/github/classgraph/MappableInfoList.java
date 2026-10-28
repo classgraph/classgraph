@@ -48,8 +48,7 @@ import io.github.classgraph.base.internal.utils.Assert;
 public sealed class MappableInfoList<T extends HasName> extends InfoList<T> permits AnnotationInfoList,
         AnnotationParameterValueList, ClassInfoList, FieldInfoList, ModuleInfoList, PackageInfoList {
     /**
-     * Constructor. As in {@link InfoList#InfoList(List)}, this list claims the given list, and the caller is
-     * responsible for having sorted it.
+     * Construct a {@link MappableInfoList} backed by the given pre-sorted list.
      *
      * @param elements
      *            the elements of the list

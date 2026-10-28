@@ -39,11 +39,7 @@ public class ProxyingInputStream extends InputStream {
     /** The wrapped {@link InputStream}. */
     private final InputStream inputStream;
 
-    /**
-     * True once {@link #close()} has been called. Guards against closing the wrapped {@link InputStream} more than
-     * once, including re-entrantly, if a subclass' {@link #close()} method closes a resource that in turn closes
-     * this stream.
-     */
+    /** True once {@link #close()} has been called. */
     private boolean closed;
 
     /**

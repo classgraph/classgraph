@@ -35,11 +35,8 @@ import java.util.List;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The type annotations on one part of a type signature: a type, one nested class of a class reference, or the
- * explicit receiver parameter of a method. Type signatures allocate this only when they get their first type
- * annotation; a class reference then allocates one for each of its nested classes. It is not thread-safe: type
- * annotations are added before the type signature is handed out, and the type signature synchronizes calls to
- * {@link #getAnnotationInfo(ScanResult)}.
+ * The type annotations on one component of a type signature (a type, a nested class segment of a class reference,
+ * or the explicit receiver parameter of a method).
  */
 final class TypeAnnotations implements Iterable<AnnotationInfo> {
     /** The type annotations, in the order they were read. */
@@ -90,11 +87,10 @@ final class TypeAnnotations implements Iterable<AnnotationInfo> {
     }
 
     /**
-     * Put type annotations before these type annotations. The annotations are not given a {@link ScanResult}: they
-     * are shared with the type signature that type variable substitution copied them from, and keep its ScanResult.
+     * Prepend type annotations before the existing type annotations in this list.
      *
      * @param annotationsToPrepend
-     *            the type annotations to put first.
+     *            the type annotations to prepend.
      */
     void prepend(final List<AnnotationInfo> annotationsToPrepend) {
         annotations.addAll(0, annotationsToPrepend);
@@ -134,15 +130,11 @@ final class TypeAnnotations implements Iterable<AnnotationInfo> {
     }
 
     /**
-     * Get the type annotations, sorted by name, since the order of type annotations in a classfile is not
-     * specified. Annotations of the same name keep the order they were read in. The container annotations of
-     * {@link java.lang.annotation.Repeatable} annotations are unpacked, as in the declaration annotation lists (see
-     * {@link AnnotationInfoList#unpackRepeatableAnnotations(List, java.util.Set)}).
+     * Get the type annotations, sorted by name, with {@link java.lang.annotation.Repeatable} container annotations
+     * unpacked.
      *
      * @param scanResult
-     *            the {@link ScanResult} of the type signature that holds these type annotations, which knows the
-     *            names of the container annotations, or null if the type signature did not come from a scan, in
-     *            which case no containers are unpacked.
+     *            the {@link ScanResult}, or null if this type signature did not come from a scan.
      * @return the type annotations, sorted by name.
      */
     AnnotationInfoList getAnnotationInfo(final @Nullable ScanResult scanResult) {

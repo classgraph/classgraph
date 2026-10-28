@@ -61,20 +61,19 @@ public final class AnnotationClassRef extends ScanResultObject {
      *
      * @return The name of the referenced class.
      * @throws IllegalArgumentException
-     *             if the type descriptor of the class reference is malformed, which javac never writes.
+     *             if the type descriptor of the class reference is malformed.
      */
     public String getName() {
         return getClassName();
     }
 
     /**
-     * Get the type signature. It is parsed when it is first needed, and is published to other threads only after
-     * its scan result has been set, so that no thread sees a type signature that has no scan result.
+     * Get the type signature of the class reference.
      *
-     * @return The type signature of the {@code Class<?>} reference. This will be a {@link ClassRefTypeSignature}, a
-     *         {@link BaseTypeSignature}, or an {@link ArrayTypeSignature}.
+     * @return The type signature of the {@code Class<?>} reference ({@link ClassRefTypeSignature},
+     *         {@link BaseTypeSignature}, or {@link ArrayTypeSignature}).
      * @throws IllegalArgumentException
-     *             if the type descriptor is malformed, or is a type variable, which names no class.
+     *             if the type descriptor is malformed or is a type variable.
      */
     private TypeSignature getTypeSignature() {
         synchronized (this) {
@@ -124,11 +123,10 @@ public final class AnnotationClassRef extends ScanResultObject {
      * Get the class info for the referenced class.
      *
      * @return The {@link ClassInfo} object for the referenced class, or null if the referenced class was not
-     *         encountered during scanning (i.e. if no ClassInfo object was created for the class during scanning).
-     *         For an array class such as {@code String[].class}, an {@link ArrayClassInfo} is returned, which is
-     *         never null. For a primitive class such as {@code int.class}, null is always returned.
+     *         encountered during scanning. For an array class such as {@code String[].class}, returns an
+     *         {@link ArrayClassInfo}. For a primitive class such as {@code int.class}, returns null.
      * @throws IllegalArgumentException
-     *             if the type descriptor of the class reference is malformed, which javac never writes.
+     *             if the type descriptor of the class reference is malformed.
      */
     @Override
     public @Nullable ClassInfo getClassInfo() {

@@ -62,9 +62,8 @@ import io.github.classgraph.base.internal.utils.CollectionUtils;
  * contain the same {@link ClassInfo} more than once when distinct type variables resolve to the same class bound.
  *
  * <p>
- * Equality is {@link List} equality: two lists are equal if they hold equal classes in the same order. Which of the
- * classes are directly related is reported by {@link #directOnly()}, and is not part of the comparison, so two
- * lists that hold the same classes are equal even when they were reached by different relationships.
+ * Equality is defined by {@link List#equals(Object)} over the reachable classes; the subset of directly related
+ * classes (returned by {@link #directOnly()}) is not compared.
  */
 @Unmodifiable // Ignored by Kotlin for now: see the TODO in UnmodifiableList
 public final class ClassInfoList extends MappableInfoList<ClassInfo> {
@@ -74,12 +73,7 @@ public final class ClassInfoList extends MappableInfoList<ClassInfo> {
     /** Whether to sort by name. */
     private final boolean sortByName;
 
-    /**
-     * The list returned by {@link #directOnly()}: this list when it was constructed with every class directly
-     * related, otherwise built on the first call. Two threads that call {@link #directOnly()} at the same time may
-     * each build an equal list, which is harmless: the built list holds its classes in final fields, so a thread
-     * that reads it through this field sees it fully constructed.
-     */
+    /** Cached list of directly related classes returned by {@link #directOnly()}. */
     private @Nullable ClassInfoList directOnlyList;
 
     /** An unmodifiable empty {@link ClassInfoList}. */
@@ -154,12 +148,8 @@ public final class ClassInfoList extends MappableInfoList<ClassInfo> {
     }
 
     /**
-     * Construct an unmodifiable list of {@link ClassInfo} objects from a completed list, preserving its order and
-     * duplicates when sorting is disabled. Every class is treated as directly related. This is used for a throws
-     * clause, where two declared types can resolve to the same {@link ClassInfo} through a type-variable bound.
-     *
-     * <p>
-     * As in {@link InfoList#InfoList(List)}, this list claims the given list when it is not sorted here.
+     * Construct an unmodifiable list of {@link ClassInfo} objects, preserving list order and duplicates when
+     * {@code sortByName} is false, with every class treated as directly related.
      *
      * @param reachableClasses
      *            the completed list

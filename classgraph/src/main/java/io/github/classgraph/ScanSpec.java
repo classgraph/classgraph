@@ -30,8 +30,6 @@ package io.github.classgraph;
 
 import java.lang.reflect.Field;
 import java.time.Duration;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 import org.jspecify.annotations.Nullable;
 
@@ -42,15 +40,7 @@ import io.github.classgraph.base.LogNode;
 import io.github.classgraph.classpath.internal.ClasspathSpec;
 import io.github.classgraph.vfs.VfsSpec;
 
-/**
- * The scanning specification.
- *
- * <p>
- * This holds the settings that the scanner itself reads. The settings that are read by the libraries the scanner is
- * built on are held in the specs of those libraries, which are composed into this one: the classpath and module
- * path to search is described by {@link #classpathSpec}, and how archives are read is described by
- * {@link #vfsSpec}.
- */
+/** The scanning specification. */
 class ScanSpec {
     /** How the classpath and the module path are found. */
     public final ClasspathSpec classpathSpec;
@@ -142,11 +132,7 @@ class ScanSpec {
     /** If true, enables the determination of inter-class dependencies. */
     public boolean enableInterClassDependencies;
 
-    /**
-     * If true, allow external classes (classes outside of accepted packages) to be returned in the ScanResult, if
-     * the scan came across them while reading the accepted classes (see {@link ClassGraph#enableExternalClasses()}
-     * for which classes those are). Disabled by default.
-     */
+    /** If true, allow external classes (classes outside of accepted packages) to be returned in the ScanResult. */
     public boolean enableExternalClasses;
 
     /**
@@ -172,19 +158,16 @@ class ScanSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * How long the scan may go with no progress before it fails (see
-     * {@link ClassGraph#setWorkerTimeout(Duration)}). A timeout that is zero, negative, or too long to express in
-     * nanoseconds means "wait indefinitely".
+     * Maximum duration with no worker progress before the scan fails (see
+     * {@link ClassGraph#setWorkerTimeout(Duration)}).
      */
     public Duration workerTimeout = ClassGraph.DEFAULT_WORKER_TIMEOUT;
 
     /**
-     * Get {@link #workerTimeout} in nanoseconds, for {@link Future#get(long, TimeUnit)} and
-     * {@link java.util.concurrent.BlockingQueue#poll(long, TimeUnit)}.
+     * Get {@link #workerTimeout} in nanoseconds, or {@link Long#MAX_VALUE} if non-positive or greater than
+     * {@link Long#MAX_VALUE} nanoseconds.
      *
-     * @return the number of nanoseconds with no progress after which to stop waiting for the other threads of the
-     *         scan, or {@link Long#MAX_VALUE} if {@link #workerTimeout} is zero, negative, or too long to express
-     *         in nanoseconds, meaning that worker threads should be waited for indefinitely.
+     * @return the worker timeout in nanoseconds.
      */
     public long getWorkerTimeoutNanos() {
         try {
@@ -253,10 +236,9 @@ class ScanSpec {
     }
 
     /**
-     * Copy this scanning specification, so that a scan, and the {@link ScanResult} it produces, keep the settings
-     * they were started with if the {@link ClassGraph} that holds this object is configured further.
+     * Return a copy of this scanning specification.
      *
-     * @return a copy of this scanning specification, which can be changed without changing this object.
+     * @return a copy of this scanning specification.
      */
     ScanSpec copy() {
         return new ScanSpec(this);
@@ -417,12 +399,7 @@ class ScanSpec {
     }
 
     /**
-     * Returns true if the resource at the given path is rejected, either because a rejected package contains it, or
-     * because the classfile itself is rejected.
-     *
-     * <p>
-     * This is for callers that look a resource up by name, rather than reaching it through a walk of a classpath
-     * element, so they do not have the {@link ScanSpecPathMatch} of the containing directory in hand.
+     * Returns true if the resource at the given path is rejected.
      *
      * @param relativePath
      *            the path of the resource, relative to the package root of its classpath element.

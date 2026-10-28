@@ -37,9 +37,7 @@ import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
 
 /**
- * Extract classpath entries from {@code org.eclipse.osgi.internal.baseadaptor.DefaultClassLoader}, the bundle
- * classloader of Eclipse Equinox up to version 3.9. Equinox 3.10 replaced it with the classloader that
- * {@link EquinoxClassLoaderHandler} handles.
+ * Extracts classpath entries from the legacy Eclipse Equinox {@code DefaultClassLoader}.
  *
  * @author Luke Hutchison
  */

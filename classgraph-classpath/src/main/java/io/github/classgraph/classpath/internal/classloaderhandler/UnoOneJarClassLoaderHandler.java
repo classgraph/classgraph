@@ -39,15 +39,10 @@ import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
 
 /**
- * Extract classpath entries from the Uno-Jar's JarClassLoader and One-Jar's JarClassLoader.
+ * Extracts classpath entries from the Uno-Jar and One-JAR {@code JarClassLoader}.
  */
 class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
-    /**
-     * The lib dirs of an Uno-Jar or One-JAR executable jarfile. {@code JarClassLoader} loads classes from every
-     * jarfile it finds under its {@code MAIN_PREFIX} ({@code "main/"}), which holds the jarfile it launches, and
-     * under its {@code LIB_PREFIX} ({@code "lib/"}), which holds the jarfiles that jarfile depends upon. (Its third
-     * dir, {@code "binlib/"}, holds native libraries, not classes.)
-     */
+    /** Nested JAR directory prefixes within an Uno-Jar or One-JAR archive ({@code "lib/"} and {@code "main/"}). */
     private static final List<String> UNO_ONE_JAR_LIB_DIR_PREFIXES = List.of("lib/", "main/");
 
     /** Constructor. */

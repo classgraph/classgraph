@@ -162,14 +162,8 @@ final class ClasspathElementModule extends ClasspathElement {
     }
 
     /**
-     * Check whether a path is that of a classfile in the default (unnamed) package.
-     *
-     * <p>
-     * A module cannot contain classes in the default package, and {@code module-info.class} is the only classfile
-     * allowed in the root of a module, so any other classfile found there cannot be loaded, and is ignored. This
-     * applies only to a module on the module path: a jarfile or directory on the classpath is in the unnamed
-     * module, even if it has a {@code module-info.class} or an {@code Automatic-Module-Name} manifest attribute,
-     * and the JVM loads the classes in its default package.
+     * Check whether a path is that of a classfile in the default (unnamed) package (other than
+     * {@code module-info.class}), which cannot be loaded from a module and is ignored.
      *
      * @param relativePath
      *            the path of an entry, relative to the root of the module.
@@ -298,8 +292,7 @@ final class ClasspathElementModule extends ClasspathElement {
     }
 
     /**
-     * Get the module name from the module descriptor. A module descriptor always has a name, since the module
-     * system rejects a descriptor with an empty name.
+     * Get the module name from the module descriptor.
      *
      * @return the module name.
      */

@@ -54,20 +54,13 @@ import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsEntry;
 
 /**
- * A classpath or module path resource (i.e. file) that was found in an accepted/non-rejected package inside a
- * classpath element or module.
+ * A classpath or module path resource (file) found in an accepted, non-rejected package within a classpath element
+ * or module.
  *
  * <p>
- * A resource is read through the virtual filesystem, so that a file in a directory, an entry of a jarfile and a
- * resource in a module are all read the same way. Call {@link #getVfsEntry()} to reach the {@link VfsEntry} behind
- * the resource, which offers the rest of the {@link Vfs} API. This is the one class for all three, since the
- * virtual filesystem is what differs between them: a resource of a directory, of a jarfile and of a module are all
- * named and located the same way once the entry behind the resource has been opened.
- *
- * <p>
- * A resource has a path relative to each of the three things it can be relative to -- its package root, its
- * classpath element and the jarfile or directory that contains it -- and {@link #getPath()} documents all three,
- * with a worked example.
+ * Call {@link #getVfsEntry()} to access the underlying {@link VfsEntry} in the virtual filesystem ({@link Vfs}).
+ * See {@link #getPath()} and {@link #getPathRelativeToContainer()} for how resource paths are represented relative
+ * to the package root and the containing jarfile or directory.
  */
 public final class Resource implements AutoCloseable, Comparable<Resource> {
     /** The classpath element this resource was obtained from. */
@@ -256,15 +249,12 @@ public final class Resource implements AutoCloseable, Comparable<Resource> {
     }
 
     /**
-     * Get the {@link VfsEntry} that this {@link Resource} is read from, giving access to the rest of the
-     * {@link Vfs} API for the resource: reading it as a {@link java.nio.channels.ReadableByteChannel}, addressing
-     * it as a {@link java.nio.file.Path} of a read-only virtual filesystem, or asking for its compressed size.
+     * Get the underlying {@link VfsEntry} for this {@link Resource}, which provides additional {@link Vfs}
+     * operations such as opening a {@link java.nio.channels.ReadableByteChannel}, obtaining a
+     * {@link java.nio.file.Path} in the read-only virtual filesystem, or querying the compressed size. The returned
+     * entry cannot be used after the enclosing {@link ScanResult} is closed.
      *
-     * <p>
-     * The returned entry stops working once the {@link ScanResult} that this {@link Resource} came from is closed,
-     * since closing the {@link ScanResult} closes the {@link Vfs} that the entry is read through.
-     *
-     * @return the {@link VfsEntry} that this {@link Resource} is read from.
+     * @return the {@link VfsEntry} for this {@link Resource}.
      */
     public VfsEntry getVfsEntry() {
         return entry;
@@ -301,30 +291,28 @@ public final class Resource implements AutoCloseable, Comparable<Resource> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the <i>logical</i> path of this resource: the name it is addressed by, relative to the package root, with
-     * any multi-release version prefix resolved away. This is the path that corresponds to the resource's package,
-     * so it is the path to match against, and the one to pass to {@link ClassLoader#getResource(String)}.
+     * Get the logical path of this resource relative to the package root, with any package root prefix and
+     * multi-release version prefix stripped. This path corresponds to the resource's package and can be passed to
+     * {@link ClassLoader#getResource(String)}.
      *
      * <p>
-     * Two prefixes are absent from this path, because neither is part of the name a resource is addressed by:
+     * Two prefixes are stripped when present:
      *
      * <ul>
-     * <li>the <b>package root prefix</b>, e.g. {@code "BOOT-INF/classes/"} in a Spring Boot jar or
-     * {@code "WEB-INF/classes/"} in a war -- a package root is a classpath element in its own right, and
-     * {@link #getClasspathElementURI()} names it, so a resource beneath one is addressed relative to it;
-     * <li>the <b>multi-release version prefix</b>, e.g. {@code "META-INF/versions/11/"} -- the versioned copy of an
-     * entry is a copy of the entry at the unversioned path, and is addressed by that path.
+     * <li>the <b>package root prefix</b> (e.g. {@code "BOOT-INF/classes/"} in a Spring Boot jar or
+     * {@code "WEB-INF/classes/"} in a WAR), which is part of {@link #getClasspathElementURI()};
+     * <li>the <b>multi-release version prefix</b> (e.g. {@code "META-INF/versions/11/"} in a multi-release jar).
      * </ul>
      *
      * <p>
-     * Both paths name a real entry of the thing they are relative to: {@link #getPathRelativeToContainer()} is the
-     * name the entry is stored under, and this is that name with both prefixes taken off the front of it. The four
-     * rows below cover every combination of the two prefixes, for a jarfile scanned on JDK 11 or above:
+     * By contrast, {@link #getPathRelativeToContainer()} returns the full path within the containing jarfile or
+     * directory, including both prefixes:
      *
      * <table>
-     * <caption>The two paths of a resource, for each combination of the two prefixes</caption>
+     * <caption>Resource paths for each combination of package root prefix and multi-release version
+     * prefix</caption>
      * <tr>
-     * <th>Stored under</th>
+     * <th>Stored path</th>
      * <th>{@link #getPackageRootPrefix()}</th>
      * <th>{@link #getPath()}</th>
      * <th>{@link #getPathRelativeToContainer()}</th>
@@ -356,17 +344,15 @@ public final class Resource implements AutoCloseable, Comparable<Resource> {
      * </table>
      *
      * @return the path of this resource relative to the package root, with any multi-release version prefix
-     *         resolved away.
+     *         stripped.
      */
     public String getPath() {
         return path;
     }
 
     /**
-     * Get the <i>physical</i> path of this resource within the jarfile or directory that contains it, which for a
-     * classpath element that is a package root within a jarfile or directory is not the same thing as the classpath
-     * element. This keeps both prefixes that {@link #getPath()} resolves away, so it is exactly the name the entry
-     * is stored under. See {@link #getPath()} for a worked example of every combination of the two prefixes.
+     * Get the physical path of this resource within the containing jarfile or directory, including any
+     * multi-release version prefix and package root prefix (see {@link #getPath()}).
      *
      * @return the path of this resource within the jarfile or directory that contains it.
      */
@@ -375,30 +361,21 @@ public final class Resource implements AutoCloseable, Comparable<Resource> {
     }
 
     /**
-     * Get the package root prefix of this resource's classpath element: the directory within the containing jarfile
-     * or directory that the classpath element starts at, ending in {@code '/'}, e.g. {@code "BOOT-INF/classes/"}
-     * for a Spring Boot jar or {@code "WEB-INF/classes/"} for a war. Most classpath elements are not package roots,
-     * and for those this is the empty string.
+     * Get the package root prefix of this resource's classpath element (the directory within the containing jarfile
+     * or directory where the classpath element starts, ending in {@code '/'}, e.g. {@code "BOOT-INF/classes/"} or
+     * {@code "WEB-INF/classes/"}), or {@code ""} if none.
      *
-     * @return the package root prefix, ending in {@code '/'}, or the empty string if the classpath element is not a
-     *         package root.
+     * @return the package root prefix, ending in {@code '/'}, or {@code ""} if none.
      */
     public String getPackageRootPrefix() {
         return classpathElement.packageRootPrefix;
     }
 
     /**
-     * The multi-release version prefix that {@link #getPath()} resolved away, e.g. {@code "META-INF/versions/11/"},
-     * or the empty string if this resource is not a versioned entry of a multi-release jarfile.
+     * Get the multi-release version prefix stripped by {@link #getPath()} (e.g. {@code "META-INF/versions/11/"}),
+     * or {@code ""} if this resource is not a versioned entry of a multi-release jarfile.
      *
-     * <p>
-     * A versioned entry is stored under the version prefix, then the package root prefix, then the path relative to
-     * the package root -- the version prefix is outermost, since {@code "META-INF"} cannot itself be versioned. So
-     * the version prefix is what is left of the raw path once the other two are taken off the end of it. Only a
-     * jarfile has versioned entries: the JVM loads the base copy of a class from a directory even when a versioned
-     * copy sits alongside it, so the virtual filesystem reports a directory's raw path unchanged.
-     *
-     * @return the multi-release version prefix, ending in {@code '/'}, or the empty string if there is none.
+     * @return the multi-release version prefix, ending in {@code '/'}, or {@code ""} if none.
      */
     private String multiReleaseVersionPrefix() {
         final var rawPath = entry.getRawPathFromRoot();
@@ -455,20 +432,17 @@ public final class Resource implements AutoCloseable, Comparable<Resource> {
     }
 
     /**
-     * Read a classpath resource as a {@link ByteBuffer}, which is a memory mapping of the resource where the
-     * resource is stored uncompressed in a file that can be mapped. Call
-     * {@link CloseableByteBuffer#getByteBuffer()} on the returned instance to reach the {@link ByteBuffer}.
+     * Read a classpath resource as a {@link ByteBuffer} (memory-mapped when the resource is stored uncompressed on
+     * disk). Call {@link CloseableByteBuffer#getByteBuffer()} on the returned instance to obtain the
+     * {@link ByteBuffer}.
      *
      * <p>
-     * Close the returned {@link CloseableByteBuffer} when you have finished with it, so that the {@link ByteBuffer}
-     * is released or unmapped. You can also close the {@link Resource} instead, which closes the buffer -- closing
-     * both is safe, since the buffer is only released once. Closing the {@link ScanResult} closes it too, whether
-     * or not the caller has, so that the buffer does not hold a file mapped past that close; a {@link ByteBuffer}
-     * reference taken from the wrapper beforehand is not revoked, and reading through one after any of those closes
-     * is undefined -- see {@link CloseableByteBuffer#getByteBuffer()}.
+     * Close the returned {@link CloseableByteBuffer} or this {@link Resource} when finished to release or unmap the
+     * buffer (closing both is safe, and closing the {@link ScanResult} also closes the buffer). See
+     * {@link CloseableByteBuffer#getByteBuffer()} for the lifecycle of the underlying {@link ByteBuffer}.
      *
-     * @return The allocated or mapped {@link ByteBuffer} for the resource file content, wrapped so that it can be
-     *         closed.
+     * @return The allocated or mapped {@link ByteBuffer} for the resource file content, wrapped in a
+     *         {@link CloseableByteBuffer}.
      * @throws IOException
      *             If the resource could not be read.
      */
@@ -527,8 +501,7 @@ public final class Resource implements AutoCloseable, Comparable<Resource> {
      *
      * @return The length of the resource. This only reliably returns a valid value after calling {@link #open()},
      *         {@link #read()}, or {@link #load()} (and for {@link #open()}, only if the underlying jarfile has
-     *         length information for corresponding {@link ZipEntry} -- some jarfiles may not have length
-     *         information in their zip entries). Returns -1L if the length is unknown.
+     *         length information for the corresponding {@link ZipEntry}). Returns -1L if the length is unknown.
      */
     public long getLength() {
         return length;

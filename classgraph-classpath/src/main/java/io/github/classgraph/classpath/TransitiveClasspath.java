@@ -45,40 +45,34 @@ import io.github.classgraph.classpath.internal.ClasspathOrderBuilder;
 import io.github.classgraph.vfs.Vfs;
 
 /**
- * Expands the classpath elements that the classloaders declared with the classpath elements that those in turn
- * declare: the jarfiles in their automatic lib dirs, and the entries of their manifests' {@code Class-Path} and
- * {@code Bundle-ClassPath} attributes. Each of those can declare more of them, so this is recursive.
- *
- * <p>
- * The expanded classpath is in the order a classloader would search it: each classpath element is followed by the
- * elements it declares, depth first. A classpath element that is reached more than once is listed only at the first
- * position it is reached at, which is the position that decides which copy of a duplicated class is loaded.
+ * Recursively expands initial classpath entries with entries declared in their automatic lib directories and
+ * manifest {@code Class-Path} and {@code Bundle-ClassPath} attributes, in depth-first resolution order.
  */
 final class TransitiveClasspath {
-    /** Opens the classpath elements, so that their manifests and their lib dirs can be read. */
+    /** The virtual filesystem used to open classpath elements. */
     private final Vfs vfs;
 
     /** The log node, or null to skip logging. */
     private final @Nullable LogNode log;
 
-    /** Decides which classpath elements are kept. A rejected classpath element is not opened. */
+    /** Filter determining which classpath elements to retain and expand. */
     private final Predicate<? super ClasspathEntry> filter;
 
-    /** The locations that have already been added, so that no classpath element is listed twice. */
+    /** Locations already added to the expanded classpath. */
     private final Set<String> alreadyAdded = new HashSet<>();
 
-    /** The expanded classpath. */
+    /** The expanded classpath entries. */
     private final List<ClasspathEntry> expanded = new ArrayList<>();
 
     /**
      * Constructor.
      *
      * @param vfs
-     *            opens the classpath elements, so that their manifests and their lib dirs can be read.
+     *            the virtual filesystem used to open classpath elements.
      * @param log
      *            the log node, or null to skip logging.
      * @param filter
-     *            decides which classpath elements are kept.
+     *            filter determining which classpath elements to retain.
      */
     private TransitiveClasspath(final Vfs vfs, final @Nullable LogNode log,
             final Predicate<? super ClasspathEntry> filter) {
@@ -88,22 +82,17 @@ final class TransitiveClasspath {
     }
 
     /**
-     * Expand the classpath elements that the classloaders declared with the classpath elements that those in turn
-     * declare.
+     * Expands {@code entries} depth-first with transitive classpath entries declared by each accepted entry.
      *
      * @param entries
-     *            the classpath elements that the classloaders declared.
+     *            the initial classpath entries.
      * @param filter
-     *            decides which classpath elements are kept, whether the classloaders declared them or another
-     *            classpath element did. A rejected classpath element is not opened, so the classpath elements it
-     *            declares are reached only if something else declares them. The filter may be called more than once
-     *            for a classpath element that is reached by more than one route.
+     *            filter determining which classpath entries to keep and expand.
      * @param vfs
-     *            opens the classpath elements, so that their manifests and their lib dirs can be read, with the
-     *            settings that govern how the jarfiles are read.
+     *            the virtual filesystem used to open classpath entries.
      * @param log
      *            the log node, or null to skip logging.
-     * @return the expanded classpath.
+     * @return the expanded, deduplicated list of classpath entries.
      * @throws IllegalStateException
      *             if the thread was interrupted.
      */
@@ -115,10 +104,10 @@ final class TransitiveClasspath {
     }
 
     /**
-     * Add classpath elements, then add the classpath elements each of them declares, and so on.
+     * Performs depth-first expansion of {@code entries}.
      *
      * @param entries
-     *            the classpath elements.
+     *            the initial classpath entries.
      */
     private void addAll(final List<ClasspathEntry> entries) {
         // The classpath elements are expanded depth first, with an explicit stack rather than by recursing, since
@@ -150,13 +139,12 @@ final class TransitiveClasspath {
     }
 
     /**
-     * Push classpath elements onto the stack in reverse order, so that they are popped in the order they are listed
-     * in.
+     * Pushes {@code entries} onto {@code toAdd} in reverse order so they pop in list order.
      *
      * @param toAdd
      *            the stack.
      * @param entries
-     *            the classpath elements to push.
+     *            the entries to push.
      */
     private static void pushInReverse(final Deque<ClasspathEntry> toAdd, final List<ClasspathEntry> entries) {
         for (var i = entries.size() - 1; i >= 0; --i) {
@@ -165,11 +153,11 @@ final class TransitiveClasspath {
     }
 
     /**
-     * Find the classpath elements that a classpath element declares.
+     * Reads the child classpath entries declared by {@code entry}.
      *
      * @param entry
-     *            the classpath element.
-     * @return the classpath elements it declares, in the order they must be added to the classpath.
+     *            the parent classpath entry.
+     * @return the child classpath entries in declaration order.
      */
     private List<ClasspathEntry> children(final ClasspathEntry entry) {
         final var location = entry.getLocation();

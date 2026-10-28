@@ -31,54 +31,42 @@ package io.github.classgraph.base.internal.concurrency;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Times a wait for other threads that gives up only once none of them has made progress for the whole timeout.
- * Progress is anything reported to {@link InterruptionChecker#progress()}. The wait is made in slices of one tenth
- * of the timeout, or one second if that is shorter. A slice that took longer than it should have, because the whole
- * JVM was paused (at a breakpoint that suspends all threads, or by SIGSTOP), counts only as one slice, so a pause
- * can use up at most one slice of the timeout. A breakpoint that suspends only a worker thread is not a pause of
- * the whole JVM, so set a longer timeout, or 0, while debugging a scan.
- *
- * <pre>
- * var idleTimeout = new IdleTimeout(interruptionChecker, timeoutNanos);
- * while (!latch.await(idleTimeout.nextWaitNanos(), TimeUnit.NANOSECONDS)) {
- *     if (idleTimeout.hasRunOut()) {
- *         throw new TimeoutException();
- *     }
- * }
- * </pre>
+ * Tracks an idle timeout while waiting for worker threads that report progress via
+ * {@link InterruptionChecker#progress()}. The timeout expires only after no progress has been reported for the full
+ * timeout duration, measured in bounded wait slices.
  *
  * <p>
- * An instance is used by one waiting thread only.
+ * Not thread-safe; each waiting thread must use its own instance.
  */
 public final class IdleTimeout {
-    /** The longest slice. A pause counts as at most this long. */
+    /** Maximum duration of a single wait slice in nanoseconds. */
     private static final long MAX_SLICE_NANOS = TimeUnit.SECONDS.toNanos(1);
 
-    /** The InterruptionChecker that the threads being waited for report their progress to. */
+    /** The {@link InterruptionChecker} to which worker threads report progress. */
     private final InterruptionChecker interruptionChecker;
 
-    /** The timeout in nanoseconds. */
+    /** The idle timeout in nanoseconds. */
     private final long timeoutNanos;
 
-    /** The length of one slice of the wait in nanoseconds. */
+    /** The duration of a single wait slice in nanoseconds. */
     private final long sliceNanos;
 
-    /** The progress count when progress was last seen. */
+    /** The progress count at the last observed progress update. */
     private long progressCount;
 
-    /** The time spent waiting since progress was last seen, in nanoseconds. */
+    /** Accumulated idle wait time in nanoseconds since progress was last observed. */
     private long idleNanos;
 
-    /** The {@link System#nanoTime()} at which the current slice started. */
+    /** The {@link System#nanoTime()} timestamp when the current wait slice started. */
     private long sliceStartNanos;
 
     /**
      * Constructor.
      *
      * @param interruptionChecker
-     *            the InterruptionChecker that the threads being waited for report their progress to.
+     *            the {@link InterruptionChecker} to which worker threads report progress.
      * @param timeoutNanos
-     *            the timeout in nanoseconds: how long the threads being waited for may go without progress.
+     *            the maximum time in nanoseconds that worker threads may go without reporting progress.
      */
     public IdleTimeout(final InterruptionChecker interruptionChecker, final long timeoutNanos) {
         this.interruptionChecker = interruptionChecker;
@@ -88,18 +76,18 @@ public final class IdleTimeout {
     }
 
     /**
-     * Get the timeout.
+     * Get the idle timeout in nanoseconds.
      *
-     * @return the timeout in nanoseconds.
+     * @return the idle timeout in nanoseconds.
      */
     public long getTimeoutNanos() {
         return timeoutNanos;
     }
 
     /**
-     * Start the next slice of the wait.
+     * Start the next wait slice and return its duration in nanoseconds.
      *
-     * @return how long to wait for, in nanoseconds.
+     * @return the duration of the next wait slice in nanoseconds.
      */
     public long nextWaitNanos() {
         sliceStartNanos = System.nanoTime();
@@ -107,9 +95,9 @@ public final class IdleTimeout {
     }
 
     /**
-     * Call when a slice of the wait ended without the thing waited for happening.
+     * Update the accumulated idle time after an elapsed wait slice and check whether the timeout has expired.
      *
-     * @return true if no progress has been made for the whole timeout.
+     * @return {@code true} if no progress has been reported for the full timeout duration.
      */
     public boolean hasRunOut() {
         final var newProgressCount = interruptionChecker.getProgressCount();

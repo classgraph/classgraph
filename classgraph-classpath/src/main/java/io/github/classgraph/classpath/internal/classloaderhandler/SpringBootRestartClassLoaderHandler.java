@@ -34,11 +34,8 @@ import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.classpath.ClassLoaderOrder;
 
 /**
- * This handler uses parent-last delegation order (i.e. it adds the classloader itself to the classloader order
- * before delegating to the parent) to support the <code>RestartClassLoader</code> of Spring Boot's devtools.
- * <code>RestartClassLoader</code> provides parent-last loading for specified URLs (those are all that are supposed
- * to be changed during development). Therefore the handler for that class loader also has to delegate in
- * parent-last order.
+ * Extracts the parent-last delegation order and classpath entries from Spring Boot devtools'
+ * {@code RestartClassLoader}.
  */
 class SpringBootRestartClassLoaderHandler extends URLClassLoaderHandler {
     /** Constructor. */

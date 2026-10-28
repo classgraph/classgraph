@@ -47,10 +47,7 @@ import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
 
 /**
- * Extract classpath entries from the JBoss ClassLoader. See:
- *
- * <p>
- * https://github.com/jboss-modules/jboss-modules/blob/master/src/main/java/org/jboss/modules/ModuleClassLoader.java
+ * Extracts classpath entries from the JBoss {@code org.jboss.modules.ModuleClassLoader}.
  */
 class JBossClassLoaderHandler implements ClassLoaderHandler {
     /** Constructor. */
@@ -70,16 +67,16 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Handle a resource loader.
+     * Extracts classpath entries from a JBoss {@code ResourceLoader}.
      *
      * @param resourceLoader
-     *            the resource loader, or null (ignored)
+     *            the resource loader, or {@code null}.
      * @param classLoader
-     *            the classloader
+     *            the classloader.
      * @param classpathOrderOut
-     *            the classpath order
+     *            the classpath order.
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or {@code null} to skip logging.
      */
     private static void handleResourceLoader(final @Nullable Object resourceLoader, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final @Nullable ClassGraphLog log) {
@@ -104,15 +101,11 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Returns the absolute path of a JAR file from a given root object using the JBoss VFS mechanism. This works
-     * for Versions of JBoss/Wildfly that contain the following change:
-     * <a href="https://issues.redhat.com/browse/WFLY-18544">WFLY-18544</a>
-     * <a href="https://issues.redhat.com/browse/JBEAP-25879">JBEAP-25879</a>
-     * <a href="https://issues.redhat.com/browse/JBEAP-25677">JBEAP-25677</a>
+     * Extracts the physical JAR file for a JBoss VFS root via {@code VFS.getMount(root)}.
      *
      * @param root
-     *            The root object to get the JAR path from, or null.
-     * @return The {@link File} of the JAR file, or null if the path couldn't be found.
+     *            the VFS root object, or {@code null}.
+     * @return the {@link File} of the JAR file, or {@code null} if it could not be resolved.
      */
     private static @Nullable File loadJarPathFromNewVFS(final @Nullable Object root) {
         if (root == null) {
@@ -142,16 +135,11 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Get the access to the JBoss VFS class. Tries to load VFS first from the classloader of the provided root
-     * object if it's an object from org.jboss.vfs. If the root object is not from org.jboss.vfs, VFS will be tried
-     * to be loaded from the current thread class loader. It might be unnecessary to load VFS from the current
-     * thread context, because this means that the root object is not from org.jboss.vfs and VFS will not help
-     * here... but as a defensive approach we really try to get VFS access here.
+     * Resolves {@code org.jboss.vfs.VFS} from the classloader of {@code root} or the thread context classloader.
      *
      * @param root
-     *            The root VirtualFile of JBoss VFS. Used to load the VFS via the classloader of the root. Can not
-     *            be null.
-     * @return The Class object representing the JBoss VFS class, or null if it couldn't be found.
+     *            the root {@code VirtualFile} of JBoss VFS.
+     * @return the {@code org.jboss.vfs.VFS} class, or {@code null} if not found.
      */
     private static @Nullable Class<?> getJBossVFSAccess(final Object root) {
         // we need access to the class 'VFS' of org.jboss.vfs
@@ -170,26 +158,23 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Load the JBoss VFS class from a given classloader.
+     * Loads {@code org.jboss.vfs.VFS} from the given classloader.
      *
      * @param classLoader
-     *            the classloader to load {@code org.jboss.vfs.VFS} from.
-     * @return the {@code org.jboss.vfs.VFS} class, or null if it is not visible to the given classloader.
+     *            the classloader to query, or {@code null}.
+     * @return the {@code org.jboss.vfs.VFS} class, or {@code null} if not visible.
      */
     private static @Nullable Class<?> loadJBossVFS(final @Nullable ClassLoader classLoader) {
         return ReflectionUtils.classForNameOrNull("org.jboss.vfs.VFS", classLoader);
     }
 
     /**
-     * Returns the absolute path of a JAR file from a given root object using the 'classic' VFS read mechanism. This
-     * works for Versions of JBoss/Wildfly prior to this change:
-     * <a href="https://issues.redhat.com/browse/WFLY-18544">WFLY-18544</a>
-     * <a href="https://issues.redhat.com/browse/JBEAP-25879">JBEAP-25879</a>
-     * <a href="https://issues.redhat.com/browse/JBEAP-25677">JBEAP-25677</a>
+     * Extracts the physical file or path for a JBoss VFS root via {@code getPhysicalFile()} or
+     * {@code getPathName()}.
      *
      * @param root
-     *            The root object to get the JAR path from, or null.
-     * @return The {@link File} or {@link Path} of the JAR file, or null if the VFS path couldn't be found.
+     *            the VFS root object, or {@code null}.
+     * @return the {@link File}, {@link Path}, or path string of the JAR or directory, or {@code null} if not found.
      */
     private static @Nullable Object loadJarPathFromClassicVFS(final @Nullable Object root) {
         if (root == null) {
@@ -221,18 +206,18 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Handle a module.
+     * Extracts classpath entries from a JBoss {@code Module}.
      *
      * @param module
-     *            the module, or null
+     *            the module, or {@code null}.
      * @param visitedModules
-     *            visited modules
+     *            already-visited modules.
      * @param classLoader
-     *            the classloader
+     *            the classloader.
      * @param classpathOrderOut
-     *            the classpath order
+     *            the classpath order.
      * @param log
-     *            the log node, or null to skip logging
+     *            the log node, or {@code null} to skip logging.
      */
     private static void handleRealModule(final @Nullable Object module, final Set<@Nullable Object> visitedModules,
             final ClassLoader classLoader, final ClasspathOrder classpathOrderOut,

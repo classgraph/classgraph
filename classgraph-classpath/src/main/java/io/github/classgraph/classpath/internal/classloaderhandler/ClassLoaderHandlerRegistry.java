@@ -32,22 +32,11 @@ import java.util.List;
 
 import io.github.classgraph.classpath.ClassLoaderHandler;
 
-/** The registry for ClassLoaderHandler classes. */
+/** Registry of built-in {@link ClassLoaderHandler} implementations. */
 public final class ClassLoaderHandlerRegistry {
     /**
-     * The built-in {@link ClassLoaderHandler}s. If a {@link ClassLoaderHandler} is added to ClassGraph, it should
-     * be added to this list.
-     *
-     * <p>
-     * The order of this list does not affect the result of a scan: when several handlers can handle the same
-     * classloader, the caller keeps only the ones that handle the most specific classloader class, so a handler for
-     * a subclass of {@link java.net.URLClassLoader} always wins over the handler for
-     * {@link java.net.URLClassLoader} itself. The list is therefore kept in alphabetical order, which is the
-     * easiest order to check a handler's presence in.
-     *
-     * <p>
-     * {@code FallbackClassLoaderHandler} is not in this list -- it is registered separately as
-     * {@link #FALLBACK_HANDLER}, since it is only used when no other handler can handle a classloader.
+     * The built-in {@link ClassLoaderHandler} instances, in alphabetical order (excluding
+     * {@link #FALLBACK_HANDLER}).
      */
     public static final List<ClassLoaderHandler> CLASS_LOADER_HANDLERS = List.of(new AntClassLoaderHandler(),
             new CxfContainerClassLoaderHandler(), new EquinoxClassLoaderHandler(),
@@ -58,7 +47,7 @@ public final class ClassLoaderHandlerRegistry {
             new UnoOneJarClassLoaderHandler(), new URLClassLoaderHandler(), new WeblogicClassLoaderHandler(),
             new WebsphereLibertyClassLoaderHandler(), new WebsphereTraditionalClassLoaderHandler());
 
-    /** Fallback ClassLoaderHandler. */
+    /** The fallback {@link ClassLoaderHandler} used when no other handler matches a classloader. */
     public static final ClassLoaderHandler FALLBACK_HANDLER = new FallbackClassLoaderHandler();
 
     // -------------------------------------------------------------------------------------------------------------

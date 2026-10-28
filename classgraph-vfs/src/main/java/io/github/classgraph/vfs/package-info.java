@@ -28,11 +28,11 @@
  */
 
 /**
- * A virtual filesystem: reads directories, jarfiles and modules through one interface, however they are named.
+ * A virtual filesystem providing unified read access to directories, jarfiles, and modules.
  *
  * <p>
- * Start at {@link io.github.classgraph.vfs.Vfs}, which opens a {@link io.github.classgraph.vfs.VfsRoot} of
- * {@link io.github.classgraph.vfs.VfsEntry} instances:
+ * Entry point: {@link io.github.classgraph.vfs.Vfs}, which opens a {@link io.github.classgraph.vfs.VfsRoot}
+ * containing {@link io.github.classgraph.vfs.VfsEntry} instances:
  *
  * <pre>
  * try (Vfs vfs = new Vfs()) {
@@ -43,54 +43,35 @@
  * </pre>
  *
  * <p>
- * The same code reads a directory, a module, a jarfile downloaded from a URL, or a jarfile held in RAM, because
- * {@link io.github.classgraph.vfs.Vfs#open(String)} has an overload for every way that Java names a place to read
- * from -- a path string, a {@link java.io.File}, a {@link java.nio.file.Path} in any filesystem, a
- * {@link java.net.URI}, a {@link java.net.URL}, a {@link java.lang.module.ModuleReference}, an
- * {@link java.io.InputStream} or a byte array -- and all of them give back the same
- * {@link io.github.classgraph.vfs.VfsRoot} interface. Each entry can then be read as an
- * {@link java.io.InputStream}, a {@link java.nio.channels.ReadableByteChannel}, a {@link java.nio.ByteBuffer}, a
- * byte array or a string, whichever the caller wants, whatever the entry is stored in.
+ * {@link io.github.classgraph.vfs.Vfs#open(String)} and its overloads accept a path string, {@link java.io.File},
+ * {@link java.nio.file.Path}, {@link java.net.URI}, {@link java.net.URL}, {@link java.lang.module.ModuleReference},
+ * {@link java.io.InputStream}, or byte array, returning a {@link io.github.classgraph.vfs.VfsRoot}. Each
+ * {@link io.github.classgraph.vfs.VfsEntry} can be read as an {@link java.io.InputStream},
+ * {@link java.nio.channels.ReadableByteChannel}, {@link java.nio.ByteBuffer}, byte array, or string. Stored nested
+ * jarfiles (such as in Spring Boot executable jars) are read in place via a slice of the enclosing jarfile without
+ * extracting to disk.
  *
  * <p>
- * {@link io.github.classgraph.vfs.VfsRoot#walk(io.github.classgraph.vfs.VfsVisitor)} enumerates a root without
- * building a list of every entry in it, offering each directory before the entries in it so that an unwanted
- * directory can be skipped -- and, for a directory tree, never listed at all.
+ * {@link io.github.classgraph.vfs.VfsRoot#walk(io.github.classgraph.vfs.VfsVisitor)} traverses a root without
+ * materializing a list of all entries, visiting each directory before its contents so that unwanted subdirectories
+ * can be skipped.
  *
  * <p>
- * {@link io.github.classgraph.vfs.VfsRoot#asFileSystem()} presents a whole root as a read-only
- * {@link java.nio.file.FileSystem}, and {@link io.github.classgraph.vfs.VfsEntry#asPath()} presents a single entry
- * as a {@link java.nio.file.Path} within it, so that code written against {@link java.nio.file.Files} can read a
- * nested jarfile, a package root, a module, or a jarfile held in RAM -- none of which the zip filesystem provider
- * that ships with the JDK can open.
+ * {@link io.github.classgraph.vfs.VfsRoot#asFileSystem()} exposes a root as a read-only
+ * {@link java.nio.file.FileSystem}, and {@link io.github.classgraph.vfs.VfsEntry#asPath()} exposes an entry as a
+ * {@link java.nio.file.Path}, allowing {@link java.nio.file.Files} APIs to read nested jarfiles, package roots,
+ * modules, and in-memory jarfiles.
  *
  * <p>
- * The zipfile reader in this package is a good deal faster than {@link java.util.zip.ZipFile}, and unlike
- * {@link java.util.zip.ZipFile} it can read a jarfile that is nested inside another jarfile, as produced by Spring
- * Boot and other executable-jar formats. A nested jarfile is read in place through a slice of the enclosing
- * jarfile, rather than being extracted to a temporary directory first.
+ * A {@link io.github.classgraph.vfs.Vfs} instance owns all roots it opens and must remain open while its entries
+ * are read. Closing the {@link io.github.classgraph.vfs.Vfs} closes all of its roots and releases their underlying
+ * file handles, memory mappings, and temporary files. Individual {@link io.github.classgraph.vfs.VfsRoot} instances
+ * also implement {@link java.lang.AutoCloseable} so their resources can be released early.
  *
  * <p>
- * Ownership is a tree: a {@link io.github.classgraph.vfs.Vfs} owns every root it opens, and each root owns the file
- * handle, memory mapping and temporary file that back it, along with the roots opened within it, which read through
- * that storage. Closing the {@link io.github.classgraph.vfs.Vfs} closes every root, so it must be closed, and it
- * must stay open for as long as its entries are being read. A {@link io.github.classgraph.vfs.VfsRoot} is
- * {@link java.lang.AutoCloseable} too, for a long-lived {@link io.github.classgraph.vfs.Vfs} that wants what one
- * root holds released before the rest.
- *
- * <p>
- * This package is {@link org.jspecify.annotations.NullMarked}: unless a type is annotated
- * {@link org.jspecify.annotations.Nullable}, it is never null. That applies in both directions -- a value returned
- * from this package is null only where the return type says so, and an argument passed to this package may be null
- * only where the parameter type says so.
- *
- * <p>
- * The {@code @NullMarked} contract is checked at compile time, and only for callers that run a null checker of
- * their own. Public methods in this package therefore also check their arguments at runtime, and throw
- * {@link java.lang.NullPointerException} if a null is passed for a parameter that is not annotated
- * {@link org.jspecify.annotations.Nullable}, so that the failure happens at the call that passed the null rather
- * than deeper in the library, or silently, as a "not found" result. Individual methods do not repeat this in their
- * own documentation.
+ * This package is {@link org.jspecify.annotations.NullMarked}: parameters and return values are non-null unless
+ * annotated with {@link org.jspecify.annotations.Nullable}, and passing {@code null} for a non-null parameter
+ * throws {@link java.lang.NullPointerException}.
  *
  * @author Luke Hutchison
  */

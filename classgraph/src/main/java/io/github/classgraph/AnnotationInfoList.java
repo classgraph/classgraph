@@ -52,23 +52,15 @@ import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 
 /**
- * A list of {@link AnnotationInfo} objects, which stores both the reachable annotations (annotations that are
- * either directly present on the annotated item, or reached indirectly through a meta-annotation, or inherited from
- * a superclass or interface that was annotated with {@link java.lang.annotation.Inherited @Inherited}), and the
- * directly present annotations. (By default, accessing an {@link AnnotationInfoList} as a {@link List} returns the
- * reachable annotations; by calling {@link #directOnly()}, you can get only the directly present annotations.)
- *
- * <p>
- * Equality is {@link List} equality: two lists are equal if they hold equal annotations in the same order. Which of
- * the annotations are directly present is reported by {@link #directOnly()}, and is not part of the comparison, so
- * two lists that hold the same annotations are equal even when they were reached in different ways.
+ * A list of {@link AnnotationInfo} objects. By default, accessing an {@link AnnotationInfoList} as a {@link List}
+ * returns all reachable annotations (annotations directly present on the annotated element, meta-annotations, and
+ * annotations inherited from superclasses annotated with {@link java.lang.annotation.Inherited @Inherited}).
+ * Calling {@link #directOnly()} returns only the directly-present annotations.
  */
 @Unmodifiable // Ignored by Kotlin for now: see the TODO in UnmodifiableList
 public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     /**
-     * The annotations in this list that are directly present on the annotated item, rather than reached through a
-     * meta-annotation or inherited. It is this list itself when every annotation in it is directly present. See
-     * {@link #directOnly()}.
+     * The annotations in this list that are directly present on the annotated element. See {@link #directOnly()}.
      */
     private final AnnotationInfoList directlyRelatedAnnotations;
 
@@ -85,13 +77,11 @@ public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     }
 
     /**
-     * Construct a new unmodifiable {@link AnnotationInfoList} from a completed collection of {@link AnnotationInfo}
-     * objects. The collection is copied, and the annotations are sorted by name. Annotations of the same name, such
-     * as the repeats of a repeatable annotation, keep the order they have in the collection.
+     * Construct a new unmodifiable {@link AnnotationInfoList} from a collection of {@link AnnotationInfo} objects,
+     * sorted by annotation name.
      *
      * @param annotationInfoCollection
-     *            the annotations to add to the list. All of them are treated as directly present on the annotated
-     *            item, rather than as meta-annotations.
+     *            the annotations to add to the list.
      */
     public AnnotationInfoList(final Collection<AnnotationInfo> annotationInfoCollection) {
         this(sortCopyByName(
@@ -99,9 +89,7 @@ public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     }
 
     /**
-     * Copy a collection of annotations, and sort the copy by name. The sort is stable, so annotations of the same
-     * name, such as the repeats of a repeatable annotation, keep the order they have in the collection, as in the
-     * JDK, rather than being sorted by their parameter values.
+     * Return a copy of a collection of annotations, stably sorted by name.
      *
      * @param annotations
      *            the annotations
@@ -114,12 +102,10 @@ public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     }
 
     /**
-     * Constructor for a list all of whose annotations are treated as directly present on the annotated item. As in
-     * {@link InfoList#InfoList(List)}, this list claims the given list, and the caller is responsible for having
-     * sorted it.
+     * Construct a list of directly-present annotations.
      *
      * @param annotationInfo
-     *            the annotations to add to the list
+     *            the pre-sorted annotations
      */
     AnnotationInfoList(final List<AnnotationInfo> annotationInfo) {
         super(annotationInfo);
@@ -128,14 +114,12 @@ public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     }
 
     /**
-     * Constructor for a list of reachable annotations, given which of them are directly present on the annotated
-     * item. As in {@link InfoList#InfoList(List)}, this list claims both of the given lists, and the caller is
-     * responsible for having sorted them.
+     * Construct a list of reachable and directly-present annotations.
      *
      * @param reachableAnnotations
-     *            the reachable annotations
+     *            the pre-sorted reachable annotations
      * @param directAnnotations
-     *            the reachable annotations that are directly present on the annotated item
+     *            the pre-sorted directly-present annotations
      */
     AnnotationInfoList(final List<AnnotationInfo> reachableAnnotations,
             final List<AnnotationInfo> directAnnotations) {
@@ -205,11 +189,8 @@ public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Unpack the container annotations of {@link Repeatable} annotations. A repeatable annotation that is applied
-     * more than once is stored in the classfile as a single container annotation, whose {@code value} parameter
-     * holds the repeats. As in the JDK, the container stays in the list, as in
-     * {@link java.lang.reflect.AnnotatedElement#getAnnotations()}, and the repeats are inserted right after it, in
-     * the order they were written, as in {@link java.lang.reflect.AnnotatedElement#getAnnotationsByType(Class)}.
+     * Unpack {@link Repeatable} container annotations in the list and insert the repeated annotations immediately
+     * after each container.
      *
      * @param annotations
      *            the annotations to search for containers. The repeats are inserted into this list.
@@ -240,10 +221,7 @@ public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     }
 
     /**
-     * Unpack the container annotations of {@link Repeatable} annotations on a class, method, method parameter or
-     * field (see {@link #unpackRepeatableAnnotations(List, Set)}), and link each repeat into the class graph. The
-     * container was already linked when the classfile was read, so the class graph, like the annotation list, holds
-     * both the container and the repeats.
+     * Unpack {@link Repeatable} container annotations and link the repeated annotations into the class graph.
      *
      * @param annotations
      *            the annotations to search for containers
@@ -277,10 +255,7 @@ public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * How directly an annotation is related to the annotated class, method, method parameter or field: it is
-     * directly present on it, or it is inherited from a superclass, or it is a meta-annotation on one of the other
-     * two. The same annotation can be reached in more than one of these ways, and the most direct of them is the
-     * one that should be reported.
+     * How directly an annotation is related to an annotated element.
      */
     // #559
     private enum Directness {
@@ -295,8 +270,7 @@ public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     }
 
     /**
-     * Add a reachable annotation to a list, unless the same annotation was already reached by a route at least as
-     * direct.
+     * Add a reachable annotation to a list and record its most direct relationship.
      *
      * @param ai
      *            the annotation
@@ -425,14 +399,11 @@ public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     }
 
     /**
-     * Get the list of annotations directly present on an annotated element, without finding their meta-annotations.
-     * The list is equal to the list that {@link #directOnly()} returns for the list built by
-     * {@link #getIndirectAnnotations(List, ClassInfo)}.
+     * Get the list of annotations directly present on an annotated element, sorted by name.
      *
      * @param directAnnotationInfo
      *            the annotations directly present on the annotated element, or null if none.
-     * @return the annotations, sorted by name, with the same stable sort as
-     *         {@link #getIndirectAnnotations(List, ClassInfo)}.
+     * @return the annotations, sorted by name.
      */
     static AnnotationInfoList getDirectAnnotations(final @Nullable List<AnnotationInfo> directAnnotationInfo) {
         return directAnnotationInfo == null || directAnnotationInfo.isEmpty() ? EMPTY_LIST

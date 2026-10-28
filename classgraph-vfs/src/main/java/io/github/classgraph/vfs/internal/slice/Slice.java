@@ -48,43 +48,35 @@ import io.github.classgraph.vfs.internal.TempFile;
 import io.github.classgraph.vfs.reader.RandomAccessReader;
 
 /**
- * A slice of a file ({@link PathSlice}) or of a byte array ({@link ArraySlice}). The content of an
- * {@link InputStream} is read into one or the other by {@link #fromInputStream}.
+ * A raw byte range within a file ({@link PathSlice}) or byte array ({@link ArraySlice}).
  *
  * <p>
- * A slice is a range of bytes, and gives the same bytes whichever way it is read. It does not decode what it holds:
- * the slice of a deflated zip entry holds the entry's compressed bytes, and the entry is inflated by
- * {@code FastZipEntry}.
- *
- * <p>
- * A {@link Slice} may be shared between threads -- a zipfile's slice is read concurrently by all the threads
- * scanning that zipfile. It is the objects obtained <i>from</i> a slice that are single-threaded: each call to
- * {@link #randomAccessReader()} or {@link #open()} returns a new reader or stream with its own read position and
- * scratch buffers, and each of those must be used by only one thread.
+ * A {@link Slice} is thread-safe for concurrent access, whereas each {@link RandomAccessReader} or
+ * {@link InputStream} returned by {@link #randomAccessReader()} or {@link #open()} maintains its own state and is
+ * single-threaded.
  */
 public abstract class Slice implements AutoCloseable {
     /**
-     * The maximum size of a byte array that the content of a slice can be loaded into. Eight bytes smaller than
-     * {@link Integer#MAX_VALUE}, since some VMs reserve header words in arrays.
+     * The maximum size of a byte array into which a slice can be loaded ({@code Integer.MAX_VALUE - 8}).
      */
     public static final int MAX_BUFFER_SIZE = Integer.MAX_VALUE - 8;
 
-    /** The size of the buffer to read into when the length of the content is not known ahead of time. */
+    /** Initial buffer size when reading a stream of unknown length. */
     private static final int DEFAULT_BUFFER_SIZE = 16384;
 
-    /** The largest buffer that a length hint is allowed to allocate up front. */
+    /** Maximum initial buffer size allocated up front from a stream length hint. */
     private static final int MAX_INITIAL_BUFFER_SIZE = 16 * 1024 * 1024;
 
-    /** The {@link Vfs} that opened this slice, which every slice reaches its shared settings and pools through. */
+    /** The {@link Vfs} that opened this slice. */
     protected final Vfs vfs;
 
     /** The parent slice, or null if this is a toplevel slice. */
     protected final @Nullable Slice parentSlice;
 
-    /** The start position of the slice. */
+    /** The start position of the slice within the toplevel backing store. */
     public final long sliceStartPos;
 
-    /** The length of the slice. Never negative -- the constructor rejects a negative length. */
+    /** The non-negative length of the slice in bytes. */
     public final long sliceLength;
 
     /** The cached hashCode. */
@@ -140,25 +132,23 @@ public abstract class Slice implements AutoCloseable {
     // ---------------------------------------------------------------------------------------------------------
 
     /**
-     * Read all the bytes of an {@link InputStream} into a {@link Slice}, spilling over to a temporary file on disk
-     * if the content is too large to buffer in RAM.
+     * Read all bytes of an {@link InputStream} into a {@link Slice}, spilling to a temporary file on disk if the
+     * stream exceeds {@link io.github.classgraph.vfs.VfsSpec#getMaxBufferedJarRAMSize()}.
      *
      * @param inputStream
-     *            the {@link InputStream} to read from. Read to its end, but not closed: whoever opened the stream
-     *            owns it, and one of the callers of this method is handed its stream by the user of the API.
+     *            the {@link InputStream} to read from (read to EOF, not closed by this method).
      * @param tempFileBaseName
-     *            the source URL or zip entry that inputStream was opened from (used to name the temporary file, if
-     *            one is needed).
+     *            the source URL or zip entry path from which to derive a temporary filename if needed.
      * @param inputStreamLengthHint
-     *            the length of inputStream if known, else -1L.
+     *            the expected length of {@code inputStream}, or -1L if unknown.
      * @param vfs
-     *            the {@link Vfs} that opened this slice
+     *            the {@link Vfs} that opened this slice.
      * @param log
-     *            the log node, or null to skip logging
-     * @return an {@link ArraySlice}, if the {@link InputStream} could be read into a byte array, otherwise a
-     *         {@link PathSlice} over the temporary file that it was spilled to.
+     *            the log node, or null to skip logging.
+     * @return an {@link ArraySlice} if buffered in RAM, or a {@link PathSlice} over the temporary file if spilled
+     *         to disk.
      * @throws IOException
-     *             If the contents could not be read.
+     *             if the stream could not be read or spilled to disk.
      */
     public static Slice fromInputStream(final InputStream inputStream, final String tempFileBaseName,
             final long inputStreamLengthHint, final Vfs vfs, final @Nullable LogNode log) throws IOException {
@@ -186,48 +176,29 @@ public abstract class Slice implements AutoCloseable {
     }
 
     /**
-     * The start of a stream, read into an array by {@link #readUpTo}.
+     * Prefix bytes read from a stream by {@link #readUpTo}.
      *
      * @param bytes
-     *            the bytes read from the stream, in order. The array holds nothing else.
+     *            the bytes read from the stream.
      * @param overflowByte
-     *            the byte that was read after {@code bytes} had reached the largest size allowed, or -1 if the
-     *            stream ended first, in which case {@code bytes} holds the whole of the stream.
+     *            the first byte read past {@code maxSize}, or -1 if the stream ended within {@code maxSize}.
      */
     private record StreamPrefix(byte[] bytes, int overflowByte) {
     }
 
     /**
-     * Read a stream into an array, until the end of the stream, or until the array has reached a given size and
-     * there is more of the stream to read.
-     *
-     * <p>
-     * A known length is allocated up front, since it is usually right, but only up to
-     * {@link #MAX_INITIAL_BUFFER_SIZE}: the length is only a hint, e.g. the uncompressed size that a zip entry
-     * claims, which can be anything, and a zipfile must not be able to make the reader allocate more memory than
-     * its content needs just by claiming that an entry is enormous. A length that is unknown, or that is zero and
-     * so may or may not be right, starts at {@link #DEFAULT_BUFFER_SIZE}. Either way the array is doubled from
-     * there as it fills, so that reading a small stream does not allocate the whole of {@code maxSize}.
-     *
-     * <p>
-     * The array is only grown once it is full, and a stream does not report that it has ended until it is asked for
-     * a byte that it does not have, so a full array is followed by a read of a single byte, to find out whether
-     * there is more of the stream before growing the array to hold it. That byte is the overflow byte if the array
-     * cannot grow any further. A read into an array with room left in it goes through
-     * {@link InputStreamUtils#readAtLeastOne}, so a stream that returns zero from such a read is neither taken to
-     * have ended there, which would truncate the content, nor taken to have filled the array, which would grow the
-     * array once per zero, up to {@code maxSize}, to hold a handful of bytes.
+     * Read from {@code inputStream} into a byte array until EOF or until {@code maxSize} bytes have been read and
+     * at least one additional byte remains.
      *
      * @param inputStream
-     *            the stream to read from. Not closed by this method.
+     *            the stream to read from (not closed by this method).
      * @param lengthHint
-     *            the length of the stream if known, else -1L.
+     *            the expected stream length, or -1L if unknown.
      * @param maxSize
-     *            the largest size that the array may grow to, which is at most {@link #MAX_BUFFER_SIZE}.
+     *            the maximum buffer size (at most {@link #MAX_BUFFER_SIZE}).
      * @param interruptionChecker
-     *            the InterruptionChecker to report progress to after each read that returns bytes, or null to
-     *            report none.
-     * @return the bytes read, and the byte that was read past {@code maxSize}, if any.
+     *            the {@link InterruptionChecker} to notify of read progress, or null if none.
+     * @return the bytes read and the first overflow byte past {@code maxSize} (or -1 if EOF was reached).
      * @throws IOException
      *             if the stream could not be read.
      */
@@ -270,22 +241,22 @@ public abstract class Slice implements AutoCloseable {
     }
 
     /**
-     * Spill an {@link InputStream} to disk if the stream is too large to fit in RAM.
+     * Spill an {@link InputStream} (and any already-read prefix) to a temporary file and return a {@link PathSlice}
+     * that owns the file.
      *
      * @param inputStream
-     *            The {@link InputStream}.
+     *            the {@link InputStream}.
      * @param tempFileBaseName
-     *            The stem to base the temporary filename on.
+     *            the path or name from which to derive the temporary filename.
      * @param prefix
-     *            The start of the stream that has already been read, which ran past the largest size allowed, to
-     *            write to the beginning of the file, or null if nothing has been read from the stream.
+     *            the prefix bytes already read from the stream, or null if none.
      * @param vfs
-     *            the {@link Vfs} that opened this slice
+     *            the {@link Vfs} that opened this slice.
      * @param log
-     *            The log.
-     * @return the file slice
+     *            the log node, or null to skip logging.
+     * @return the {@link PathSlice} over the temporary file.
      * @throws IOException
-     *             If anything went wrong creating or writing to the temp file.
+     *             if the temporary file could not be created, written, or opened.
      */
     private static PathSlice spillToDisk(final InputStream inputStream, final String tempFileBaseName,
             final @Nullable StreamPrefix prefix, final Vfs vfs, final @Nullable LogNode log) throws IOException {
@@ -316,23 +287,22 @@ public abstract class Slice implements AutoCloseable {
     }
 
     /**
-     * Write the content of an {@link InputStream} to a temporary file that has already been created, and open a
-     * {@link PathSlice} that owns the file.
+     * Write {@code prefix} (if non-null) and the remainder of {@code inputStream} to {@code tempFile}, then open a
+     * {@link PathSlice} that owns {@code tempFile}.
      *
      * @param inputStream
-     *            The {@link InputStream}.
+     *            the {@link InputStream}.
      * @param tempFile
-     *            The temporary file to write to.
+     *            the temporary file to write to.
      * @param prefix
-     *            The start of the stream that has already been read, which ran past the largest size allowed, to
-     *            write to the beginning of the file, or null if nothing has been read from the stream.
+     *            the prefix bytes already read from the stream, or null if none.
      * @param vfs
-     *            the {@link Vfs} that opened this slice
+     *            the {@link Vfs} that opened this slice.
      * @param log
-     *            The log.
-     * @return the file slice, which owns the temporary file.
+     *            the log node, or null to skip logging.
+     * @return the {@link PathSlice} over the temporary file.
      * @throws IOException
-     *             If anything went wrong writing to the temp file, or opening the slice over it.
+     *             if writing to or opening the temporary file fails.
      */
     private static PathSlice spillToTempFile(final InputStream inputStream, final File tempFile,
             final @Nullable StreamPrefix prefix, final Vfs vfs, final @Nullable LogNode log) throws IOException {
@@ -416,7 +386,7 @@ public abstract class Slice implements AutoCloseable {
      *
      * @return the random access reader
      * @throws IOException
-     *             if this slice has been closed, so that there is nothing left to read through.
+     *             if this slice has been closed.
      */
     public abstract RandomAccessReader randomAccessReader() throws IOException;
 
@@ -430,16 +400,15 @@ public abstract class Slice implements AutoCloseable {
     public abstract byte[] load() throws IOException;
 
     /**
-     * Read an {@link InputStream} to its end, into a byte array, for content that can only be reached by streaming
-     * it, such as a deflated zip entry, which has to be inflated.
+     * Read an {@link InputStream} completely into a byte array and close the stream.
      *
      * @param inputStream
-     *            The {@link InputStream}. Closed by this method.
+     *            the {@link InputStream} (closed by this method).
      * @param uncompressedLengthHint
-     *            The length of the data once inflated from the {@link InputStream}, if known, otherwise -1L.
-     * @return The contents of the {@link InputStream} as a byte array.
+     *            the expected uncompressed length of the stream, or -1L if unknown.
+     * @return the stream contents as a byte array.
      * @throws IOException
-     *             If the contents could not be read.
+     *             if the stream could not be read or exceeds {@link #MAX_BUFFER_SIZE}.
      */
     public static byte[] readAllBytesAsArray(final InputStream inputStream, final long uncompressedLengthHint)
             throws IOException {
@@ -471,14 +440,10 @@ public abstract class Slice implements AutoCloseable {
     }
 
     /**
-     * Read the slice into a {@link ByteBuffer}.
+     * Read the slice into a read-only {@link ByteBuffer} starting at position zero with capacity equal to
+     * {@link #sliceLength}.
      *
-     * <p>
-     * The returned buffer starts at position zero, has a capacity equal to the length of the slice, and is
-     * read-only, so that it cannot reach or overwrite anything outside the slice. Use {@link #load()} instead to
-     * obtain the content of the slice as a byte array that the caller owns and may modify.
-     *
-     * @return the byte buffer
+     * @return the read-only byte buffer
      * @throws IOException
      *             if the slice could not be read.
      */
@@ -504,9 +469,8 @@ public abstract class Slice implements AutoCloseable {
     }
 
     /**
-     * A child slice is equal to another child slice of the same parent slice that spans the same range of it. A
-     * toplevel slice is only equal to itself, since it owns the resource it reads through -- two toplevel slices of
-     * the same file are two separate handles on that file, and closing one of them does not close the other.
+     * Two child slices are equal if they share the same parent slice, start position, and length; a toplevel slice
+     * is equal only to itself.
      */
     @Override
     public boolean equals(final @Nullable Object o) {
