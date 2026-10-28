@@ -96,7 +96,6 @@
 		<osgiBundleName />
 		<osgiExportPackage />
 		<osgiImportPackage />
-		<osgiDependencies />
 
 		<!-- The aggregator pom has no sources and produces no artifact, so the two steps below have -->
 		<!-- nothing to do for it: the ecj checks would have nothing to compile, and the license -->
@@ -663,13 +662,14 @@
 								<!-- Make sure "requires" entries in the module descriptor match these imports: -->
 								<!-- src/main/java/module-info.java -->
 								<Import-Package>${osgiImportPackage}</Import-Package>
-								<!-- The JBoss Modules equivalent of the "requires" clauses in -->
-								<!-- src/main/java/module-info.java. A JBoss Modules dependency is not visible to -->
-								<!-- modules that depend on this one unless it is marked "export", so every -->
-								<!-- "requires transitive" clause must be listed here with that modifier, and every -->
-								<!-- plain "requires" clause without it. "requires static" clauses are left out, -->
-								<!-- since the modules they name may not be installed in the container at all. -->
-								<Dependencies>${osgiDependencies}</Dependencies>
+								<!-- A module whose src/main/java/module-info.java requires a JDK module adds a -->
+								<!-- "Dependencies" entry that lists it, for WildFly. WildFly reads that header only -->
+								<!-- when the jar is part of a deployment, such as a WAR, and then every name in it -->
+								<!-- must be a module installed in the server, or the deployment fails. The -->
+								<!-- ClassGraph libraries are therefore never listed: in a deployment they share one -->
+								<!-- class loader, and the jars of a server module are linked by its module.xml, -->
+								<!-- which ignores this header (#952). The entry is not set here, since an empty -->
+								<!-- value would still be written to the manifest. -->
 							</manifestEntries>
 						</archive>
 					</configuration>

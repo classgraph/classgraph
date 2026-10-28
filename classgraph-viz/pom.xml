@@ -20,7 +20,6 @@
 		<!-- Must list the same packages as the exports in src/main/java/module-info.java -->
 		<osgiExportPackage>io.github.classgraph.viz;version="${project.version}"</osgiExportPackage>
 		<osgiImportPackage>io.github.classgraph,org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
-		<osgiDependencies>io.github.classgraph export</osgiDependencies>
 
 		<!-- This module has sources and produces a jar, so it needs the ecj checks and the license copies -->
 		<maven.antrun.skip>false</maven.antrun.skip>

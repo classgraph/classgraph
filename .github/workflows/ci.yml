@@ -108,7 +108,9 @@ jobs:
     # antrun step used to add a second copy under the module name, which was needed when the module
     # descriptor lived outside the source tree, but with modular Javadoc it nested the whole tree
     # under a duplicate directory instead, and roughly doubled the jar. The last check below is what
-    # catches that if anything reintroduces it.
+    # catches that if anything reintroduces it. The manifest's WildFly "Dependencies" header must not
+    # name a ClassGraph library, or a WAR that bundles the jars fails to deploy (#952), and must not be
+    # present with an empty value.
     - name: Check the published jars are laid out correctly
       run: |
         set -eu
@@ -130,6 +132,15 @@ jobs:
             if unzip -l "$javadoc_jar" | grep -qF " $jpms_module/$jpms_module/"; then
                 echo "FAIL : $module Javadoc is nested under $jpms_module/$jpms_module/"
                 exit 1
+            fi
+            # Join the manifest's continuation lines, which begin with a space, before reading a header.
+            manifest="$(unzip -p "$main_jar" META-INF/MANIFEST.MF | tr -d '\r' | sed -e ':a' -e 'N' -e '$!ba' -e 's/\n //g')"
+            if printf '%s\n' "$manifest" | grep -q '^Dependencies:'; then
+                deps="$(printf '%s\n' "$manifest" | sed -n 's/^Dependencies: *//p')"
+                if [ -z "$deps" ] || printf '%s\n' "$deps" | grep -qF 'io.github.classgraph'; then
+                    echo "FAIL : $module manifest has \"Dependencies: $deps\""
+                    exit 1
+                fi
             fi
             echo "ok   : $module -> $jpms_module"
         done
