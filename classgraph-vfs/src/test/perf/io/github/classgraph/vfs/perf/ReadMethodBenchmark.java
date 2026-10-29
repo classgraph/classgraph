@@ -31,9 +31,11 @@ package io.github.classgraph.vfs.perf;
 import java.io.Closeable;
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.io.RandomAccessFile;
 import java.lang.foreign.Arena;
 import java.nio.ByteBuffer;
+import java.nio.channels.AsynchronousFileChannel;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -218,6 +220,73 @@ public class ReadMethodBenchmark {
                         for (final var file : opened) {
                             file.close();
                         }
+                    }
+                };
+            }
+        },
+
+        /**
+         * Positional reads through a {@link FileChannel} for each thread, so that no thread waits for another's
+         * position lock, which the channel takes for a positional read on Windows.
+         */
+        CHANNEL_PER_THREAD {
+            @Override
+            FileReader open(final Path path) throws IOException {
+                final List<FileChannel> opened = Collections.synchronizedList(new ArrayList<>());
+                final var channels = ThreadLocal.withInitial(() -> {
+                    try {
+                        final var channel = FileChannel.open(path, StandardOpenOption.READ);
+                        opened.add(channel);
+                        return channel;
+                    } catch (final IOException e) {
+                        throw new IllegalStateException(e);
+                    }
+                });
+                return new FileReader() {
+                    @Override
+                    public void read(final long pos, final byte[] dst, final int len) throws IOException {
+                        readFully(channels.get(), pos, ByteBuffer.wrap(dst, 0, len));
+                    }
+
+                    @Override
+                    public void close() throws IOException {
+                        for (final var channel : opened) {
+                            channel.close();
+                        }
+                    }
+                };
+            }
+        },
+
+        /**
+         * Reads through one {@link AsynchronousFileChannel}, each waited for, which reads at an offset without
+         * taking a position lock on any OS.
+         */
+        ASYNC_CHANNEL {
+            @Override
+            FileReader open(final Path path) throws IOException {
+                final var channel = AsynchronousFileChannel.open(path, StandardOpenOption.READ);
+                return new FileReader() {
+                    @Override
+                    public void read(final long pos, final byte[] dst, final int len) throws IOException {
+                        final var buffer = ByteBuffer.wrap(dst, 0, len);
+                        try {
+                            while (buffer.hasRemaining()) {
+                                if (channel.read(buffer, pos + buffer.position()).get() < 0) {
+                                    throw new EOFException();
+                                }
+                            }
+                        } catch (final InterruptedException _) {
+                            Thread.currentThread().interrupt();
+                            throw new InterruptedIOException();
+                        } catch (final ExecutionException e) {
+                            throw new IOException(e.getCause());
+                        }
+                    }
+
+                    @Override
+                    public void close() throws IOException {
+                        channel.close();
                     }
                 };
             }
