@@ -6,9 +6,7 @@ permissions:
 # Temporary: compares whole scans that read jarfiles through a file channel, a memory mapping, or both
 # (classgraph.vfs.readMethod), interleaved in one job so that each OS compares them on the same runner.
 on:
-  push:
-    branches:
-      - read-method-experiment
+  workflow_dispatch:
 
 jobs:
   benchmark:

@@ -5,9 +5,7 @@ permissions:
 
 # Temporary: what each kind of read of a memory mapping throws past the end of a file truncated after mapping
 on:
-  push:
-    branches:
-      - read-method-experiment
+  workflow_dispatch:
 
 jobs:
   probe:

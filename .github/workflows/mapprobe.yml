@@ -1,0 +1,46 @@
+name: Map probe
+
+permissions:
+  contents: read
+
+# Temporary: what each way of reading a file throws when the file is truncated under a mapping, and how fast each
+# is for random reads of a cached file, on every OS and JDK 17, 25 and 26
+on:
+  push:
+    branches:
+      - read-method-experiment
+    paths:
+      - 'benchmark/mapprobe/**'
+      - '.github/workflows/mapprobe.yml'
+
+jobs:
+  probe:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    continue-on-error: ${{ matrix.os == 'macos-15-intel' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-15-intel, windows-latest ]
+        java: [ '17', '25', '26' ]
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+    - name: Set up JDK
+      uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+      with:
+        distribution: 'temurin'
+        java-version: ${{ matrix.java }}
+    - name: Run
+      shell: bash
+      run: |
+        benchmark/mapprobe/run.sh "$RUNNER_TEMP/mp"
+        cat "$RUNNER_TEMP/mp/trunc.md" "$RUNNER_TEMP/mp/bench.md" >> "$GITHUB_STEP_SUMMARY"
+        mkdir -p out && cp "$RUNNER_TEMP/mp/trunc.md" "$RUNNER_TEMP/mp/bench.md" "$RUNNER_TEMP/mp/bench.raw" out/
+        cp -r "$RUNNER_TEMP/mp/hs_err" out/ || true
+        tar -cf out/logs.tar -C "$RUNNER_TEMP/mp" work --exclude='*.bin' || true
+    - name: Upload
+      if: always()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: mapprobe-${{ matrix.os }}-${{ matrix.java }}
+        path: out
