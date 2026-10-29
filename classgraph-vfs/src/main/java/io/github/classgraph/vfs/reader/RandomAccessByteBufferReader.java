@@ -51,15 +51,22 @@ import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
  */
 public final class RandomAccessByteBufferReader implements RandomAccessReader {
     /**
-     * Whether a bulk read out of a direct buffer has to copy it one {@code long} at a time. A read of a memory
-     * mapping beyond the end of a file that was truncated after it was mapped faults. For a single-value read, the
-     * JVM turns the fault into an {@link InternalError} thrown by the read, which is caught below. For a bulk copy
-     * that has been JIT-compiled, it does not: on x86-64 the error is thrown only after the copy has returned, in
-     * the caller, past the catch, and on aarch64 the stub that does the copy is not guarded, so the fault kills the
-     * JVM (seen on JDK 25 and 26, on Linux and macOS). Windows does not allow a mapped file to be truncated, so a
-     * bulk copy is safe there.
+     * Whether a read of a direct buffer has to be made so that a fault is thrown inside the read. A read of a
+     * memory mapping beyond the end of a file that was truncated after it was mapped faults, and the JVM turns the
+     * fault into an {@link InternalError}. Once the read has been JIT-compiled, the JVM throws that error only at
+     * the next point where the thread checks for pending work, which can be after the read has returned, past the
+     * catch below that turns it into an {@link IOException} (seen for single-value reads and for bulk copies, on
+     * JDK 25 and 26, on Linux and macOS). A return from a native method is such a point, so each single-value read
+     * is followed by a call of one (see {@link #awaitFault()}). A bulk copy cannot be fenced the same way, since on
+     * aarch64 a compiled bulk copy of more than 64 bytes is done by a routine that the JVM does not guard, so the
+     * fault kills the JVM. A bulk read therefore copies one {@code long} at a time instead (see
+     * {@link #copyOneLongAtATime}), which was seen to throw inside the read, cold and hot, for every length tested,
+     * on every platform. Windows does not allow a mapped file to be truncated, so neither is needed there.
      */
-    private static final boolean COPY_ONE_LONG_AT_A_TIME = VersionFinder.OS != OperatingSystem.Windows;
+    private static final boolean MAPPED_FILE_CAN_SHRINK = VersionFinder.OS != OperatingSystem.Windows;
+
+    /** A lock that no thread ever holds, which {@link #awaitFault()} asks about. */
+    private static final Object FAULT_FENCE = new Object();
 
     /** Read-only duplicate of the backing byte buffer. */
     private final ByteBuffer byteBuffer;
@@ -74,10 +81,10 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
     private final @Nullable BooleanSupplier isReleased;
 
     /**
-     * Whether bulk reads copy one {@code long} at a time (see {@link #COPY_ONE_LONG_AT_A_TIME}). A heap buffer
-     * cannot fault, so it is always copied in bulk.
+     * Whether a read can fault, so that it has to be made as {@link #MAPPED_FILE_CAN_SHRINK} describes. A heap
+     * buffer cannot fault.
      */
-    private final boolean copyOneLongAtATime;
+    private final boolean canFault;
 
     /**
      * Construct a little-endian reader over a slice of a {@link ByteBuffer}.
@@ -147,12 +154,24 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
         // a position past the limit is rejected. Setting the limit moves the position back to it if it was past it.
         this.byteBuffer.limit(this.sliceStartPos + this.sliceLength);
         this.byteBuffer.position(this.sliceStartPos);
-        this.copyOneLongAtATime = COPY_ONE_LONG_AT_A_TIME && byteBuffer.isDirect();
+        this.canFault = MAPPED_FILE_CAN_SHRINK && byteBuffer.isDirect();
     }
 
     /**
-     * Copy bytes of the buffer into another buffer by single-value reads, which throw when they fault, rather than
-     * by a bulk copy, which may not (see {@link #COPY_ONE_LONG_AT_A_TIME}).
+     * If a read just made faulted, throw the {@link InternalError} for the fault here, rather than at some later
+     * point outside the read's catch. The JVM throws a pending error of a JIT-compiled read on the return from a
+     * native method, and {@link Thread#holdsLock} is one, and cheap (see {@link #MAPPED_FILE_CAN_SHRINK}).
+     */
+    private void awaitFault() {
+        if (canFault && Thread.holdsLock(FAULT_FENCE)) {
+            throw new IllegalStateException("No thread can hold the fault fence");
+        }
+    }
+
+    /**
+     * Copy bytes of the buffer into another buffer by single-value reads, rather than by a bulk copy, which kills
+     * the JVM if it faults on aarch64 (see {@link #MAPPED_FILE_CAN_SHRINK}). The loop is unrolled by hand, which
+     * makes a large copy about twice as fast.
      *
      * @param srcStart
      *            the index in the buffer to copy from.
@@ -166,6 +185,25 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
     private void copyOneLongAtATime(final int srcStart, final ByteBuffer dstBuf, final int dstBufStart,
             final int numBytes) {
         var i = 0;
+        for (; i + 8 * Long.BYTES <= numBytes; i += 8 * Long.BYTES) {
+            // All eight reads before any write, which is what makes the unrolled loop faster
+            final var a = byteBuffer.getLong(srcStart + i);
+            final var b = byteBuffer.getLong(srcStart + i + 8);
+            final var c = byteBuffer.getLong(srcStart + i + 16);
+            final var d = byteBuffer.getLong(srcStart + i + 24);
+            final var e = byteBuffer.getLong(srcStart + i + 32);
+            final var f = byteBuffer.getLong(srcStart + i + 40);
+            final var g = byteBuffer.getLong(srcStart + i + 48);
+            final var h = byteBuffer.getLong(srcStart + i + 56);
+            dstBuf.putLong(dstBufStart + i, a);
+            dstBuf.putLong(dstBufStart + i + 8, b);
+            dstBuf.putLong(dstBufStart + i + 16, c);
+            dstBuf.putLong(dstBufStart + i + 24, d);
+            dstBuf.putLong(dstBufStart + i + 32, e);
+            dstBuf.putLong(dstBufStart + i + 40, f);
+            dstBuf.putLong(dstBufStart + i + 48, g);
+            dstBuf.putLong(dstBufStart + i + 56, h);
+        }
         for (; i + Long.BYTES <= numBytes; i += Long.BYTES) {
             dstBuf.putLong(dstBufStart + i, byteBuffer.getLong(srcStart + i));
         }
@@ -223,8 +261,8 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
     /**
      * Wrap the {@link InternalError} thrown when a read of a memory-mapped file touches a page that is no longer in
      * the file, because the file was truncated after it was mapped, in an {@link IOException}. (The operating
-     * system signals the fault, and the JVM turns it into this error at the read that caused it, if the read is a
-     * single-value read -- see {@link #COPY_ONE_LONG_AT_A_TIME}.)
+     * system signals the fault, and the JVM turns it into this error, which a read has to be made to throw inside
+     * its own catch -- see {@link #MAPPED_FILE_CAN_SHRINK}.)
      *
      * @param e
      *            the error thrown by the buffer access.
@@ -270,7 +308,7 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
             final var numBytesToRead = Math.min(numBytesInSlice, dstRoom);
             final var srcStart = (int) srcOffset;
             // An absolute get, so this reader's own position and limit stay where the constructor put them
-            if (copyOneLongAtATime) {
+            if (canFault) {
                 copyOneLongAtATime(sliceStartPos + srcStart, ByteBuffer.wrap(dstArr).order(byteBuffer.order()),
                         dstArrStart, numBytesToRead);
             } else {
@@ -304,7 +342,7 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
             final var srcStart = (int) (sliceStartPos + srcOffset);
             // An absolute put, so neither buffer's position or limit is read or changed. Both ends of the copy are
             // named by index, so nothing has to be windowed first and nothing has to be put back afterwards.
-            if (copyOneLongAtATime) {
+            if (canFault) {
                 // A duplicate, so the caller's byte order is left alone
                 copyOneLongAtATime(srcStart, dstBuf.duplicate().order(byteBuffer.order()), dstBufStart,
                         numBytesToRead);
@@ -330,7 +368,9 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
         checkReadable(offset, 1);
         final var idx = (int) (sliceStartPos + offset);
         try {
-            return byteBuffer.get(idx);
+            final var value = byteBuffer.get(idx);
+            awaitFault();
+            return value;
         } catch (final IllegalStateException e) {
             throw unmapped(e);
         } catch (final InternalError e) {
@@ -354,7 +394,9 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
         checkReadable(offset, 2);
         final var idx = (int) (sliceStartPos + offset);
         try {
-            return byteBuffer.getShort(idx);
+            final var value = byteBuffer.getShort(idx);
+            awaitFault();
+            return value;
         } catch (final IllegalStateException e) {
             throw unmapped(e);
         } catch (final InternalError e) {
@@ -367,7 +409,9 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
         checkReadable(offset, 4);
         final var idx = (int) (sliceStartPos + offset);
         try {
-            return byteBuffer.getInt(idx);
+            final var value = byteBuffer.getInt(idx);
+            awaitFault();
+            return value;
         } catch (final IllegalStateException e) {
             throw unmapped(e);
         } catch (final InternalError e) {
@@ -385,7 +429,9 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
         checkReadable(offset, 8);
         final var idx = (int) (sliceStartPos + offset);
         try {
-            return byteBuffer.getLong(idx);
+            final var value = byteBuffer.getLong(idx);
+            awaitFault();
+            return value;
         } catch (final IllegalStateException e) {
             throw unmapped(e);
         } catch (final InternalError e) {
