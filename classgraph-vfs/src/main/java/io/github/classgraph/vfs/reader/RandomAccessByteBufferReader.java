@@ -177,6 +177,19 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
     }
 
     /**
+     * Wrap the {@link InternalError} thrown when a read of a memory-mapped file touches a page that is no longer in
+     * the file, because the file was truncated after it was mapped, in an {@link IOException}. (The operating
+     * system signals the fault, and the JVM turns it into this error at the read that caused it.)
+     *
+     * @param e
+     *            the error thrown by the buffer access.
+     * @return the wrapping {@link IOException}.
+     */
+    private static IOException truncated(final InternalError e) {
+        return new IOException("File is truncated", e);
+    }
+
+    /**
      * Returns the number of bytes available for a bulk read of up to {@code numBytes} starting at
      * {@code srcOffset}.
      *
@@ -220,6 +233,8 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
             throw new IOException("Read index out of bounds", e);
         } catch (final IllegalStateException e) {
             throw unmapped(e);
+        } catch (final InternalError e) {
+            throw truncated(e);
         }
     }
 
@@ -249,6 +264,8 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
             // Either buffer can be a view of a closed arena, and the exception does not say which
             throw new IOException("Cannot read a file that has been unmapped by closing what it was read through,"
                     + " or write into a destination buffer whose memory has been freed", e);
+        } catch (final InternalError e) {
+            throw truncated(e);
         }
     }
 
@@ -260,6 +277,8 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
             return byteBuffer.get(idx);
         } catch (final IllegalStateException e) {
             throw unmapped(e);
+        } catch (final InternalError e) {
+            throw truncated(e);
         }
     }
 
@@ -282,6 +301,8 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
             return byteBuffer.getShort(idx);
         } catch (final IllegalStateException e) {
             throw unmapped(e);
+        } catch (final InternalError e) {
+            throw truncated(e);
         }
     }
 
@@ -293,6 +314,8 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
             return byteBuffer.getInt(idx);
         } catch (final IllegalStateException e) {
             throw unmapped(e);
+        } catch (final InternalError e) {
+            throw truncated(e);
         }
     }
 
@@ -309,6 +332,8 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
             return byteBuffer.getLong(idx);
         } catch (final IllegalStateException e) {
             throw unmapped(e);
+        } catch (final InternalError e) {
+            throw truncated(e);
         }
     }
 

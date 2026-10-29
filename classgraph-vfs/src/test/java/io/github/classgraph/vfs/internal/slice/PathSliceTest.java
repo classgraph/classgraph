@@ -7,15 +7,23 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.io.RandomAccessFile;
 import java.lang.ref.WeakReference;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
@@ -25,6 +33,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
+import io.github.classgraph.base.internal.utils.VersionFinder;
+import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsSpec;
 
@@ -61,16 +71,176 @@ public class PathSliceTest {
         return file;
     }
 
-    /** A whole-file slice is memory-mapped on Windows, where files are mapped, and reads back the content. */
+    /**
+     * Write a test file several times longer than {@link PathSlice#MIN_CHANNEL_READ_SIZE}, so that reading a range
+     * of it can be long enough for a mapped file to read the range through a file channel.
+     *
+     * @param tempDir
+     *            the temporary directory to write the file to
+     * @return the content of the file
+     * @throws IOException
+     *             if the file could not be written
+     */
+    private static byte[] writeLargeTestFile(final Path tempDir) throws IOException {
+        final var content = new byte[300_000];
+        for (var i = 0; i < content.length; i++) {
+            content[i] = (byte) (i * 31 + (i >> 8));
+        }
+        Files.write(tempDir.resolve("large.bin"), content);
+        return content;
+    }
+
+    /**
+     * A read of a range long enough to go through a file channel, where a file is mapped, returns the bytes of that
+     * range, stops at the end of the slice, and reads nothing at or past the end, just as a read through the
+     * mapping does.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the test file could not be written or read
+     */
     @Test
-    @EnabledOnOs(OS.WINDOWS)
-    public void aWholeFileSliceIsMemoryMappedOnWindows(@TempDir final Path tempDir) throws IOException {
+    public void aLargeReadReturnsTheBytesOfItsRange(@TempDir final Path tempDir) throws IOException {
+        final var content = writeLargeTestFile(tempDir);
+        final var vfs = vfs();
+        final var slice = new PathSlice(tempDir.resolve("large.bin"), vfs, /* log = */ null);
+        try {
+            assertThat(slice.load()).isEqualTo(content);
+            final var subSlice = slice.slice(1234, 200_000);
+            assertThat(subSlice.load()).isEqualTo(Arrays.copyOfRange(content, 1234, 201_234));
+            try (var inputStream = subSlice.open()) {
+                assertThat(inputStream.readAllBytes()).isEqualTo(Arrays.copyOfRange(content, 1234, 201_234));
+            }
+
+            final var reader = subSlice.randomAccessReader();
+            final var dst = new byte[150_000];
+            // Read into the middle of the array, from a range that runs past the end of the slice
+            assertThat(reader.read(100_000, dst, 7, 140_000)).isEqualTo(100_000);
+            assertThat(Arrays.copyOfRange(dst, 7, 100_007))
+                    .isEqualTo(Arrays.copyOfRange(content, 101_234, 201_234));
+            assertThat(dst[0]).isZero();
+            assertThat(dst[100_007]).isZero();
+            assertThat(reader.read(200_000, dst, 0, 100_000)).isEqualTo(-1);
+        } finally {
+            slice.close();
+        }
+    }
+
+    /**
+     * A sub-slice cannot make a large read after the toplevel slice was closed, where a file is mapped and the read
+     * would go through a file channel, just as it cannot make a small one.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the test file could not be written or read
+     */
+    @Test
+    public void aLargeReadFailsAfterTheToplevelSliceWasClosed(@TempDir final Path tempDir) throws IOException {
+        writeLargeTestFile(tempDir);
+        final var vfs = vfs();
+        final var slice = new PathSlice(tempDir.resolve("large.bin"), vfs, /* log = */ null);
+        final var subSlice = slice.slice(1000, 200_000);
+        assertThat(subSlice.load()).hasSize(200_000);
+
+        slice.close();
+
+        assertThatThrownBy(subSlice::load).isInstanceOf(IOException.class);
+    }
+
+    /**
+     * A large read by an interrupted thread fails, wherever it goes through a file channel, but leaves nothing
+     * broken: once the thread's interrupt status is cleared it reads the file again, and reads by other threads are
+     * not affected.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws Exception
+     *             if the test file could not be written or read
+     */
+    @Test
+    public void anInterruptedLargeReadDoesNotStopLaterReads(@TempDir final Path tempDir) throws Exception {
+        final var content = writeLargeTestFile(tempDir);
+        final var vfs = vfs();
+        final var slice = new PathSlice(tempDir.resolve("large.bin"), vfs, /* log = */ null);
+        try {
+            assertThat(slice.load()).isEqualTo(content);
+
+            Thread.currentThread().interrupt();
+            try {
+                assertThatThrownBy(slice::load).isInstanceOf(InterruptedIOException.class);
+                // The interruption is not swallowed
+                assertThat(Thread.currentThread().isInterrupted()).isTrue();
+            } finally {
+                Thread.interrupted();
+            }
+
+            assertThat(slice.load()).isEqualTo(content);
+            try (ExecutorService executor = Executors.newSingleThreadExecutor()) {
+                assertThat(executor.submit(slice::load).get()).isEqualTo(content);
+            }
+        } finally {
+            slice.close();
+        }
+    }
+
+    /**
+     * Once a slice has been closed, nothing still has its file open, even after large reads on many threads at
+     * once, which on Windows each open a file channel of their own where the file is mapped. Windows does not let a
+     * file that is open be deleted.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws Exception
+     *             if the test file could not be written, read or deleted
+     */
+    @Test
+    public void aFileCanBeDeletedAfterParallelLargeReadsAndClose(@TempDir final Path tempDir) throws Exception {
+        final var content = writeLargeTestFile(tempDir);
+        final var file = tempDir.resolve("large.bin");
+        final var vfs = vfs();
+        final var slice = new PathSlice(file, vfs, /* log = */ null);
+        final var numThreads = 8;
+        try (ExecutorService executor = Executors.newFixedThreadPool(numThreads)) {
+            final var start = new CountDownLatch(1);
+            final var results = new ArrayList<Future<byte[]>>();
+            for (var i = 0; i < numThreads; i++) {
+                results.add(executor.submit(() -> {
+                    start.await();
+                    byte[] loaded = null;
+                    for (var j = 0; j < 20; j++) {
+                        loaded = slice.load();
+                    }
+                    return loaded;
+                }));
+            }
+            start.countDown();
+            for (final var result : results) {
+                assertThat(result.get()).isEqualTo(content);
+            }
+        }
+
+        slice.close();
+
+        Files.delete(file);
+        assertThat(file).doesNotExist();
+    }
+
+    /**
+     * A whole-file slice is memory-mapped, and reads back the content. Only on Windows does
+     * {@link PathSlice#read()} return a view of the mapping, since only there can a mapped file not be truncated
+     * under the caller.
+     */
+    @Test
+    public void aWholeFileSliceIsMemoryMapped(@TempDir final Path tempDir) throws IOException {
         final var file = writeTestFile(tempDir);
         final var vfs = vfs();
         final var slice = new PathSlice(file, vfs, /* log = */ null);
         try {
-            // A mapped slice is read from a direct ByteBuffer, an unmapped slice from a heap ByteBuffer
-            assertThat(slice.read().isDirect()).isTrue();
+            assertThat(slice.randomAccessReader()).isInstanceOf(MappedFileReader.class);
+            // A view of the mapping is a direct ByteBuffer, and a copy is a heap ByteBuffer
+            assertThat(slice.read().isDirect()).isEqualTo(VersionFinder.OS == OperatingSystem.Windows);
             assertThat(slice.load()).isEqualTo(CONTENT);
             assertThat(slice.loadAsString()).isEqualTo(new String(CONTENT, StandardCharsets.UTF_8));
             try (var inputStream = slice.open()) {
@@ -83,7 +253,6 @@ public class PathSliceTest {
 
     /** A sub-slice of a memory-mapped slice reads back the corresponding range of the file content. */
     @Test
-    @EnabledOnOs(OS.WINDOWS)
     public void aSubSliceOfAMappedSliceReadsTheRightRange(@TempDir final Path tempDir) throws IOException {
         final var file = writeTestFile(tempDir);
         final var vfs = vfs();
@@ -149,7 +318,6 @@ public class PathSliceTest {
      * {@link IllegalStateException} out.
      */
     @Test
-    @EnabledOnOs(OS.WINDOWS)
     public void readingAMappedSliceAfterItWasClosedThrows(@TempDir final Path tempDir) throws IOException {
         final var file = writeTestFile(tempDir);
         final var vfs = vfs();
@@ -175,11 +343,10 @@ public class PathSliceTest {
      * {@link NullPointerException} from the file channel it no longer has.
      */
     @Test
-    @DisabledOnOs(OS.WINDOWS)
     public void anUnmappedSliceCannotBeReadAfterItWasClosed(@TempDir final Path tempDir) throws IOException {
         final var file = writeTestFile(tempDir);
         final var vfs = vfs();
-        final var slice = new PathSlice(file, vfs, /* log = */ null);
+        final var slice = PathSlice.forDirEntry(file, vfs);
         assertThat(slice.load()).isEqualTo(CONTENT);
 
         slice.close();
@@ -192,16 +359,51 @@ public class PathSliceTest {
                 .hasMessageContaining("after it has been closed");
     }
 
-    /** A whole-file slice is not memory-mapped anywhere but Windows, where files are not mapped. */
+    /**
+     * A file that is truncated while it is memory-mapped is reported as truncated by an {@link IOException}, rather
+     * than by the {@link InternalError} that the JVM throws for a read of a mapped page that is no longer in the
+     * file. (Windows does not allow a mapped file to be truncated.)
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the test file could not be written or truncated
+     */
     @Test
     @DisabledOnOs(OS.WINDOWS)
-    public void aWholeFileSliceIsNotMemoryMappedOffWindows(@TempDir final Path tempDir) throws IOException {
-        final var file = writeTestFile(tempDir);
+    public void readingAMappedFileThatWasTruncatedThrowsAnIOException(@TempDir final Path tempDir)
+            throws IOException {
+        final var content = writeLargeTestFile(tempDir);
+        final var file = tempDir.resolve("large.bin");
         final var vfs = vfs();
         final var slice = new PathSlice(file, vfs, /* log = */ null);
         try {
-            assertThat(slice.read().isDirect()).isFalse();
-            assertThat(slice.load()).isEqualTo(CONTENT);
+            final var reader = slice.randomAccessReader();
+            assertThat(reader).isInstanceOf(MappedFileReader.class);
+            assertThat(reader.readByte(200_000)).isEqualTo(content[200_000]);
+
+            try (var raf = new RandomAccessFile(file.toFile(), "rw")) {
+                raf.setLength(4096);
+            }
+
+            // Each kind of read through the mapping, beyond the new end of the file
+            assertThatThrownBy(() -> reader.readByte(200_000)).isInstanceOf(IOException.class)
+                    .hasMessageContaining("truncated");
+            assertThatThrownBy(() -> reader.readShort(200_000)).isInstanceOf(IOException.class)
+                    .hasMessageContaining("truncated");
+            assertThatThrownBy(() -> reader.readInt(200_000)).isInstanceOf(IOException.class)
+                    .hasMessageContaining("truncated");
+            assertThatThrownBy(() -> reader.readLong(200_000)).isInstanceOf(IOException.class)
+                    .hasMessageContaining("truncated");
+            assertThatThrownBy(() -> reader.read(200_000, new byte[100], 0, 100)).isInstanceOf(IOException.class)
+                    .hasMessageContaining("truncated");
+            assertThatThrownBy(() -> reader.read(200_000, ByteBuffer.allocate(100), 0, 100))
+                    .isInstanceOf(IOException.class).hasMessageContaining("truncated");
+            // A large read, which goes through a file channel
+            assertThatThrownBy(slice::load).isInstanceOf(IOException.class).hasMessageContaining("truncated");
+            // And the buffer that read() returns is a copy, not a view that would fault when the caller read it
+            final var subSlice = slice.slice(200_000, 100);
+            assertThatThrownBy(subSlice::read).isInstanceOf(IOException.class).hasMessageContaining("truncated");
         } finally {
             slice.close();
         }
@@ -244,7 +446,6 @@ public class PathSliceTest {
      *             if the mapped buffer could not be read out of the slice
      */
     @Test
-    @EnabledOnOs(OS.WINDOWS)
     public void closingASliceReleasesItsMappingEvenWhileASubSliceIsAlive(@TempDir final Path tempDir)
             throws IOException, ReflectiveOperationException {
         final var file = writeTestFile(tempDir);
@@ -284,7 +485,6 @@ public class PathSliceTest {
      */
     // #939
     @Test
-    @EnabledOnOs(OS.WINDOWS)
     public void closingAStreamReleasesTheViewItHeldOfTheMapping(@TempDir final Path tempDir)
             throws IOException, ReflectiveOperationException {
         final var file = writeTestFile(tempDir);

@@ -432,9 +432,9 @@ public final class Resource implements AutoCloseable, Comparable<Resource> {
     }
 
     /**
-     * Read a classpath resource as a {@link ByteBuffer} (memory-mapped when the resource is stored uncompressed on
-     * disk). Call {@link CloseableByteBuffer#getByteBuffer()} on the returned instance to obtain the
-     * {@link ByteBuffer}.
+     * Read a classpath resource as a {@link ByteBuffer} (on Windows, a view of the memory-mapped jarfile when the
+     * resource is stored uncompressed in a jarfile on disk, and otherwise a copy). Call
+     * {@link CloseableByteBuffer#getByteBuffer()} on the returned instance to obtain the {@link ByteBuffer}.
      *
      * <p>
      * Close the returned {@link CloseableByteBuffer} or this {@link Resource} when finished to release or unmap the
