@@ -75,6 +75,8 @@ import io.github.classgraph.vfs.perf.BenchmarkFixtures.Layout;
  * <ul>
  * <li>{@code cgvfs.bench.dir}: where the archives are generated (see {@link BenchmarkFixtures#dir()}).
  * <li>{@code cgvfs.bench.libraries}: a comma-separated list of {@link Library} names to run, instead of all.
+ * <li>{@code cgvfs.bench.contents}: a comma-separated list of {@link Content} names to run, instead of all.
+ * <li>{@code cgvfs.bench.layouts}: a comma-separated list of {@link Layout} names to run, instead of all.
  * <li>{@code cgvfs.bench.quick}: if {@code true}, run every combination once, briefly, on 1 and 16 threads, to
  * check that they all work. The numbers are not meaningful.
  * </ul>
@@ -108,6 +110,12 @@ public final class RunBenchmarks {
         final var librariesProperty = System.getProperty("cgvfs.bench.libraries");
         final var libraries = librariesProperty == null ? List.of(Library.values())
                 : Arrays.stream(librariesProperty.split(",")).map(String::trim).map(Library::valueOf).toList();
+        final var contentsProperty = System.getProperty("cgvfs.bench.contents");
+        final var includedContents = contentsProperty == null ? List.of(Content.values())
+                : Arrays.stream(contentsProperty.split(",")).map(String::trim).map(Content::valueOf).toList();
+        final var layoutsProperty = System.getProperty("cgvfs.bench.layouts");
+        final var includedLayouts = layoutsProperty == null ? List.of(Layout.values())
+                : Arrays.stream(layoutsProperty.split(",")).map(String::trim).map(Layout::valueOf).toList();
 
         // Generate every archive up front, so that generating one is never timed
         for (final var content : Content.values()) {
@@ -119,9 +127,12 @@ public final class RunBenchmarks {
         final var firstResults = new ArrayList<RunResult>();
         final var wholeResults = new ArrayList<RunResult>();
         for (final var library : libraries) {
-            final var contents = Arrays.stream(Content.values()).filter(library::supports).map(Content::name)
+            final var contents = includedContents.stream().filter(library::supports).map(Content::name)
                     .toArray(String[]::new);
-            final var firstLayouts = Arrays.stream(Layout.values()).filter(library::supports).map(Layout::name)
+            if (contents.length == 0) {
+                continue;
+            }
+            final var firstLayouts = includedLayouts.stream().filter(library::supports).map(Layout::name)
                     .toArray(String[]::new);
             if (firstLayouts.length > 0) {
                 final var threadCounts = Arrays.stream(quick ? new int[] { 1, 16 } : THREAD_COUNTS)
@@ -129,7 +140,7 @@ public final class RunBenchmarks {
                 firstResults.addAll(run(FirstReadBenchmark.class, library, contents, firstLayouts, threadCounts,
                         quick, resultsDir.resolve("first-" + library.name().toLowerCase() + ".json")));
             }
-            final var wholeLayouts = Arrays.stream(Layout.values()).filter(library::supportsWholeArchive)
+            final var wholeLayouts = includedLayouts.stream().filter(library::supportsWholeArchive)
                     .map(Layout::name).toArray(String[]::new);
             if (wholeLayouts.length > 0) {
                 wholeResults.addAll(run(WholeArchiveBenchmark.class, library, contents, wholeLayouts, null, quick,

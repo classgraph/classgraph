@@ -52,6 +52,7 @@ import org.apache.commons.vfs2.FileObject;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import org.jboss.vfs.TempFileProvider;
 import org.jboss.vfs.VirtualFile;
+import org.openide.filesystems.FileUtil;
 import org.openide.filesystems.JarFileSystem;
 import org.openide.filesystems.LocalFileSystem;
 import org.springframework.boot.loader.jar.NestedJarFile;
@@ -461,7 +462,8 @@ public enum Library {
                 }
                 fs = localFs;
             } else {
-                fs = new JarFileSystem(new File(archive.toString()));
+                // JarFileSystem rejects a file that is not normalized, such as one under a Windows 8.3 short name
+                fs = new JarFileSystem(FileUtil.normalizeFile(new File(archive.toString())));
             }
             return new Reader() {
                 @Override
