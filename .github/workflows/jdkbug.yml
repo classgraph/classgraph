@@ -1,0 +1,62 @@
+name: JDK bug reproducers
+
+permissions:
+  contents: read
+
+# Temporary: runs the two reproducers for the JDK bug reports on every OS and JDK 17, 25 and 26
+on:
+  push:
+    branches:
+      - read-method-experiment
+    paths:
+      - 'benchmark/jdkbug/**'
+      - '.github/workflows/jdkbug.yml'
+
+jobs:
+  repro:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-15-intel, windows-latest ]
+        java: [ '17', '25', '26' ]
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+    - name: Set up JDK
+      uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+      with:
+        distribution: 'temurin'
+        java-version: ${{ matrix.java }}
+    - name: Run
+      shell: bash
+      run: |
+        mkdir -p out
+        repros="TruncatedMappingRepro"
+        [ "${{ matrix.java }}" -ge 22 ] && repros="$repros TruncatedSegmentRepro"
+        {
+          echo "## $(uname -s) $(uname -m), $(java -version 2>&1 | sed -n 2p)"
+          echo
+          echo "| reproducer | len | result |"
+          echo "|---|---|---|"
+        } > out/result.md
+        for r in $repros; do
+          for len in 8 100 8192; do
+            log=out/$r-$len.log
+            (cd out && java -XX:ErrorFile=hs_err_$r-$len.log ../benchmark/jdkbug/$r.java $len) > $log 2>&1
+            code=$?
+            res=$(grep -E '^(ok|caught|NOT caught)' $log | head -1)
+            if [ -z "$res" ]; then
+              frame=$(grep -A1 '^# Problematic frame:' $log | tail -1 | sed 's/^# *//')
+              res="exit $code $(grep -o 'SIG[A-Z]*' $log | head -1) $frame $(grep -m1 -E 'Exception|Error' $log)"
+            fi
+            echo "| $r | $len | $(echo "$res" | tr '|' '/' | cut -c1-200) |" >> out/result.md
+          done
+        done
+        cat out/result.md >> "$GITHUB_STEP_SUMMARY"
+    - name: Upload
+      if: always()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: jdkbug-${{ matrix.os }}-${{ matrix.java }}
+        path: out
