@@ -38,6 +38,8 @@ import java.util.function.BooleanSupplier;
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.base.internal.utils.StringUtils;
+import io.github.classgraph.base.internal.utils.VersionFinder;
+import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
 
 /**
  * {@link RandomAccessReader} backed by a slice of a {@link ByteBuffer}. Defaults to {@link ByteOrder#LITTLE_ENDIAN}
@@ -48,6 +50,17 @@ import io.github.classgraph.base.internal.utils.StringUtils;
  * whose {@code isReleased} supplier returns {@code true}), reads throw {@link IOException}.
  */
 public final class RandomAccessByteBufferReader implements RandomAccessReader {
+    /**
+     * Whether a bulk read out of a direct buffer has to copy it one {@code long} at a time. A read of a memory
+     * mapping beyond the end of a file that was truncated after it was mapped faults. For a single-value read, the
+     * JVM turns the fault into an {@link InternalError} thrown by the read, which is caught below. For a bulk copy
+     * that has been JIT-compiled, it does not: on x86-64 the error is thrown only after the copy has returned, in
+     * the caller, past the catch, and on aarch64 the stub that does the copy is not guarded, so the fault kills the
+     * JVM (seen on JDK 25 and 26, on Linux and macOS). Windows does not allow a mapped file to be truncated, so a
+     * bulk copy is safe there.
+     */
+    private static final boolean COPY_ONE_LONG_AT_A_TIME = VersionFinder.OS != OperatingSystem.Windows;
+
     /** Read-only duplicate of the backing byte buffer. */
     private final ByteBuffer byteBuffer;
 
@@ -59,6 +72,12 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
 
     /** Optional supplier returning true if the underlying storage has been released. */
     private final @Nullable BooleanSupplier isReleased;
+
+    /**
+     * Whether bulk reads copy one {@code long} at a time (see {@link #COPY_ONE_LONG_AT_A_TIME}). A heap buffer
+     * cannot fault, so it is always copied in bulk.
+     */
+    private final boolean copyOneLongAtATime;
 
     /**
      * Construct a little-endian reader over a slice of a {@link ByteBuffer}.
@@ -128,6 +147,31 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
         // a position past the limit is rejected. Setting the limit moves the position back to it if it was past it.
         this.byteBuffer.limit(this.sliceStartPos + this.sliceLength);
         this.byteBuffer.position(this.sliceStartPos);
+        this.copyOneLongAtATime = COPY_ONE_LONG_AT_A_TIME && byteBuffer.isDirect();
+    }
+
+    /**
+     * Copy bytes of the buffer into another buffer by single-value reads, which throw when they fault, rather than
+     * by a bulk copy, which may not (see {@link #COPY_ONE_LONG_AT_A_TIME}).
+     *
+     * @param srcStart
+     *            the index in the buffer to copy from.
+     * @param dstBuf
+     *            the buffer to copy into, with the same byte order as {@link #byteBuffer}.
+     * @param dstBufStart
+     *            the index in the destination buffer to copy to.
+     * @param numBytes
+     *            the number of bytes to copy, which the caller has checked fit in both buffers.
+     */
+    private void copyOneLongAtATime(final int srcStart, final ByteBuffer dstBuf, final int dstBufStart,
+            final int numBytes) {
+        var i = 0;
+        for (; i + Long.BYTES <= numBytes; i += Long.BYTES) {
+            dstBuf.putLong(dstBufStart + i, byteBuffer.getLong(srcStart + i));
+        }
+        for (; i < numBytes; i++) {
+            dstBuf.put(dstBufStart + i, byteBuffer.get(srcStart + i));
+        }
     }
 
     @Override
@@ -179,7 +223,8 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
     /**
      * Wrap the {@link InternalError} thrown when a read of a memory-mapped file touches a page that is no longer in
      * the file, because the file was truncated after it was mapped, in an {@link IOException}. (The operating
-     * system signals the fault, and the JVM turns it into this error at the read that caused it.)
+     * system signals the fault, and the JVM turns it into this error at the read that caused it, if the read is a
+     * single-value read -- see {@link #COPY_ONE_LONG_AT_A_TIME}.)
      *
      * @param e
      *            the error thrown by the buffer access.
@@ -225,7 +270,12 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
             final var numBytesToRead = Math.min(numBytesInSlice, dstRoom);
             final var srcStart = (int) srcOffset;
             // An absolute get, so this reader's own position and limit stay where the constructor put them
-            byteBuffer.get(sliceStartPos + srcStart, dstArr, dstArrStart, numBytesToRead);
+            if (copyOneLongAtATime) {
+                copyOneLongAtATime(sliceStartPos + srcStart, ByteBuffer.wrap(dstArr).order(byteBuffer.order()),
+                        dstArrStart, numBytesToRead);
+            } else {
+                byteBuffer.get(sliceStartPos + srcStart, dstArr, dstArrStart, numBytesToRead);
+            }
             return numBytesToRead;
         } catch (final IndexOutOfBoundsException e) {
             // The bounds were checked above, so reaching here means a bounds check is wrong rather than that
@@ -254,7 +304,13 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
             final var srcStart = (int) (sliceStartPos + srcOffset);
             // An absolute put, so neither buffer's position or limit is read or changed. Both ends of the copy are
             // named by index, so nothing has to be windowed first and nothing has to be put back afterwards.
-            dstBuf.put(dstBufStart, byteBuffer, srcStart, numBytesToRead);
+            if (copyOneLongAtATime) {
+                // A duplicate, so the caller's byte order is left alone
+                copyOneLongAtATime(srcStart, dstBuf.duplicate().order(byteBuffer.order()), dstBufStart,
+                        numBytesToRead);
+            } else {
+                dstBuf.put(dstBufStart, byteBuffer, srcStart, numBytesToRead);
+            }
             return numBytesToRead;
         } catch (final IndexOutOfBoundsException e) {
             // The bounds were checked above, so reaching here means a bounds check is wrong rather than that

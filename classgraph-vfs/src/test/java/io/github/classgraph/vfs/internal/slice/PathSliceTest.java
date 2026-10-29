@@ -362,7 +362,7 @@ public class PathSliceTest {
     /**
      * A file that is truncated while it is memory-mapped is reported as truncated by an {@link IOException}, rather
      * than by the {@link InternalError} that the JVM throws for a read of a mapped page that is no longer in the
-     * file. (Windows does not allow a mapped file to be truncated.)
+     * file, even once the read has been JIT-compiled. (Windows does not allow a mapped file to be truncated.)
      *
      * @param tempDir
      *            a temporary directory
@@ -381,6 +381,12 @@ public class PathSliceTest {
             final var reader = slice.randomAccessReader();
             assertThat(reader).isInstanceOf(MappedFileReader.class);
             assertThat(reader.readByte(200_000)).isEqualTo(content[200_000]);
+            // Read often enough that the read is JIT-compiled, since a fault in a compiled bulk copy is thrown after
+            // the copy returns on x86-64, and kills the JVM on aarch64
+            final var buf = new byte[8192];
+            for (var i = 0; i < 100_000; i++) {
+                assertThat(reader.read((i * 64L) & 0xFFFF, buf, 0, buf.length)).isEqualTo(buf.length);
+            }
 
             try (var raf = new RandomAccessFile(file.toFile(), "rw")) {
                 raf.setLength(4096);
@@ -394,6 +400,8 @@ public class PathSliceTest {
             assertThatThrownBy(() -> reader.readInt(200_000)).isInstanceOf(IOException.class)
                     .hasMessageContaining("truncated");
             assertThatThrownBy(() -> reader.readLong(200_000)).isInstanceOf(IOException.class)
+                    .hasMessageContaining("truncated");
+            assertThatThrownBy(() -> reader.read(200_000, buf, 0, buf.length)).isInstanceOf(IOException.class)
                     .hasMessageContaining("truncated");
             assertThatThrownBy(() -> reader.read(200_000, new byte[100], 0, 100)).isInstanceOf(IOException.class)
                     .hasMessageContaining("truncated");
