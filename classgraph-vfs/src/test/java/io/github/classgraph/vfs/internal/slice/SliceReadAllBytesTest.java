@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -69,6 +71,36 @@ public class SliceReadAllBytesTest {
                 content.length * 2L }) {
             assertThat(Slice.readAllBytesAsArray(new ByteArrayInputStream(content), lengthHint))
                     .as("length hint %d", lengthHint).containsExactly(content);
+        }
+    }
+
+    /**
+     * A stream whose length is not known is read into a 64kb buffer, and a stream that runs on past the length it
+     * was said to have is read on in blocks of at least 64kb, rather than into a buffer that doubles from the wrong
+     * length a few hundred bytes at a time.
+     *
+     * @throws IOException
+     *             if a stream could not be read
+     */
+    @Test
+    public void aStreamOfUnknownOrUnderstatedLengthIsReadInBlocksOfAtLeast64kb() throws IOException {
+        final var content = content(1024 * 1024);
+        for (final long lengthHint : new long[] { -1L, 100L }) {
+            final List<Integer> readLengths = new ArrayList<>();
+            final var inputStream = new ByteArrayInputStream(content) {
+                @Override
+                public synchronized int read(final byte[] b, final int off, final int len) {
+                    readLengths.add(len);
+                    return super.read(b, off, len);
+                }
+            };
+            assertThat(Slice.readAllBytesAsArray(inputStream, lengthHint)).containsExactly(content);
+            // The first read fills the buffer that the length hint sized. Every read after it has at least 64kb of
+            // room, less what the first read filled and the byte read to find out whether the stream had ended.
+            assertThat(readLengths.get(0)).as("length hint %d", lengthHint)
+                    .isEqualTo(lengthHint < 0 ? 65536 : (int) lengthHint);
+            assertThat(readLengths.subList(1, readLengths.size())).as("length hint %d", lengthHint)
+                    .allSatisfy(len -> assertThat(len).isGreaterThanOrEqualTo(65536 - 101));
         }
     }
 

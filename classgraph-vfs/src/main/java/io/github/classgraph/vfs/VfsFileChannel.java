@@ -69,8 +69,12 @@ final class VfsFileChannel extends FileChannel {
     /** Current channel read position, guarded by {@code this}. */
     private long position;
 
-    /** Buffer size in bytes for {@link #transferTo(long, long, WritableByteChannel)}. */
-    private static final int TRANSFER_BUF_SIZE = 16384;
+    /**
+     * Buffer size in bytes for {@link #transferTo(long, long, WritableByteChannel)}. Copying entries to a channel
+     * 64 kB at a time rather than 16 kB was 4-50% faster, and larger buffers were no faster. The buffer is not
+     * capped at the entry's length, since an archive entry's length can be understated.
+     */
+    private static final int TRANSFER_BUF_SIZE = 65536;
 
     /** Cached forward stream cursor for sequential {@link #transferTo(long, long, WritableByteChannel)} calls. */
     private final AtomicReference<@Nullable TransferCursor> transferCursor = new AtomicReference<>();

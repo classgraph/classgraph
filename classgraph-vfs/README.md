@@ -544,9 +544,11 @@ Three kinds of content, each in five layouts:
 
 Two benchmarks:
 
-* **Random reads.** The archive is opened once and shared by 1, 2, 4, 8 or 16 threads, each of
-  which looks entries up by name, in a shuffled order, and reads each one in full. The result is
-  the total read rate over all threads, in MB/s.
+* **First reads.** The archive is opened, every entry is looked up by name and read in full exactly
+  once, in a shuffled order, split evenly between 1, 2, 4, 8 or 16 threads, and the archive is
+  closed. This is how a classloader or a scanner reads a jarfile, so a library that caches the
+  content of entries gains nothing from its cache. The result is the total size of the entries
+  divided by the time taken, including opening and closing the archive, in MB/s.
 * **Whole archive.** One thread opens the archive, reads every entry in turn, and closes it. The
   result is the time per archive, in milliseconds, which includes opening it.
 
@@ -565,8 +567,8 @@ notes above), since its reads of 1MB entries come back short when threads read c
 library was set up as described in those notes; Commons VFS in particular uses its own manager
 with `CacheStrategy.MANUAL`.
 
-Each cell is one JMH fork, with 2 warmup iterations and 3 measurement iterations of 1 second (2
-seconds for the whole-archive benchmark), and a heap of 8GB. Machine: AMD Ryzen 9 3950X, 16 physical
+Each cell is one JMH fork, with 2 warmup iterations and 3 measurement iterations of 2 seconds,
+and a heap of 8GB. Machine: AMD Ryzen 9 3950X, 16 physical
 cores with two hardware threads each, 125GB RAM, Linux, JDK 26.0.2. The archives are in `/tmp`,
 which is `tmpfs` here, so every read comes out of memory.
 
@@ -862,12 +864,14 @@ try (Vfs vfs = new Vfs()) {
 }
 ```
 
-`getEntry` returns null if there is no *readable* entry with that name: for a directory the name may
-not exist, may name a directory rather than a file, may name a file the process has no permission to
-read, or may point outside the root once `..` sections are resolved; for a jarfile or a module it may
-not exist, or may be an entry this root does not report -- an encrypted entry, an entry stored with an
-unsupported compression method, or an entry hidden by a newer multi-release version of itself. Null
-does not say which, so test for the file directly if the difference matters.
+`getEntry` returns null if there is no entry with that name: for a directory the name may not exist,
+may name a directory rather than a file, or may point outside the root once `..` sections are
+resolved; for a jarfile or a module it may not exist, or may be an entry this root does not report --
+an encrypted entry, an entry stored with an unsupported compression method, or an entry hidden by a
+newer multi-release version of itself. Null does not say which, so test for the file directly if the
+difference matters. A file the process has no permission to read is still returned, and reading it
+throws an `IOException`. A directory root remembers the files it has listed or looked up, so a file
+deleted since then is still returned too, and reading it throws an `IOException`.
 
 `getEntry` matches the name exactly, including the case of every character, on every operating system
 and for every kind of root, so a name it finds is a name a classloader will also find. Windows and
@@ -880,8 +884,9 @@ exFAT or CIFS mount: there the real path of a file is spelled the way it was loo
 the way it is stored, which leaves nothing to tell a folded name by, so such a filesystem can still
 find a name in a case it is not stored in.
 
-When the case should be ignored instead, `getEntryCaseInsensitive` returns the first entry whose name
-matches with the case of both ignored, and `getEntriesCaseInsensitive` returns all of them -- a root
+When the case should be ignored instead, `getEntryCaseInsensitive` returns the entry stored under
+exactly the name asked for if there is one, and otherwise the first entry whose name matches with the
+case of both ignored, and `getEntriesCaseInsensitive` returns all entries that match -- a root
 can hold several, since a zipfile is free to store both `META-INF/MANIFEST.MF` and
 `meta-inf/manifest.mf`, and a case-sensitive filesystem is free to hold both as files. Both behave
 the same way on every operating system and for every kind of root, and the entries they return carry

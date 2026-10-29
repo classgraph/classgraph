@@ -43,7 +43,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -329,8 +328,7 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      * compression methods, duplicate names except the last, and superseded multi-release entries unless disabled
      * via {@link VfsSpec#disableMultiReleaseVersions()}). Module entries are returned sorted by name (omitting
      * non-canonical names). Directory entries are returned top-down with files before subdirectories, sorted by
-     * name within each directory (including unreadable files, which fail with {@link IOException} when read and
-     * return {@code null} from {@link #getEntry(String)}).
+     * name within each directory (including unreadable files, which fail with {@link IOException} when read).
      *
      * @return the entries, as an unmodifiable list.
      * @throws IOException
@@ -418,8 +416,13 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Returns the readable entry with the given exact, case-sensitive canonical path relative to the package root,
-     * or {@code null} if no such readable file entry exists.
+     * Returns the entry with the given exact, case-sensitive canonical path relative to the package root, or
+     * {@code null} if no such file entry exists.
+     *
+     * <p>
+     * A file that cannot be read is still returned, and fails with {@link IOException} when read. A directory root
+     * remembers the files that it listed or looked up, so a file deleted after that is still returned, and fails
+     * when read.
      *
      * <p>
      * Names must use {@code '/'} as the separator without leading or trailing slashes, repeated slashes, or
@@ -428,7 +431,7 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      *
      * @param name
      *            the path of the entry relative to the package root (e.g. {@code "com/xyz/Widget.class"}).
-     * @return the entry, or null if no readable entry with that exact name exists.
+     * @return the entry, or null if no entry with that exact name exists.
      * @throws IOException
      *             if the root could not be searched, or if this root or its {@link Vfs} has been closed.
      */
@@ -443,7 +446,7 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      *
      * @param name
      *            the path of the entry relative to the package root.
-     * @return the entry, or null if no readable entry with that name exists.
+     * @return the entry, or null if no entry with that name exists.
      * @throws IOException
      *             if the root could not be searched.
      */
@@ -549,24 +552,29 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns the first readable entry whose path matches {@code name} case-insensitively (in {@link #getEntries()}
-     * order), or {@code null} if no such entry exists.
+     * Returns the entry whose path is exactly {@code name}, as {@link #getEntry(String)} does, or if there is none,
+     * the first entry whose path matches {@code name} case-insensitively (in {@link #getEntries()} order), or
+     * {@code null} if no such entry exists.
      *
      * @param name
      *            the path of the entry relative to the package root (e.g. {@code "com/xyz/Widget.class"}).
-     * @return the first matching readable entry, or null if none.
+     * @return the exactly matching entry, else the first case-insensitively matching entry, or null if none.
      * @throws IOException
      *             if the root could not be searched, or if this root or its {@link Vfs} has been closed.
      */
     public final @Nullable VfsEntry getEntryCaseInsensitive(final String name) throws IOException {
         Assert.notNull(name, "name");
+        // An exact lookup reads no directory listing, and is the answer whenever the name is stored as given
+        final var exactEntry = getEntry(name);
+        if (exactEntry != null) {
+            return exactEntry;
+        }
         final var matchingEntries = findEntriesCaseInsensitive(name, /* firstMatchOnly = */ true);
         return matchingEntries.isEmpty() ? null : matchingEntries.get(0);
     }
 
     /**
-     * Returns all readable entries whose path matches {@code name} case-insensitively, in {@link #getEntries()}
-     * order.
+     * Returns all entries whose path matches {@code name} case-insensitively, in {@link #getEntries()} order.
      *
      * @param name
      *            the path of the entry relative to the package root (e.g. {@code "com/xyz/Widget.class"}).
@@ -580,7 +588,7 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Find readable entries whose path matches {@code name} case-insensitively.
+     * Find entries whose path matches {@code name} case-insensitively.
      *
      * @param name
      *            the path of the entry relative to the package root.
@@ -606,8 +614,7 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
 
             @Override
             public boolean visitEntry(final VfsEntry entry) {
-                // A listing reports a file it has not checked can be read, and a lookup must not return one
-                if (entry.getPathFromRoot().equalsIgnoreCase(name) && entry.isReadable()) {
+                if (entry.getPathFromRoot().equalsIgnoreCase(name)) {
                     matchingEntries.add(entry);
                     return !firstMatchOnly;
                 }
@@ -875,27 +882,35 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
         unregister.run();
     }
 
-    /** Open buffers, streams, and channels tracked for closure when this root closes. */
-    private final Set<AutoCloseable> openHandles = Collections.newSetFromMap(new IdentityHashMap<>());
+    /**
+     * Open buffers, streams, and channels tracked for closure when this root closes. None of their classes
+     * overrides {@code equals}, so the set holds each one by identity. It is a concurrent set rather than a set
+     * guarded by a lock, because every read through a {@link VfsFileSystem} view adds a handle to it and removes it
+     * again, and many threads contending for one lock cut the throughput of the view by more than half.
+     */
+    private final Set<AutoCloseable> openHandles = ConcurrentHashMap.newKeySet();
 
-    /** True once {@link #close(LogNode)} has closed all handles in {@link #openHandles}. */
-    private boolean openHandlesClosed;
+    /** True once {@link #close(LogNode)} has started closing the handles in {@link #openHandles}. */
+    private volatile boolean openHandlesClosed;
 
     /**
      * Track an open buffer, stream, or channel so it is closed when this root closes.
      *
      * @param handle
      *            the buffer, stream, or channel.
-     * @return true if tracked, or false if this root has already closed its open handles.
+     * @return true if tracked, or false if this root has already started closing its open handles, in which case
+     *         the caller closes the handle.
      */
     boolean trackOpenHandle(final AutoCloseable handle) {
-        synchronized (openHandles) {
-            if (openHandlesClosed) {
-                return false;
-            }
-            openHandles.add(handle);
+        openHandles.add(handle);
+        // The handle is added before the flag is read, and closeOpenHandles sets the flag before it copies the set,
+        // so if the flag is still clear here, closeOpenHandles will see the handle and close it. Otherwise it may
+        // or may not have seen it, so the caller closes it, and if both close it, the second close does nothing.
+        if (!openHandlesClosed) {
             return true;
         }
+        openHandles.remove(handle);
+        return false;
     }
 
     /**
@@ -905,9 +920,7 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      *            the buffer, stream, or channel.
      */
     void untrackOpenHandle(final AutoCloseable handle) {
-        synchronized (openHandles) {
-            openHandles.remove(handle);
-        }
+        openHandles.remove(handle);
     }
 
     /**
@@ -917,12 +930,11 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      *            the log node, or null.
      */
     private void closeOpenHandles(final @Nullable LogNode log) {
-        final List<AutoCloseable> handlesToClose;
-        synchronized (openHandles) {
-            openHandlesClosed = true;
-            handlesToClose = new ArrayList<>(openHandles);
-            openHandles.clear();
-        }
+        // The flag is set before the set is copied (see trackOpenHandle). A handle added after the copy closes
+        // itself, so clearing the set cannot lose a handle that needs closing
+        openHandlesClosed = true;
+        final List<AutoCloseable> handlesToClose = new ArrayList<>(openHandles);
+        openHandles.clear();
         if (!handlesToClose.isEmpty() && log != null) {
             log.log("Closing " + handlesToClose.size() + " buffer(s), stream(s) or channel(s) that were opened on "
                     + reportedPath() + " and not closed by the caller");

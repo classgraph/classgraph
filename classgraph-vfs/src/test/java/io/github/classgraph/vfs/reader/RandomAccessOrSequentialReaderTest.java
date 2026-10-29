@@ -799,7 +799,7 @@ public class RandomAccessOrSequentialReaderTest {
             // A read of the first few bytes pulls the initial buffer's worth, and no more
             assertThat(reader.readByte(0)).isEqualTo(content[0]);
             final var numBytesReadForHeader = countingStream.numBytesRead;
-            assertThat(numBytesReadForHeader).isLessThanOrEqualTo(16384);
+            assertThat(numBytesReadForHeader).isLessThanOrEqualTo(65536);
 
             // Going back over a part that has already been read pulls nothing further
             assertThat(reader.readByte(numBytesReadForHeader - 1)).isEqualTo(content[numBytesReadForHeader - 1]);
@@ -884,6 +884,32 @@ public class RandomAccessOrSequentialReaderTest {
             final var readBack = new byte[content.length];
             assertThat(reader.read(0, readBack, 0, readBack.length)).isEqualTo(content.length);
             assertThat(readBack).isEqualTo(content);
+        }
+    }
+
+    /**
+     * Content that runs on past the length it declared is buffered in at least 64kb from then on, rather than in a
+     * buffer that grows from the wrong length a few kilobytes at a time. Once content has shown that its declared
+     * length is wrong, the length says nothing about how far the reads will go.
+     *
+     * @throws IOException
+     *             if the content could not be read.
+     */
+    @Test
+    public void contentLongerThanItsDeclaredLengthIsBufferedInAtLeast64kb() throws IOException {
+        final var declaredSize = 4096;
+        final var content = content(200_000);
+        final var jarBytes = jar(content, ZipEntry.DEFLATED);
+        setDeclaredUncompressedSize(jarBytes, declaredSize);
+        final var entry = entry(vfs.open(jarBytes, "understated.jar"));
+        // The declared length is plausible for the compressed size beside it, so the reader believes it at first
+        assertThat(RandomAccessOrSequentialReader.validatedLengthHint(declaredSize, entry.getCompressedSize()))
+                .isEqualTo(declaredSize);
+        try (var reader = new RandomAccessOrSequentialReader(entry)) {
+            assertThat(reader.readByte(0)).isEqualTo(content[0]);
+            assertThat(reader.bufferLength()).isEqualTo(declaredSize);
+            assertThat(reader.readByte(declaredSize)).isEqualTo(content[declaredSize]);
+            assertThat(reader.bufferLength()).isEqualTo(65536);
         }
     }
 
@@ -1035,11 +1061,14 @@ public class RandomAccessOrSequentialReaderTest {
     @Test
     public void aSkipPastTheEndOfShortContentDoesNotGrowTheBufferToTheSkipTarget() throws IOException {
         final var contentLength = 20_000;
+        // The content declares no length, so the buffer starts out at 64kb, and must stay there, short of the skip
+        // targets below
+        final var initialBufferLength = 65536;
         // A skip as the first read, when nothing has been buffered yet
         try (var reader = limitedReader(contentLength)) {
             assertThatThrownBy(() -> reader.skip(TEST_BUFFER_LIMIT - 1000)).isInstanceOf(IOException.class)
                     .hasMessage("Tried to read past the end of the content");
-            assertThat(reader.bufferLength()).isLessThanOrEqualTo(2 * contentLength);
+            assertThat(reader.bufferLength()).isLessThanOrEqualTo(initialBufferLength);
         }
         // A skip after a header has been read, which is how a classfile skips an attribute it does not need
         try (var reader = limitedReader(contentLength)) {
@@ -1047,7 +1076,7 @@ public class RandomAccessOrSequentialReaderTest {
             reader.readInt();
             assertThatThrownBy(() -> reader.skip(TEST_BUFFER_LIMIT - 2000)).isInstanceOf(IOException.class)
                     .hasMessage("Tried to read past the end of the content");
-            assertThat(reader.bufferLength()).isLessThanOrEqualTo(2 * contentLength);
+            assertThat(reader.bufferLength()).isLessThanOrEqualTo(initialBufferLength);
         }
     }
 
@@ -1097,19 +1126,20 @@ public class RandomAccessOrSequentialReaderTest {
      */
     @Test
     public void aBulkReadBuffersNoMoreThanTheDestinationCanTake() throws IOException {
+        // The content declares no length, so the buffer starts out at 64kb
         try (var reader = limitedReader(TEST_BUFFER_LIMIT)) {
             assertThat(reader.read(0, new byte[10], 0, Integer.MAX_VALUE)).isEqualTo(10);
-            assertThat(reader.bufferLength()).isEqualTo(16384);
+            assertThat(reader.bufferLength()).isEqualTo(65536);
         }
         try (var reader = limitedReader(TEST_BUFFER_LIMIT)) {
             assertThat(reader.read(0, ByteBuffer.allocate(10), 0, Integer.MAX_VALUE)).isEqualTo(10);
-            assertThat(reader.bufferLength()).isEqualTo(16384);
+            assertThat(reader.bufferLength()).isEqualTo(65536);
         }
         // A destination larger than short content does not size the buffer either
         try (var reader = limitedReader(1000)) {
             assertThat(reader.read(0, ByteBuffer.allocate(TEST_BUFFER_LIMIT), 0, TEST_BUFFER_LIMIT))
                     .isEqualTo(1000);
-            assertThat(reader.bufferLength()).isEqualTo(16384);
+            assertThat(reader.bufferLength()).isEqualTo(65536);
         }
     }
 

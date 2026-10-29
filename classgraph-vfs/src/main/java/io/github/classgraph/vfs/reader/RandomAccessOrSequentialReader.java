@@ -88,8 +88,14 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
     /** True if {@link #byteOrder} is {@link ByteOrder#BIG_ENDIAN}. */
     private final boolean bigEndian;
 
-    /** Initial buffer allocation size on first read. */
+    /** Initial buffer allocation size on first read, for content that declares a length. */
     private static final int INITIAL_BUF_SIZE = 16384;
+
+    /**
+     * Initial buffer allocation size for content that declares no length that can be believed, and the least that
+     * the buffer grows to once content runs on past the length it declared.
+     */
+    private static final int UNKNOWN_LENGTH_BUF_SIZE = 65536;
 
     /** Shared empty buffer before the first read. */
     private static final byte[] EMPTY_BUF = {};
@@ -295,8 +301,12 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
             return;
         }
         // Double the size of the array until it can contain the required number of bytes, starting from the
-        // initial buffer size on the first read, when nothing has been allocated yet
-        var newArrLength = (long) Math.max(arr.length, INITIAL_BUF_SIZE);
+        // initial buffer size on the first read, when nothing has been allocated yet. That start is small while the
+        // content may still be as long as it declares, since a caller may only read a header out of it, and larger
+        // once the declared length is unknown or has been shown to be wrong, since it then says nothing about how
+        // far the reads will go.
+        var newArrLength = (long) Math.max(arr.length,
+                lengthHint > 0 && arr.length < lengthHint ? INITIAL_BUF_SIZE : UNKNOWN_LENGTH_BUF_SIZE);
         while (newArrLength < minArrLength) {
             newArrLength *= 2L;
         }

@@ -1,0 +1,67 @@
+name: Benchmarks
+
+permissions:
+  contents: read
+
+# Runs the classgraph-vfs benchmarks (see RunBenchmarks) on each OS, to compare the libraries on
+# each. GitHub-hosted runners share their hardware, so compare the libraries within one run, not
+# one run with another. Run by hand from the Actions tab.
+on:
+  workflow_dispatch:
+    inputs:
+      quick:
+        description: 'Run every combination once, briefly, to check that they work'
+        type: boolean
+        default: false
+      libraries:
+        description: 'Comma-separated Library names to run (empty for all)'
+        type: string
+        default: ''
+
+jobs:
+  benchmarks:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+    - name: Set up JDK
+      uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+      with:
+        distribution: 'zulu'
+        java-version: '26'
+        cache: 'maven'
+    - name: Build the benchmarks
+      shell: bash
+      run: |
+        ./mvnw --no-transfer-progress -B -q -pl classgraph-vfs -am test-compile dependency:build-classpath \
+            -DskipTests -Dmdep.includeScope=test -Dmdep.outputFile=target/bench-cp.txt
+    - name: Run the benchmarks
+      shell: bash
+      env:
+        QUICK: ${{ inputs.quick }}
+        LIBRARIES: ${{ inputs.libraries }}
+      run: |
+        sep=":"
+        if [ "$RUNNER_OS" = "Windows" ]; then sep=";"; fi
+        props=("-Dcgvfs.bench.quick=$QUICK")
+        if [ -n "$LIBRARIES" ]; then props+=("-Dcgvfs.bench.libraries=$LIBRARIES"); fi
+        java "${props[@]}" \
+            -cp "classgraph-vfs/target/test-classes${sep}classgraph-vfs/target/classes${sep}$(cat classgraph-vfs/target/bench-cp.txt)" \
+            io.github.classgraph.vfs.perf.RunBenchmarks classgraph-vfs/target/bench-results
+    - name: Summarize
+      if: always()
+      shell: bash
+      run: |
+        {
+          echo "## $RUNNER_OS ($RUNNER_ARCH), $(nproc 2>/dev/null || sysctl -n hw.ncpu) CPUs"
+          cat classgraph-vfs/target/bench-results/results.md 2>/dev/null || echo "No results"
+        } >> "$GITHUB_STEP_SUMMARY"
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      if: always()
+      with:
+        name: bench-results-${{ matrix.os }}
+        path: classgraph-vfs/target/bench-results

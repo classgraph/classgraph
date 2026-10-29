@@ -61,8 +61,11 @@ public abstract class Slice implements AutoCloseable {
      */
     public static final int MAX_BUFFER_SIZE = Integer.MAX_VALUE - 8;
 
-    /** Initial buffer size when reading a stream of unknown length. */
-    private static final int DEFAULT_BUFFER_SIZE = 16384;
+    /**
+     * Initial buffer size when reading a stream of unknown length, and the least that the buffer grows to once a
+     * stream runs on past the length it was said to have.
+     */
+    private static final int DEFAULT_BUFFER_SIZE = 65536;
 
     /** Maximum initial buffer size allocated up front from a stream length hint. */
     private static final int MAX_INITIAL_BUFFER_SIZE = 16 * 1024 * 1024;
@@ -220,8 +223,15 @@ public abstract class Slice implements AutoCloseable {
                 if (buf.length >= maxSize) {
                     return new StreamPrefix(buf, nextByte);
                 }
-                // Double the size of the array (in long arithmetic, since the doubling can overflow an int)
-                buf = Arrays.copyOf(buf, (int) Math.min(buf.length * 2L, maxSize));
+                // Grow the array to the expected length if the stream has not reached it yet (the array starts out
+                // smaller than a long expected length, so that a length that is wrong cannot make it allocate a
+                // large array up front), or else double its size (in long arithmetic, since the doubling can
+                // overflow an int). A stream that has run on past its expected length has shown that the length
+                // was wrong, so the array grows to at least DEFAULT_BUFFER_SIZE rather than doubling from a length
+                // that may have been only a few bytes.
+                buf = Arrays.copyOf(buf, (int) Math.min(
+                        lengthHint > buf.length ? lengthHint : Math.max(buf.length * 2L, DEFAULT_BUFFER_SIZE),
+                        maxSize));
                 buf[bufBytesUsed++] = (byte) nextByte;
             } else {
                 final var bytesRead = InputStreamUtils.readAtLeastOne(inputStream, buf, bufBytesUsed,

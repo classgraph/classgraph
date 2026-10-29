@@ -48,9 +48,9 @@ import io.github.classgraph.vfs.perf.BenchmarkFixtures.Content;
 import io.github.classgraph.vfs.perf.BenchmarkFixtures.Layout;
 
 /**
- * Runs {@link RandomReadBenchmark} at 1, 2, 4, 8 and 16 threads and {@link WholeArchiveBenchmark} on one thread,
- * for every {@link Library} on every {@link Content} type and every {@link Layout} the library supports. Each JMH
- * run's results are written as JSON to the results directory, and the tables in the README are written to
+ * Runs {@link FirstReadBenchmark} at 1, 2, 4, 8 and 16 threads and {@link WholeArchiveBenchmark} on one thread, for
+ * every {@link Library} on every {@link Content} type and every {@link Layout} the library supports. Each JMH run's
+ * results are written as JSON to the results directory, and the tables in the README are written to
  * {@code results.md} there. A full run takes about an hour and a half.
  *
  * <p>
@@ -80,7 +80,7 @@ import io.github.classgraph.vfs.perf.BenchmarkFixtures.Layout;
  * </ul>
  */
 public final class RunBenchmarks {
-    /** The thread counts {@link RandomReadBenchmark} is run at. */
+    /** The thread counts {@link FirstReadBenchmark} is run at. */
     private static final int[] THREAD_COUNTS = { 1, 2, 4, 8, 16 };
 
     /** Constructor. */
@@ -116,30 +116,29 @@ public final class RunBenchmarks {
             }
         }
 
-        final var randomResults = new ArrayList<RunResult>();
+        final var firstResults = new ArrayList<RunResult>();
         final var wholeResults = new ArrayList<RunResult>();
         for (final var library : libraries) {
             final var contents = Arrays.stream(Content.values()).filter(library::supports).map(Content::name)
                     .toArray(String[]::new);
-            final var randomLayouts = Arrays.stream(Layout.values()).filter(library::supports).map(Layout::name)
+            final var firstLayouts = Arrays.stream(Layout.values()).filter(library::supports).map(Layout::name)
                     .toArray(String[]::new);
-            if (randomLayouts.length > 0) {
-                for (final var threads : quick ? new int[] { 1, 16 } : THREAD_COUNTS) {
-                    randomResults.addAll(run(RandomReadBenchmark.class, library, contents, randomLayouts, threads,
-                            quick, resultsDir
-                                    .resolve("random-" + library.name().toLowerCase() + "-" + threads + "t.json")));
-                }
+            if (firstLayouts.length > 0) {
+                final var threadCounts = Arrays.stream(quick ? new int[] { 1, 16 } : THREAD_COUNTS)
+                        .mapToObj(String::valueOf).toArray(String[]::new);
+                firstResults.addAll(run(FirstReadBenchmark.class, library, contents, firstLayouts, threadCounts,
+                        quick, resultsDir.resolve("first-" + library.name().toLowerCase() + ".json")));
             }
             final var wholeLayouts = Arrays.stream(Layout.values()).filter(library::supportsWholeArchive)
                     .map(Layout::name).toArray(String[]::new);
             if (wholeLayouts.length > 0) {
-                wholeResults.addAll(run(WholeArchiveBenchmark.class, library, contents, wholeLayouts, 1, quick,
+                wholeResults.addAll(run(WholeArchiveBenchmark.class, library, contents, wholeLayouts, null, quick,
                         resultsDir.resolve("whole-" + library.name().toLowerCase() + ".json")));
             }
         }
 
         final var markdown = new StringBuilder();
-        markdown.append(randomReadTables(randomResults));
+        markdown.append(firstReadTables(firstResults));
         markdown.append(wholeArchiveTables(wholeResults));
         Files.writeString(resultsDir.resolve("results.md"), markdown);
         System.out.println(markdown);
@@ -156,8 +155,8 @@ public final class RunBenchmarks {
      *            the names of the content types.
      * @param layouts
      *            the names of the layouts.
-     * @param threads
-     *            the number of threads.
+     * @param threadCounts
+     *            the values of the benchmark's {@code threads} parameter, or null if it has none.
      * @param quick
      *            true to run briefly, to check that the benchmark works.
      * @param resultFile
@@ -167,21 +166,23 @@ public final class RunBenchmarks {
      *             if JMH failed.
      */
     private static List<RunResult> run(final Class<?> benchmark, final Library library, final String[] contents,
-            final String[] layouts, final int threads, final boolean quick, final Path resultFile)
+            final String[] layouts, final String[] threadCounts, final boolean quick, final Path resultFile)
             throws RunnerException {
-        final var options = new OptionsBuilder() //
+        final var optionsBuilder = new OptionsBuilder() //
                 .include(benchmark.getName()) //
                 .param("library", library.name()) //
                 .param("content", contents) //
-                .param("layout", layouts) //
-                .threads(threads) //
+                .param("layout", layouts);
+        if (threadCounts != null) {
+            optionsBuilder.param("threads", threadCounts);
+        }
+        final var options = optionsBuilder //
                 .forks(1) //
                 .warmupIterations(quick ? 1 : 2) //
                 .warmupTime(TimeValue.milliseconds(quick ? 200 : 1000)) //
                 .measurementIterations(quick ? 1 : 3) //
-                // A whole-archive operation can take a tenth of a second, so it gets longer iterations
-                .measurementTime(TimeValue
-                        .milliseconds(quick ? 200 : benchmark == WholeArchiveBenchmark.class ? 2000 : 1000)) //
+                // An operation reads a whole archive, which can take a tenth of a second, so iterations are long
+                .measurementTime(TimeValue.milliseconds(quick ? 200 : 2000)) //
                 .jvmArgsAppend("-Xmx8g", "--enable-native-access=ALL-UNNAMED",
                         "-Dcgvfs.bench.dir=" + BenchmarkFixtures.dir()) //
                 .shouldFailOnError(true) //
@@ -205,16 +206,20 @@ public final class RunBenchmarks {
     }
 
     /**
-     * Format the random-read results as one table per content type: a row per library and layout, a column per
-     * thread count, in MB/s.
+     * Format the first-read results as one table per content type: a row per library and layout, a column per
+     * thread count, in MB/s, the total size of the entries divided by the time taken to open the archive, read them
+     * all, and close it.
      *
      * @param results
      *            the results.
      * @return the tables, in Markdown.
+     * @throws IOException
+     *             if the entry sizes could not be read.
      */
-    private static String randomReadTables(final List<RunResult> results) {
+    private static String firstReadTables(final List<RunResult> results) throws IOException {
         final var sb = new StringBuilder();
         for (final var content : Content.values()) {
+            final var totalMB = BenchmarkFixtures.totalBytes(content) / 1e6;
             // Row label -> thread count -> MB/s
             final Map<String, Map<Integer, Double>> rows = new LinkedHashMap<>();
             for (final var layout : Layout.values()) {
@@ -223,9 +228,10 @@ public final class RunBenchmarks {
                         if (param(result, "content").equals(content.name())
                                 && param(result, "layout").equals(layout.name())
                                 && param(result, "library").equals(library.name())) {
+                            // (The score is in milliseconds per operation)
                             rows.computeIfAbsent(layout.label() + " | " + library.displayName(),
-                                    _ -> new LinkedHashMap<>()).put(result.getParams().getThreads(),
-                                            result.getSecondaryResults().get("bytes").getScore() / 1e6);
+                                    _ -> new LinkedHashMap<>()).put(Integer.parseInt(param(result, "threads")),
+                                            totalMB / (result.getPrimaryResult().getScore() / 1e3));
                         }
                     }
                 }
@@ -233,7 +239,8 @@ public final class RunBenchmarks {
             if (rows.isEmpty()) {
                 continue;
             }
-            sb.append("\nRandom reads, ").append(content.label()).append(", MB/s:\n\n| Layout | Library |");
+            sb.append("\nOpen, read every entry once in random order, close, ").append(content.label())
+                    .append(", MB/s:\n\n| Layout | Library |");
             for (final var threads : THREAD_COUNTS) {
                 sb.append(' ').append(threads).append(threads == 1 ? " thread |" : " threads |");
             }

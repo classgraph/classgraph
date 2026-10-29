@@ -796,9 +796,9 @@ public class VfsTest {
     }
 
     /**
-     * A file that cannot be read is not found by a lookup, whether the name is matched exactly or with its case
-     * ignored, since what a lookup returns is something that can be read. A listing does still report it, since a
-     * listing does not spend a second syscall per file on a permission check.
+     * A file that cannot be read is found by a lookup, whether the name is matched exactly or with its case
+     * ignored, as it is by a listing, and reading it throws. A lookup does not spend a second syscall per file on a
+     * permission check that opening the file makes anyway.
      *
      * @param tempDir
      *            a temporary directory.
@@ -806,7 +806,7 @@ public class VfsTest {
      *             if the directory could not be written or read.
      */
     @Test
-    public void anUnreadableFileIsNotAnEntry(@TempDir final File tempDir) throws IOException {
+    public void anUnreadableFileIsAnEntryThatCannotBeRead(@TempDir final File tempDir) throws IOException {
         final var unreadable = new File(tempDir, "unreadable.txt");
         Files.writeString(unreadable.toPath(), RESOURCE_CONTENT);
         if (!unreadable.setReadable(false) || unreadable.canRead()) {
@@ -816,10 +816,44 @@ public class VfsTest {
 
         try (var vfs = new Vfs()) {
             final var root = vfs.open(tempDir);
-            assertThat(root.getEntry("unreadable.txt")).isNull();
-            assertThat(root.getEntryCaseInsensitive("unreadable.txt")).isNull();
-            assertThat(root.getEntriesCaseInsensitive("UNREADABLE.txt")).isEmpty();
+            final var entry = root.getEntry("unreadable.txt");
+            assertThat(entry).isNotNull();
+            assertThat(entry.isReadable()).isFalse();
+            assertThatThrownBy(entry::load).isInstanceOf(IOException.class);
+            assertThat(root.getEntryCaseInsensitive("UNREADABLE.txt")).isNotNull();
+            assertThat(root.getEntriesCaseInsensitive("UNREADABLE.txt")).hasSize(1);
             assertThat(root.getEntries()).extracting(VfsEntry::getPathFromRoot).containsExactly("unreadable.txt");
+        }
+    }
+
+    /**
+     * A lookup in a directory root returns the entry that the listing of the root or an earlier lookup returned,
+     * without reading the file's metadata again. A name that was not found is not remembered, so a file created
+     * after the root was listed is still found, and a directory is not an entry.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the directory could not be written or read.
+     */
+    @Test
+    public void aDirectoryLookupReusesTheEntryThatWasListedOrLookedUpBefore(@TempDir final File tempDir)
+            throws IOException {
+        Files.writeString(tempDir.toPath().resolve("listed.txt"), RESOURCE_CONTENT);
+        Files.createDirectory(tempDir.toPath().resolve("sub"));
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(tempDir);
+            final var listed = root.getEntries().get(0);
+            assertThat(root.getEntry("listed.txt")).isSameAs(listed);
+            assertThat(root.getEntry("sub")).isNull();
+
+            assertThat(root.getEntry("created.txt")).isNull();
+            Files.writeString(tempDir.toPath().resolve("created.txt"), RESOURCE_CONTENT);
+            final var created = root.getEntry("created.txt");
+            assertThat(created).isNotNull();
+            assertThat(created.load()).isEqualTo(RESOURCE_CONTENT.getBytes(StandardCharsets.UTF_8));
+            assertThat(root.getEntry("created.txt")).isSameAs(created);
         }
     }
 

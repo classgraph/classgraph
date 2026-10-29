@@ -45,14 +45,13 @@ import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.attribute.FileStoreAttributeView;
 import java.nio.file.attribute.UserPrincipalLookupService;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -90,8 +89,11 @@ final class VfsFileSystem extends FileSystem {
     /** True once {@link #close()} has been called on this view. */
     private final AtomicBoolean closed = new AtomicBoolean();
 
-    /** Open handles created through this view, guarded by {@code openHandles}. */
-    private final Set<Closeable> openHandles = Collections.newSetFromMap(new IdentityHashMap<>());
+    /**
+     * Open handles created through this view. None of their classes overrides {@code equals}, so the set holds each
+     * one by identity. It is a concurrent set for the reason given on {@code VfsRoot.openHandles}.
+     */
+    private final Set<Closeable> openHandles = ConcurrentHashMap.newKeySet();
 
     /**
      * Owned {@link Vfs} and provider registration if created by {@link VfsFileSystemProvider}, or {@code null} for
@@ -175,18 +177,16 @@ final class VfsFileSystem extends FileSystem {
      *             if this view or its root is closed.
      */
     <T extends Closeable> T register(final T handle) throws IOException {
-        final boolean registered;
-        synchronized (openHandles) {
-            registered = isOpen() && root.trackOpenHandle(handle);
-            if (registered) {
-                openHandles.add(handle);
-            }
+        openHandles.add(handle);
+        // The handle is added before the view is checked to be open, and close() marks the view closed before it
+        // copies the set, so if the view is still open here, close() will see the handle and close it. Otherwise
+        // the handle is closed here, and if close() also closes it, the second close does nothing
+        if (isOpen() && root.trackOpenHandle(handle)) {
+            return handle;
         }
-        if (!registered) {
-            handle.close();
-            throw new ClosedFileSystemException();
-        }
-        return handle;
+        openHandles.remove(handle);
+        handle.close();
+        throw new ClosedFileSystemException();
     }
 
     /**
@@ -196,9 +196,7 @@ final class VfsFileSystem extends FileSystem {
      *            the closed handle.
      */
     void unregister(final Closeable handle) {
-        synchronized (openHandles) {
-            openHandles.remove(handle);
-        }
+        openHandles.remove(handle);
         root.untrackOpenHandle(handle);
     }
 
@@ -541,14 +539,13 @@ final class VfsFileSystem extends FileSystem {
         // Stop the root handing out this view before anything else happens, so that a caller cannot be given a
         // filesystem that has already started closing. This cannot fail, so the rest of the close is still reached
         root.discardFileSystemView(this);
-        final List<Closeable> handlesToClose;
-        synchronized (openHandles) {
-            if (!closed.compareAndSet(false, true)) {
-                return;
-            }
-            handlesToClose = new ArrayList<>(openHandles);
-            openHandles.clear();
+        if (!closed.compareAndSet(false, true)) {
+            return;
         }
+        // The view is marked closed before the set is copied (see register). A handle added after the copy closes
+        // itself, so clearing the set cannot lose a handle that needs closing
+        final List<Closeable> handlesToClose = new ArrayList<>(openHandles);
+        openHandles.clear();
         // The index holds every entry of the root, so it is dropped rather than left reachable from a view that
         // can no longer be read through. An index that is being built concurrently is dropped by index() itself,
         // which re-checks after publishing it

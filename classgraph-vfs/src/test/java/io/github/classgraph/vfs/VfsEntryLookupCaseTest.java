@@ -40,6 +40,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -130,6 +131,8 @@ public class VfsEntryLookupCaseTest {
                 assertThat(root.getEntry("./" + STORED_NAME)).isNull();
                 assertThat(root.getEntry("Com//Xyz/Widget.txt")).isNull();
                 assertThat(root.getEntry("/" + STORED_NAME)).isNull();
+                assertThat(root.getEntry(STORED_NAME + "/")).isNull();
+                assertThat(root.getEntry(STORED_NAME + "/.")).isNull();
                 // The name the file really is stored under is still found
                 assertThat(Objects.requireNonNull(root.getEntry(STORED_NAME)).getPathFromRoot())
                         .isEqualTo(STORED_NAME);
@@ -166,8 +169,9 @@ public class VfsEntryLookupCaseTest {
     }
 
     /**
-     * A zipfile can store two entries whose names differ only in case, and a lookup that ignores case reports both
-     * of them, in the order they appear in the zipfile, while a lookup by exact name reports one entry each.
+     * A zipfile can store two entries whose names differ only in case, and a lookup of all entries that match when
+     * case is ignored reports both of them, in the order they appear in the zipfile, while a lookup of one entry
+     * that ignores case prefers the entry stored under exactly the name asked for.
      *
      * @param tempDir
      *            a temporary directory to build in.
@@ -181,10 +185,14 @@ public class VfsEntryLookupCaseTest {
             final var root = vfs.open(jar.toString());
             assertThat(root.getEntriesCaseInsensitive(DIFFERENTLY_CASED_NAME)).extracting(VfsEntry::getPathFromRoot)
                     .containsExactly(STORED_NAME, DIFFERENTLY_CASED_NAME);
-            // The first entry in the zipfile is the one a single lookup finds, whichever case it was asked for in
+            // A single lookup finds the entry stored under exactly the name asked for, if there is one, even when
+            // another entry that matches case-insensitively comes first in the zipfile
             assertThat(
                     Objects.requireNonNull(root.getEntryCaseInsensitive(DIFFERENTLY_CASED_NAME)).getPathFromRoot())
-                    .isEqualTo(STORED_NAME);
+                    .isEqualTo(DIFFERENTLY_CASED_NAME);
+            // Otherwise it finds the first entry in the zipfile that matches case-insensitively
+            assertThat(Objects.requireNonNull(root.getEntryCaseInsensitive(STORED_NAME.toUpperCase(Locale.ROOT)))
+                    .getPathFromRoot()).isEqualTo(STORED_NAME);
             assertThat(Objects.requireNonNull(root.getEntry(STORED_NAME)).getPathFromRoot()).isEqualTo(STORED_NAME);
             assertThat(Objects.requireNonNull(root.getEntry(DIFFERENTLY_CASED_NAME)).getPathFromRoot())
                     .isEqualTo(DIFFERENTLY_CASED_NAME);
