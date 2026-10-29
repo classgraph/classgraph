@@ -73,7 +73,7 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
      * 256-byte read takes about 120 ns either way, and a 1 MB read takes 74 us one {@code long} at a time and 47 us
      * in bulk. Elsewhere, no read is copied in bulk.
      */
-    private static final int MIN_FENCED_BULK_COPY_SIZE = VersionFinder.IS_X86_64 ? 256 : Integer.MAX_VALUE;
+    private static final int MIN_FENCED_BULK_COPY_SIZE = 256;
 
     /** A lock that no thread ever holds, which {@link #awaitFault()} asks about. */
     private static final Object FAULT_FENCE = new Object();

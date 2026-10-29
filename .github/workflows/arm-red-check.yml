@@ -1,0 +1,39 @@
+name: aarch64 red check
+
+permissions:
+  contents: read
+
+# Temporary: the truncation test with bulk copies forced on aarch64, which is expected to fail or crash
+on:
+  push:
+    branches:
+      - arm-red-check
+
+jobs:
+  red:
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        java: [ '25', '26' ]
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+    - name: Set up JDK
+      uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+      with:
+        distribution: 'zulu'
+        java-version: ${{ matrix.java }}
+        cache: 'maven'
+    - name: Build
+      run: ./mvnw --no-transfer-progress -B -q install -DskipTests -pl classgraph-vfs -am
+    - name: Truncation test
+      shell: bash
+      run: |
+        set +e
+        ./mvnw --no-transfer-progress -B -pl classgraph-vfs surefire:test \
+          -Dtest='PathSliceTest#readingAMappedFileThatWasTruncatedThrowsAnIOException' \
+          -Dsurefire.failIfNoSpecifiedTests=false > test.log 2>&1
+        echo "exit $?"
+        grep -E 'Tests run:|crashed|SIGBUS|SIGSEGV|Problematic frame|ERROR\]' test.log | head -20
+        find classgraph-vfs -name 'hs_err*' -o -name '*.dumpstream' | head
+        for f in $(find classgraph-vfs -name 'hs_err*'); do grep -A2 'Problematic frame' $f; done
