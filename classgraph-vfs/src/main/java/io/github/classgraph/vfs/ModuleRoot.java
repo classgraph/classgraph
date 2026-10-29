@@ -60,6 +60,12 @@ public final class ModuleRoot extends VfsRoot {
     /** Cached canonical directory path for an exploded module, or {@code null} if not yet resolved. */
     private volatile @Nullable Path canonicalModuleDir;
 
+    /**
+     * The listings of the directories of an exploded module, which a name found in it is checked against, or
+     * {@code null} if not yet created.
+     */
+    private volatile @Nullable ExactNameListings moduleDirListings;
+
     /** Pool of {@link ModuleReader} instances for this module, guarded by {@link #moduleReaderRecyclerLock}. */
     private @Nullable Recycler<ModuleReader, IOException> moduleReaderRecycler;
 
@@ -399,8 +405,18 @@ public final class ModuleRoot extends VfsRoot {
         // This method matches names exactly, so such a match is not one. A module packaged as a modular jarfile
         // carries its own exact namespace, whatever filesystem it is read from, as does a module of the running JDK
         final var moduleDir = canonicalModuleDir();
-        if (moduleDir != null && isCaseFoldedMatch(moduleDir, moduleDir.resolve(name))) {
-            return null;
+        if (moduleDir != null) {
+            var listings = moduleDirListings;
+            if (listings == null) {
+                // Two threads racing here each create listings of the same directory, which is harmless
+                listings = new ExactNameListings(moduleDir);
+                moduleDirListings = listings;
+            }
+            final var caseFolded = listings.isCaseFolded(name);
+            // A directory that cannot be listed is checked by reading the real path of the file instead
+            if (caseFolded != null ? caseFolded : isCaseFoldedMatch(moduleDir, moduleDir.resolve(name))) {
+                return null;
+            }
         }
         return new ModuleEntry(this, name);
     }

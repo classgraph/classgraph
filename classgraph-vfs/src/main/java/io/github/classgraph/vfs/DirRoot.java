@@ -90,6 +90,9 @@ public final class DirRoot extends VfsRoot {
      */
     private final Map<String, Boolean> caseSensitiveDirs = new ConcurrentHashMap<>();
 
+    /** The listings of the directories that fold case, which a name found in them is checked against. */
+    private final ExactNameListings exactNameListings;
+
     /** Cached list of entries under this directory, initialized on first call to {@link #getEntries()}. */
     private volatile @Nullable List<VfsEntry> entries;
 
@@ -125,6 +128,7 @@ public final class DirRoot extends VfsRoot {
         // named by the canonical path of its jarfile, so that a directory reached through a symlink or -- on
         // Windows -- through an 8.3 short name is recognized as the directory it really is, and read once
         this.dir = FileUtils.canonicalize(absoluteDir);
+        this.exactNameListings = new ExactNameListings(this.dir);
         try {
             this.pathStr = FileUtils.pathStr(this.dir);
         } catch (final IOError e) {
@@ -449,15 +453,19 @@ public final class DirRoot extends VfsRoot {
         // the same exact-match contract, even though their VfsPath is not an instance of this loader's class.
         final boolean classGraphView = resolved instanceof VfsPath || VfsFileSystemProvider.class.getName()
                 .equals(resolved.getFileSystem().provider().getClass().getName());
-        return !classGraphView && !isInCaseSensitiveDirs(name) && (knownToExist || Files.exists(resolved))
-                && isCaseFoldedMatch(dir, resolved);
+        if (classGraphView || isInCaseSensitiveDirs(name) || !(knownToExist || Files.exists(resolved))) {
+            return false;
+        }
+        final var caseFolded = exactNameListings.isCaseFolded(name);
+        // A directory that cannot be listed is checked by reading the real path of the file instead
+        return caseFolded != null ? caseFolded : isCaseFoldedMatch(dir, resolved);
     }
 
     /**
      * Returns whether every directory that the lookup of {@code name} looks a name up in, from the root down to the
      * parent of the last segment, is known to look names up case-sensitively, in which case the lookup cannot have
-     * matched a name whose case differs from the name looked up, and {@link #isCaseFoldedMatch} need not read the
-     * real path of the file.
+     * matched a name whose case differs from the name looked up, and the name need not be checked against the
+     * listings of those directories.
      *
      * @param name
      *            the root-relative path, which has already been checked to be in canonical form.
