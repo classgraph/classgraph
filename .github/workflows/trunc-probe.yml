@@ -1,0 +1,47 @@
+name: Truncation probe
+
+permissions:
+  contents: read
+
+# Temporary: what each kind of read of a memory mapping throws past the end of a file truncated after mapping
+on:
+  push:
+    branches:
+      - read-method-experiment
+
+jobs:
+  probe:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ macos-latest, ubuntu-latest ]
+        java: [ '25', '26' ]
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+    - name: Set up JDK
+      uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+      with:
+        distribution: 'zulu'
+        java-version: ${{ matrix.java }}
+    - name: Run the probe
+      shell: bash
+      run: |
+        mkdir -p probe-tmp
+        for k in byte short int long bulkArray bulkHeapBuf bulkDirectBuf bulkArray8k ; do
+          for h in cold hot ; do
+            set +e
+            java benchmark/TruncProbe.java probe-tmp $k $h > out.txt 2>&1
+            code=$?
+            set -e
+            echo "== $k $h exit $code"
+            grep -E "RESULT|SIG|Problematic|fatal|#  [A-Za-z]" out.txt | head -8 || true
+          done
+        done
+    - name: Upload crash logs
+      if: always()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: hs-err-${{ matrix.os }}-${{ matrix.java }}
+        path: hs_err_pid*.log
+        if-no-files-found: ignore
