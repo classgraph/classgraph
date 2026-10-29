@@ -40,6 +40,9 @@ public class TruncatedSegmentRepro {
             }
             try (RandomAccessFile raf = new RandomAccessFile(file.toFile(), "rw")) {
                 raf.setLength(4096);
+            } catch (java.io.IOException e) {
+                System.out.println("truncation refused: " + e); // Windows
+                return;
             }
             String result;
             try {

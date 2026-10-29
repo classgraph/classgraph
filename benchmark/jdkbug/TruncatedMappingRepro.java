@@ -6,12 +6,12 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
 /**
- * Maps a 1 MB file, copies 100 bytes out of the mapping often enough for the copy to be JIT-compiled, truncates the
- * file to 4096 bytes, and copies 100 bytes from offset 65536, which is now beyond the end of the file.
+ * Maps a 1 MB file, copies len bytes out of the mapping often enough for the copy to be JIT-compiled, truncates the
+ * file to 4096 bytes, and copies len bytes from offset 65536, which is now beyond the end of the file.
  *
  * Expected: the copy throws an exception (InternalError, per the MappedByteBuffer spec "an unspecified exception").
- * Observed on aarch64 (Linux and macOS): the JVM crashes with SIGBUS in StubRoutines::copy_byte_f. Observed on
- * x86-64: the InternalError is thrown only after copy() has returned, so the catch in copy() misses it.
+ * Observed on aarch64 (Linux and macOS), len 100 or 8192: the JVM crashes with SIGBUS in StubRoutines::copy_byte_f.
+ * Observed on x86-64: the InternalError is thrown only after copy() has returned, so the catch in copy() misses it.
  *
  * Run: java TruncatedMappingRepro.java [len] (len defaults to 100)
  */
@@ -37,6 +37,9 @@ public class TruncatedMappingRepro {
             }
             try (RandomAccessFile raf = new RandomAccessFile(file.toFile(), "rw")) {
                 raf.setLength(4096);
+            } catch (java.io.IOException e) {
+                System.out.println("truncation refused: " + e); // Windows
+                return;
             }
             String result;
             try {
@@ -46,7 +49,8 @@ public class TruncatedMappingRepro {
             }
             System.out.println(result);
         } finally {
-            Files.delete(file);
+            // Windows cannot delete a file that is still mapped
+            file.toFile().deleteOnExit();
         }
     }
 }

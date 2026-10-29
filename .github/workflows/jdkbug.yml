@@ -31,26 +31,30 @@ jobs:
     - name: Run
       shell: bash
       run: |
+        # Every result is recorded, including a crash, so no failing command may end the script
+        set +e
         mkdir -p out
         repros="TruncatedMappingRepro"
         [ "${{ matrix.java }}" -ge 22 ] && repros="$repros TruncatedSegmentRepro"
         {
           echo "## $(uname -s) $(uname -m), $(java -version 2>&1 | sed -n 2p)"
           echo
-          echo "| reproducer | len | result |"
-          echo "|---|---|---|"
+          echo "| reproducer | len | run | result |"
+          echo "|---|---|---|---|"
         } > out/result.md
         for r in $repros; do
           for len in 8 100 8192; do
-            log=out/$r-$len.log
-            (cd out && java -XX:ErrorFile=hs_err_$r-$len.log ../benchmark/jdkbug/$r.java $len) > $log 2>&1
+           for run in 1 2 3; do
+            log=out/$r-$len-$run.log
+            (cd out && java -XX:ErrorFile=hs_err_$r-$len-$run.log ../benchmark/jdkbug/$r.java $len) > $log 2>&1
             code=$?
-            res=$(grep -E '^(ok|caught|NOT caught)' $log | head -1)
+            res=$(grep -E '^(ok|caught|NOT caught|truncation refused)' $log | head -1)
             if [ -z "$res" ]; then
               frame=$(grep -A1 '^# Problematic frame:' $log | tail -1 | sed 's/^# *//')
               res="exit $code $(grep -o 'SIG[A-Z]*' $log | head -1) $frame $(grep -m1 -E 'Exception|Error' $log)"
             fi
-            echo "| $r | $len | $(echo "$res" | tr '|' '/' | cut -c1-200) |" >> out/result.md
+            echo "| $r | $len | $run | $(echo "$res" | tr '|' '/' | cut -c1-200) |" >> out/result.md
+           done
           done
         done
         cat out/result.md >> "$GITHUB_STEP_SUMMARY"
