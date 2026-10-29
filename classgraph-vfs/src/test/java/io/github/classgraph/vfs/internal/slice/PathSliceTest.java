@@ -412,12 +412,24 @@ public class PathSliceTest {
             final var reader = slice.randomAccessReader();
             assertThat(reader).isInstanceOf(MappedFileReader.class);
             assertThat(reader.readByte(200_000)).isEqualTo(content[200_000]);
-            // Read often enough that the read is JIT-compiled, since a fault in a compiled bulk copy is thrown after
-            // the copy returns on x86-64, and kills the JVM on aarch64
+            // Make each kind of read often enough that it is JIT-compiled, since a fault in a compiled single-value
+            // read or bulk copy is thrown after the read returns, and a fault in a compiled bulk copy of more than
+            // 64 bytes kills the JVM on aarch64
             final var buf = new byte[8192];
+            final var smallBuf = new byte[100];
+            final var heapBuf = ByteBuffer.allocate(100);
+            final var directBuf = ByteBuffer.allocateDirect(8192);
+            var sum = 0L;
             for (var i = 0; i < 100_000; i++) {
-                assertThat(reader.read((i * 64L) & 0xFFFF, buf, 0, buf.length)).isEqualTo(buf.length);
+                final var off = (i * 64L) & 0xFFFF;
+                assertThat(reader.read(off, buf, 0, buf.length)).isEqualTo(buf.length);
+                assertThat(reader.read(off, smallBuf, 0, smallBuf.length)).isEqualTo(smallBuf.length);
+                assertThat(reader.read(off, smallBuf, 0, 8)).isEqualTo(8);
+                assertThat(reader.read(off, heapBuf, 0, 100)).isEqualTo(100);
+                assertThat(reader.read(off, directBuf, 0, 8192)).isEqualTo(8192);
+                sum += reader.readByte(off) + reader.readShort(off) + reader.readInt(off) + reader.readLong(off);
             }
+            assertThat(sum).isNotZero();
 
             try (var raf = new RandomAccessFile(file.toFile(), "rw")) {
                 raf.setLength(4096);
@@ -434,10 +446,14 @@ public class PathSliceTest {
                     .hasMessageContaining("truncated");
             assertThatThrownBy(() -> reader.read(200_000, buf, 0, buf.length)).isInstanceOf(IOException.class)
                     .hasMessageContaining("truncated");
-            assertThatThrownBy(() -> reader.read(200_000, new byte[100], 0, 100)).isInstanceOf(IOException.class)
+            assertThatThrownBy(() -> reader.read(200_000, smallBuf, 0, 100)).isInstanceOf(IOException.class)
+                    .hasMessageContaining("truncated");
+            assertThatThrownBy(() -> reader.read(200_000, smallBuf, 0, 8)).isInstanceOf(IOException.class)
                     .hasMessageContaining("truncated");
             assertThatThrownBy(() -> reader.read(200_000, ByteBuffer.allocate(100), 0, 100))
                     .isInstanceOf(IOException.class).hasMessageContaining("truncated");
+            assertThatThrownBy(() -> reader.read(200_000, directBuf, 0, 8192)).isInstanceOf(IOException.class)
+                    .hasMessageContaining("truncated");
             // A large read, which goes through a file channel
             assertThatThrownBy(slice::load).isInstanceOf(IOException.class).hasMessageContaining("truncated");
             // And the buffer that read() returns is a copy, not a view that would fault when the caller read it
