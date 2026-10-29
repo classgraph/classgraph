@@ -1,0 +1,85 @@
+name: Read method benchmark
+
+permissions:
+  contents: read
+
+# Temporary: compares whole scans that read jarfiles through a file channel, a memory mapping, or both
+# (classgraph.vfs.readMethod), interleaved in one job so that each OS compares them on the same runner.
+on:
+  push:
+    branches:
+      - read-method-experiment
+
+jobs:
+  benchmark:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+    - name: Set up JDK
+      uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+      with:
+        distribution: 'zulu'
+        java-version: '26'
+        cache: 'maven'
+    - name: Build ClassGraph
+      run: ./mvnw --no-transfer-progress -B -q clean compile
+    - name: Download the benchmark corpus
+      run: ./mvnw --no-transfer-progress -B -q -f benchmark/pom.xml dependency:copy-dependencies -DoutputDirectory=corpus
+    - name: Download the source jars, which give the mixed-content corpus its non-class bytes
+      run: ./mvnw --no-transfer-progress -B -q -f benchmark/pom.xml dependency:copy-dependencies -Dclassifier=sources "-Dmdep.failOnMissingClassifierArtifact=false" -DoutputDirectory=mixed
+    - name: Stop Spotlight indexing
+      if: runner.os == 'macOS'
+      run: sudo mdutil -a -i off
+    - name: Run the benchmark
+      shell: bash
+      run: |
+        set -e
+        SEP=":"
+        if [ "$RUNNER_OS" = "Windows" ] ; then SEP=";" ; fi
+        CP="classgraph/target/classes${SEP}classgraph-base/target/classes"
+        CP="${CP}${SEP}classgraph-vfs/target/classes${SEP}classgraph-classpath/target/classes"
+        mkdir -p benchmark/huge
+        cp benchmark/corpus/kotlin-compiler-embeddable-*.jar benchmark/huge/
+        mkdir -p benchmark/mixed
+        cp benchmark/corpus/*.jar benchmark/mixed/
+        mkdir -p results
+        case "$RUNNER_OS" in
+          Linux)   EVICT="python3 benchmark/evict.py" ;;
+          macOS)   EVICT="sudo purge" ;;
+          *)       EVICT="" ;;
+        esac
+        for workload in corpus mixed huge ; do
+          for rep in 1 2 3 ; do
+            for method in channel map hybrid ; do
+              echo "== $RUNNER_OS / $workload / warm / $method / rep $rep" | tee -a results/log.txt
+              java -Dclassgraph.vfs.readMethod=$method -cp "$CP" benchmark/Bench.java "benchmark/$workload" warm 9 none \
+                  2>&1 | tee -a results/log.txt
+            done
+          done
+        done
+        if [ -n "$EVICT" ] ; then
+          for workload in corpus mixed huge ; do
+            for rep in 1 2 ; do
+              for method in channel map hybrid ; do
+                echo "== $RUNNER_OS / $workload / cold / $method / rep $rep" | tee -a results/log.txt
+                if [ "$RUNNER_OS" = "Linux" ] ; then
+                  java -Dclassgraph.vfs.readMethod=$method -cp "$CP" benchmark/Bench.java "benchmark/$workload" cold 4 $EVICT "benchmark/$workload" \
+                      2>&1 | tee -a results/log.txt
+                else
+                  java -Dclassgraph.vfs.readMethod=$method -cp "$CP" benchmark/Bench.java "benchmark/$workload" cold 4 $EVICT \
+                      2>&1 | tee -a results/log.txt
+                fi
+              done
+            done
+          done
+        fi
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      if: always()
+      with:
+        name: read-method-${{ matrix.os }}
+        path: results

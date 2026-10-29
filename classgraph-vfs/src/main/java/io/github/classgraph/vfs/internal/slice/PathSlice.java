@@ -42,6 +42,7 @@ import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.jspecify.annotations.Nullable;
@@ -62,6 +63,36 @@ public final class PathSlice extends Slice {
      * Maximum time in milliseconds that {@link #freeUnreachableBuffers()} waits for reference processing after GC.
      */
     private static final int REFERENCE_PROCESSING_TIMEOUT_MILLIS = 100;
+
+    /**
+     * How a zipfile is read: through a file channel ("channel"), through a memory mapping ("map"), or through both
+     * ("hybrid"). TODO: temporary, for comparing whole scans on each OS; remove once the comparison has decided
+     * each OS.
+     */
+    private static final String READ_METHOD = System.getProperty("classgraph.vfs.readMethod",
+            VersionFinder.OS == OperatingSystem.Windows ? "hybrid" : "channel");
+
+    /** Whether a toplevel slice of a zipfile memory-maps the whole file. */
+    static final boolean MAP_FILES = !READ_METHOD.equals("channel");
+
+    /**
+     * Reads from a memory-mapped file of at least this many bytes go through a {@link FileChannel} instead of the
+     * mapping. A read through the mapping costs a page fault for each page it touches the first time, and a read
+     * through a file channel costs a system call, so the mapping is faster for small reads and the file channel for
+     * large ones. Measured by reading 32 MB of entries of a single size, on 1, 4 and 16 threads, the file channel
+     * overtakes the mapping above about 16 KB on Linux and above about 32 to 64 KB on macOS and Windows.
+     */
+    static final int MIN_CHANNEL_READ_SIZE = READ_METHOD.equals("map") ? Integer.MAX_VALUE
+            : VersionFinder.OS == OperatingSystem.Linux ? 32 * 1024 : 64 * 1024;
+
+    /**
+     * Whether large reads from a memory-mapped file each take a file channel of their own from
+     * {@link #idleChannels}, rather than all sharing {@link #fileChannel}. On Windows, a {@link FileChannel} lets
+     * only one positional read run at a time, since a read there moves the file pointer, so threads sharing a
+     * channel wait for each other. On Linux and macOS positional reads of the same channel run in parallel, so the
+     * one channel is shared, and no more file descriptors are used than one per file.
+     */
+    private static final boolean CHANNEL_PER_READ = VersionFinder.OS == OperatingSystem.Windows;
 
     /**
      * The {@link Path} of the file, or null if opened from a {@link File} whose path cannot be represented as a
@@ -95,6 +126,13 @@ public final class PathSlice extends Slice {
 
     /** The mapped {@link ByteBuffer} (only set on the toplevel slice), or null if unmapped or closed. */
     private volatile @Nullable ByteBuffer backingByteBuffer;
+
+    /**
+     * The file channels of the toplevel slice that are not in use by a read, if {@link #CHANNEL_PER_READ} is true.
+     * A large read from the mapping takes one, or opens one if there is none, and puts it back afterward, so there
+     * are never more of them than the number of reads that have run at the same time.
+     */
+    private final ConcurrentLinkedQueue<FileChannel> idleChannels;
 
     /** True if {@link #close} has been called. */
     private final AtomicBoolean isClosed = new AtomicBoolean();
@@ -137,20 +175,97 @@ public final class PathSlice extends Slice {
                 // Another thread reopened the channel first
                 return currentChannel;
             }
-            final var reopened = openChannel(path, file, /* checkAccess = */ false);
-            if (reopened.fileLength() != fileLength) {
-                // The offsets that were read from the file when it was first opened would not be valid for the
-                // file that is there now
-                final var e = new IOException(pathStr + " changed after it was opened");
-                try {
-                    reopened.channel().close();
-                } catch (final IOException e2) {
-                    e.addSuppressed(e2);
-                }
-                throw e;
+            final var reopened = openAnotherChannel();
+            fileChannel = reopened;
+            return reopened;
+        }
+    }
+
+    /**
+     * Open another {@link FileChannel} on the file of the toplevel slice.
+     *
+     * @return the channel.
+     * @throws IOException
+     *             if the file could not be opened, or if its length is not what it was when the slice was opened.
+     */
+    private FileChannel openAnotherChannel() throws IOException {
+        final var opened = openChannel(path, file, /* checkAccess = */ false);
+        if (opened.fileLength() != fileLength) {
+            // The offsets that were read from the file when it was first opened would not be valid for the file
+            // that is there now
+            final var e = new IOException(pathStr + " changed after it was opened");
+            try {
+                opened.channel().close();
+            } catch (final IOException e2) {
+                e.addSuppressed(e2);
             }
-            fileChannel = reopened.channel();
-            return reopened.channel();
+            throw e;
+        }
+        return opened.channel();
+    }
+
+    /**
+     * Read a range of the memory-mapped file of the toplevel slice through a {@link FileChannel} rather than
+     * through the mapping, as {@link RandomAccessReader#read(long, ByteBuffer, int, int)} reads it.
+     *
+     * @param sliceStartPos
+     *            the start of the slice being read, within the file.
+     * @param sliceLength
+     *            the length of the slice being read.
+     * @param srcOffset
+     *            the offset within the slice to read from.
+     * @param dstBuf
+     *            the buffer to read into.
+     * @param dstBufStart
+     *            the index in the buffer to read into.
+     * @param numBytes
+     *            the number of bytes to read.
+     * @return the number of bytes read, or -1 if {@code srcOffset} is at or past the end of the slice.
+     * @throws IOException
+     *             if this slice has been closed, the thread has been interrupted, or the file could not be read.
+     */
+    int readThroughChannel(final long sliceStartPos, final long sliceLength, final long srcOffset,
+            final ByteBuffer dstBuf, final int dstBufStart, final int numBytes) throws IOException {
+        if (!CHANNEL_PER_READ) {
+            return new RandomAccessFileChannelReader(this::fileChannel, sliceStartPos, sliceLength).read(srcOffset,
+                    dstBuf, dstBufStart, numBytes);
+        }
+        // A read of a FileChannel by an interrupted thread closes the channel, so check first, as fileChannel()
+        // does, rather than lose the channel
+        if (Thread.currentThread().isInterrupted()) {
+            throw new InterruptedIOException("Interrupted while reading " + pathStr);
+        }
+        if (isClosed.get()) {
+            throw new IOException("Cannot read " + pathStr + " after it has been closed");
+        }
+        final var idleChannel = idleChannels.poll();
+        final var channel = idleChannel != null ? idleChannel : openAnotherChannel();
+        try {
+            // Nothing but this read uses the channel until it is put back, so nothing else can close it, except an
+            // interrupt of this thread, which ends the read
+            return new RandomAccessFileChannelReader(channel, sliceStartPos, sliceLength).read(srcOffset, dstBuf,
+                    dstBufStart, numBytes);
+        } finally {
+            if (channel.isOpen()) {
+                idleChannels.offer(channel);
+                // A close that ran during the read did not see this channel among the idle ones, so close it here.
+                // A close that runs from here on does see it.
+                if (isClosed.get()) {
+                    closeIdleChannels();
+                }
+            }
+        }
+    }
+
+    /** Close the file channels in {@link #idleChannels}. */
+    private void closeIdleChannels() {
+        FileChannel channel;
+        while ((channel = idleChannels.poll()) != null) {
+            try {
+                channel.close();
+            } catch (final IOException _) {
+                // Ignore
+            }
         }
     }
 
@@ -193,6 +308,7 @@ public final class PathSlice extends Slice {
         this.fileLength = parentSlice.fileLength;
         this.topLevelPathSlice = parentSlice.topLevelPathSlice;
         this.fileChannelLock = parentSlice.fileChannelLock;
+        this.idleChannels = parentSlice.idleChannels;
         // Only the toplevel slice owns the temporary file, if the file it reads is one, so a sub slice has nothing
         // to delete
         this.tempFile = null;
@@ -245,16 +361,18 @@ public final class PathSlice extends Slice {
         // Set before anything below can fail, since it is what tells close() that this slice owns the file channel
         this.topLevelPathSlice = this;
         this.fileChannelLock = new Object();
+        this.idleChannels = new ConcurrentLinkedQueue<>();
         final var fileChannelOpened = openedChannel.channel();
         this.fileChannel = fileChannelOpened;
         // Nothing but this constructor knows about the file channel yet, so if anything below throws, this is the
         // only place the channel can be released. A temporary file is not deleted here: until this constructor
         // returns, the caller that created the file still owns it, and deletes it when this throws
         try {
-            if (memoryMapWholeFile && VersionFinder.OS == OperatingSystem.Windows) {
+            if (memoryMapWholeFile && MAP_FILES) {
                 // Memory-map the whole file, if it can be mapped -- otherwise fall through and read through the
                 // FileChannel API instead. Mapping is measurably faster on Windows and is not on Linux or macOS,
-                // where it can even be slower, so it is done on Windows only. (The measurements are at
+                // where it can even be slower, so it is done on Windows only. Large reads still go through a file
+                // channel (see MIN_CHANNEL_READ_SIZE). (The measurements are at
                 // https://github.com/classgraph/classgraph/wiki/Memory-Mapping-Benchmark .)
                 final var mapping = FileMapping.map(fileChannelOpened, fileLength, pathStr, log);
                 fileMapping = mapping;
@@ -433,8 +551,8 @@ public final class PathSlice extends Slice {
     }
 
     /**
-     * Create a new {@link RandomAccessReader} for this slice, reading from the memory mapping if present or from
-     * the {@link FileChannel} otherwise.
+     * Create a new {@link RandomAccessReader} for this slice, reading from the memory mapping if present (except
+     * for large reads, which go through a {@link FileChannel}), or from the {@link FileChannel} otherwise.
      *
      * @return the random access reader
      * @throws IOException
@@ -458,8 +576,10 @@ public final class PathSlice extends Slice {
             // of the mapping for as long as it is alive, and readers are not closed, so it is given the toplevel
             // slice's closed flag to check before each read, so that a read after the close is reported as an
             // IOException
-            return new RandomAccessByteBufferReader(mappedByteBuffer, sliceStartPos, sliceLength,
-                    ByteOrder.LITTLE_ENDIAN, topLevelPathSlice.isClosed::get);
+            return new MappedFileReader(
+                    new RandomAccessByteBufferReader(mappedByteBuffer, sliceStartPos, sliceLength,
+                            ByteOrder.LITTLE_ENDIAN, topLevelPathSlice.isClosed::get),
+                    topLevelPathSlice, sliceStartPos, sliceLength);
         }
     }
 
@@ -550,6 +670,8 @@ public final class PathSlice extends Slice {
                     } catch (final IOException _) {
                         // Ignore
                     }
+                    // A channel that a read has taken is closed by the read when it puts the channel back
+                    closeIdleChannels();
                 } finally {
                     // The temporary file can only be deleted once the mapping and the file channel over it have
                     // been released, so it goes last
