@@ -36,8 +36,9 @@ jobs:
         benchmark/mapprobe/run.sh "$RUNNER_TEMP/mp"
         cat "$RUNNER_TEMP/mp/trunc.md" "$RUNNER_TEMP/mp/bench.md" >> "$GITHUB_STEP_SUMMARY"
         mkdir -p out && cp "$RUNNER_TEMP/mp/trunc.md" "$RUNNER_TEMP/mp/bench.md" "$RUNNER_TEMP/mp/bench.raw" out/
+        cp "$RUNNER_TEMP/mp/cold.raw" out/ || true
         cp -r "$RUNNER_TEMP/mp/hs_err" out/ || true
-        tar -cf out/logs.tar -C "$RUNNER_TEMP/mp" work --exclude='*.bin' || true
+        tar -cf out/logs.tar --exclude='*.bin' -C "$RUNNER_TEMP/mp" work || true
     - name: Upload
       if: always()
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

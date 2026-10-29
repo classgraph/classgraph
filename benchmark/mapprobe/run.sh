@@ -9,7 +9,7 @@ FEATURE=$(java -XshowSettings:properties -version 2>&1 | sed -n 's/^ *java.speci
 javac --release 17 -d "$OUT/classes" "$SRC/Common.java" "$SRC/TruncMatrix.java" "$SRC/ReadBench.java" || exit 1
 MAPS="legacy"
 if [ "$FEATURE" -ge 22 ]; then
-    javac --release "$FEATURE" -cp "$OUT/classes" -d "$OUT/classes" "$SRC/Arena25.java" || exit 1
+    javac --release "$FEATURE" -cp "$OUT/classes" -d "$OUT/classes" "$SRC/Arena25.java" "$SRC/ColdBench.java" || exit 1
     MAPS="legacy arena"
 fi
 limit() { perl -e 'alarm shift; exec @ARGV or die "exec: $!"' "$@"; }
@@ -20,12 +20,12 @@ limit() { perl -e 'alarm shift; exec @ARGV or die "exec: $!"' "$@"; }
     echo "| map | kind | size | cold | hot |"
     echo "|---|---|---|---|---|"
 } > "$OUT/trunc.md"
-TRUNC_KINDS=${TRUNC_KINDS:-"byte1 long1 bulk bulkHeapBuf longLoop longLoop4 longLoopVH segCopy segLongLoop sizeCheckBulk channel raf heap"}
+TRUNC_KINDS=${TRUNC_KINDS:-"byte1 byte1F long1 long1F bulk bulkF bulk64 bulk64F longLoop longLoopF longLoop8 longLoop8F segCopy segCopyF sizeCheckBulk channel"}
 for map in $MAPS; do
     for kind in $TRUNC_KINDS; do
-        case $kind in segCopy|segLongLoop) [ "$map" = arena ] || continue ;; esac
+        case $kind in segCopy*|segLongLoop*) [ "$map" = arena ] || continue ;; esac
         case $kind in channel|raf|heap) [ "$map" = legacy ] || continue ;; esac
-        case $kind in byte1|long1) sizes="8" ;; *) sizes="8 100 8192 tail" ;; esac
+        case $kind in byte1*|long1*) sizes="8" ;; *) sizes="8 100 8192 tail" ;; esac
         for size in $sizes; do
             row="| $map | $kind | $size |"
             for hot in false true; do
@@ -55,17 +55,25 @@ done
     echo "ns per read per thread (lower is better); the median of 3 rounds"
     echo
 } > "$OUT/bench.md"
-BENCH_KINDS=${BENCH_KINDS:-"bulk longLoop longLoop4 longLoopVH segCopy segLongLoop sizeCheckBulk channel channelDirect channelPerThread raf heap"}
+BENCH_KINDS=${BENCH_KINDS:-"bulk bulkF bulk64 bulk64F longLoop longLoop8 longLoop8F segCopy segCopyF sizeCheckBulk channel channelPerThread heap"}
 : > "$OUT/bench.raw"
 for map in $MAPS; do
     for kind in $BENCH_KINDS; do
-        case $kind in segCopy|segLongLoop) [ "$map" = arena ] || continue ;; esac
+        case $kind in segCopy*|segLongLoop*) [ "$map" = arena ] || continue ;; esac
         case $kind in channel*|raf|heap) [ "$map" = legacy ] || continue ;; esac
         limit 900 java -Xmx1g -cp "$OUT/classes" ReadBench "$OUT/work" "$map" "$kind" > "$OUT/work/bench-$map-$kind.log" 2>&1 \
             || echo "FAILED $map $kind exit $?" >> "$OUT/bench.raw"
         grep -E '^(RESULT|LOAD) ' "$OUT/work/bench-$map-$kind.log" >> "$OUT/bench.raw"
     done
 done
+if [ "$FEATURE" -ge 22 ]; then
+    COLD_KINDS=${COLD_KINDS:-"bulk bulkF bulk64F longLoop longLoop8F segCopyF channel channelPerThread"}
+    for kind in $COLD_KINDS; do
+        limit 900 java -Xmx1g -cp "$OUT/classes" ColdBench "$OUT/work" "$kind" > "$OUT/work/cold-$kind.log" 2>&1 \
+            || echo "FAILED cold $kind exit $?" >> "$OUT/cold.raw"
+        grep -E '^RESULT ' "$OUT/work/cold-$kind.log" >> "$OUT/cold.raw"
+    done
+fi
 # One row per method, one column per size and thread count
 perl -ne '
     if (/^RESULT (\S+) (\S+) (\d+) (\d+) (\S+) (\S+)/) {
@@ -78,3 +86,22 @@ perl -ne '
         for my $m (@m) { print "| $m | ", join(" | ", map { $v{$m}{$_} // "" } @c), " |\n"; }
         print "\n$load\n" if $load; print "\n$_" for @fail;
     }' "$OUT/bench.raw" >> "$OUT/bench.md"
+if [ -s "$OUT/cold.raw" ]; then
+    {
+        echo
+        echo "## First-touch reads: 32 MB read once, in order, through a mapping made just before (cached file)"
+        echo
+        echo "ns per read per thread (lower is better); the median of 7 rounds"
+        echo
+    } >> "$OUT/bench.md"
+    perl -ne '
+        if (/^RESULT (\S+) (\S+) (\d+) (\d+) (\S+) (\S+)/) {
+            my $m = $1; my $c = "$3 B x$4";
+            push @m, $m unless $seen{$m}++; push @c, $c unless $seenc{$c}++; $v{$m}{$c} = $6;
+        } elsif (/^FAILED/) { push @fail, $_; }
+        END {
+            print "| method | ", join(" | ", @c), " |\n|---|", "---|" x @c, "\n";
+            for my $m (@m) { print "| $m | ", join(" | ", map { $v{$m}{$_} // "" } @c), " |\n"; }
+            print "\n$_" for @fail;
+        }' "$OUT/cold.raw" >> "$OUT/bench.md"
+fi

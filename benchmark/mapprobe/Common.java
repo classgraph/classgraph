@@ -27,6 +27,8 @@ public final class Common {
         Copy segCopy();
 
         Copy segLongLoop();
+
+        void close();
     }
 
     static final VarHandle LONGS = MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.LITTLE_ENDIAN);
@@ -56,6 +58,14 @@ public final class Common {
             final long start = System.nanoTime();
             heap = Files.readAllBytes(file);
             return (System.nanoTime() - start) / 1e6;
+        }
+
+        /** Closes the channel, and unmaps the file if it was mapped into an arena. */
+        void close() throws IOException {
+            if (arena != null) {
+                arena.close();
+            }
+            ch.close();
         }
     }
 
@@ -103,6 +113,45 @@ public final class Common {
         }
     }
 
+    static void longLoop8(final ByteBuffer buf, final int off, final byte[] dst, final int len) {
+        int i = 0;
+        for (; i + 64 <= len; i += 64) {
+            final long a = buf.getLong(off + i);
+            final long b = buf.getLong(off + i + 8);
+            final long c = buf.getLong(off + i + 16);
+            final long d = buf.getLong(off + i + 24);
+            final long e = buf.getLong(off + i + 32);
+            final long f = buf.getLong(off + i + 40);
+            final long g = buf.getLong(off + i + 48);
+            final long h = buf.getLong(off + i + 56);
+            LONGS.set(dst, i, a);
+            LONGS.set(dst, i + 8, b);
+            LONGS.set(dst, i + 16, c);
+            LONGS.set(dst, i + 24, d);
+            LONGS.set(dst, i + 32, e);
+            LONGS.set(dst, i + 40, f);
+            LONGS.set(dst, i + 48, g);
+            LONGS.set(dst, i + 56, h);
+        }
+        for (; i + Long.BYTES <= len; i += Long.BYTES) {
+            LONGS.set(dst, i, buf.getLong(off + i));
+        }
+        for (; i < len; i++) {
+            dst[i] = buf.get(off + i);
+        }
+    }
+
+    /** Bulk copies of at most 64 bytes, which aarch64 copies inline in the guarded arraycopy stub. */
+    static void bulk64(final ByteBuffer buf, final int off, final byte[] dst, final int len) {
+        int i = 0;
+        for (; i + 64 <= len; i += 64) {
+            buf.get(off + i, dst, i, 64);
+        }
+        if (i < len) {
+            buf.get(off + i, dst, i, len - i);
+        }
+    }
+
     static void longLoopVH(final ByteBuffer buf, final int off, final byte[] dst, final int len) {
         int i = 0;
         for (; i + Long.BYTES <= len; i += Long.BYTES) {
@@ -114,7 +163,21 @@ public final class Common {
     }
 
     /** A new copier of the given kind, for one thread. */
+    /** A lock that no thread holds, for the fence. */
+    static final Object FENCE = new Object();
+
     public static Copy make(final String kind, final Ctx c) throws IOException {
+        if (kind.endsWith("F")) {
+            // The copy followed by a call of a native method: on the return from native code, HotSpot throws a
+            // pending unsafe access error at the call site
+            final Copy copy = make(kind.substring(0, kind.length() - 1), c);
+            return (off, dst, len) -> {
+                copy.copy(off, dst, len);
+                if (Thread.holdsLock(FENCE)) {
+                    throw new AssertionError();
+                }
+            };
+        }
         final ByteBuffer buf = c.buf;
         switch (kind) {
         case "byte1":
@@ -129,6 +192,10 @@ public final class Common {
             return (off, dst, len) -> longLoop(buf, (int) off, dst, len);
         case "longLoop4":
             return (off, dst, len) -> longLoop4(buf, (int) off, dst, len);
+        case "longLoop8":
+            return (off, dst, len) -> longLoop8(buf, (int) off, dst, len);
+        case "bulk64":
+            return (off, dst, len) -> bulk64(buf, (int) off, dst, len);
         case "longLoopVH":
             return (off, dst, len) -> longLoopVH(buf, (int) off, dst, len);
         case "segCopy":

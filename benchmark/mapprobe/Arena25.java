@@ -11,12 +11,20 @@ public final class Arena25 implements Common.ArenaOps {
     private static final ValueLayout.OfLong LONG = ValueLayout.JAVA_LONG_UNALIGNED
             .withOrder(ByteOrder.LITTLE_ENDIAN);
 
+    private Arena arena;
+
     private MemorySegment seg;
 
     @Override
     public ByteBuffer map(final FileChannel ch) throws IOException {
-        seg = ch.map(FileChannel.MapMode.READ_ONLY, 0, ch.size(), Arena.ofShared());
+        arena = Arena.ofShared();
+        seg = ch.map(FileChannel.MapMode.READ_ONLY, 0, ch.size(), arena);
         return seg.asByteBuffer();
+    }
+
+    @Override
+    public void close() {
+        arena.close();
     }
 
     @Override
