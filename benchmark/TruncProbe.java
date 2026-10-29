@@ -1,5 +1,7 @@
 import java.io.RandomAccessFile;
 import java.lang.foreign.Arena;
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
@@ -15,6 +17,8 @@ import java.nio.file.StandardOpenOption;
 public class TruncProbe {
     static long sink;
 
+    static final ThreadLocal<ByteBuffer> BOUNCE = ThreadLocal.withInitial(() -> ByteBuffer.allocateDirect(8192));
+
     static void read(final String kind, final ByteBuffer buf, final int off) {
         switch (kind) {
         case "byte" -> sink += buf.get(off);
@@ -25,6 +29,19 @@ public class TruncProbe {
         case "bulkHeapBuf" -> ByteBuffer.allocate(100).put(0, buf, off, 100);
         case "bulkDirectBuf" -> ByteBuffer.allocateDirect(100).put(0, buf, off, 100);
         case "bulkArray8k" -> buf.get(off, new byte[8192], 0, 8192);
+        case "segCopy" -> MemorySegment.copy(MemorySegment.ofBuffer(buf), ValueLayout.JAVA_BYTE, off,
+                new byte[8192], 0, 8192);
+        case "viaDirect" -> {
+            final var bounce = BOUNCE.get();
+            bounce.put(0, buf, off, 8192);
+            bounce.get(0, new byte[8192], 0, 8192);
+        }
+        case "longLoop" -> {
+            final var dst = ByteBuffer.wrap(new byte[8192]).order(ByteOrder.LITTLE_ENDIAN);
+            for (int i = 0; i < 8192; i += 8) {
+                dst.putLong(i, buf.getLong(off + i));
+            }
+        }
         default -> throw new IllegalArgumentException(kind);
         }
     }
@@ -38,7 +55,7 @@ public class TruncProbe {
             final var buf = ch.map(FileChannel.MapMode.READ_ONLY, 0, ch.size(), arena).asByteBuffer()
                     .order(ByteOrder.LITTLE_ENDIAN);
             if (hot) {
-                for (int r = 0; r < 100_000; r++) {
+                for (int r = 0; r < 300_000; r++) {
                     read(kind, buf, (r * 64) & 0xFFFF);
                 }
             }

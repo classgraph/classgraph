@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ macos-latest, ubuntu-latest ]
+        os: [ macos-latest, ubuntu-24.04-arm ]
         java: [ '25', '26' ]
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -28,7 +28,7 @@ jobs:
       shell: bash
       run: |
         mkdir -p probe-tmp
-        for k in byte short int long bulkArray bulkHeapBuf bulkDirectBuf bulkArray8k ; do
+        for k in byte long bulkArray bulkHeapBuf bulkArray8k segCopy viaDirect longLoop ; do
           for h in cold hot ; do
             set +e
             java benchmark/TruncProbe.java probe-tmp $k $h > out.txt 2>&1
