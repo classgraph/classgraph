@@ -114,9 +114,9 @@
 						     happen on every JDK: javac used to find it by scanning the test classpath, but
 						     JDK 23 turned that scan off by default, so on a current JDK the benchmarks were
 						     compiling to class files with no BenchmarkList beside them and could not be run.
-						     Only this module has benchmarks, so only this module needs the processor.
-						     Everything else about the execution, including the lint flags, is inherited from
-						     the same execution id in the parent pom. -->
+						     Only this module and classgraph-vfs have benchmarks, so only they need the
+						     processor. Everything else about the execution, including the lint flags, is
+						     inherited from the same execution id in the parent pom. -->
 						<id>default-testCompile</id>
 						<configuration>
 							<annotationProcessors>
