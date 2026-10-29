@@ -403,135 +403,377 @@ A `Vfs` and everything it hands out is safe to use from many threads at once. Th
 ClassGraph scan a jarfile in parallel. What that is worth is measured in
 [Benchmarks](#benchmarks) below.
 
+## Compared with other libraries
+
+The libraries compared are the ways the JDK itself offers to read a jarfile, and the other virtual
+filesystem and zip libraries for the JVM that are still in use:
+
+| Library | Version | License | Minimum JDK | Latest release |
+| --- | --- | --- | --- | --- |
+| **classgraph-vfs** | 6.0.1 | MIT | 25 (17 for 5.x) | 2026-10 |
+| JDK zip filesystem provider (zipfs) | JDK 26.0.2 | GPLv2 + Classpath Exception | -- | -- |
+| `java.util.zip.ZipFile` / `java.util.jar.JarFile` | JDK 26.0.2 | GPLv2 + Classpath Exception | -- | -- |
+| `java.util.zip.ZipInputStream` | JDK 26.0.2 | GPLv2 + Classpath Exception | -- | -- |
+| `java.net.URL` (`file:`, `jar:`, `http:`, `jrt:`) | JDK 26.0.2 | GPLv2 + Classpath Exception | -- | -- |
+| [Apache Commons VFS](https://commons.apache.org/proper/commons-vfs/) | 2.10.0 | Apache-2.0 | 8 | 2025-02 |
+| [TrueVFS](https://github.com/christian-schlichtherle/truevfs) | 0.14.0 | Apache-2.0 | 8 | 2021-01 |
+| [JBoss VFS](https://github.com/jbossas/jboss-vfs) | 3.3.2.Final | Apache-2.0 | 11 | 2024-04 |
+| [Okio](https://square.github.io/okio/) `ZipFileSystem` | 3.18.2 | Apache-2.0 | 8 | 2026-09 |
+| [Spring Boot loader](https://docs.spring.io/spring-boot/specification/executable-jar/) `NestedJarFile` | 4.1.2 | Apache-2.0 | 17 | 2026-10 |
+| [Apache Commons Compress](https://commons.apache.org/proper/commons-compress/) `ZipFile` | 1.28.0 | Apache-2.0 | 8 | 2025-07 |
+| [NetBeans filesystems API](https://bits.netbeans.org/dev/javadoc/org-openide-filesystems/) | RELEASE310 | Apache-2.0 | 17 | 2026-08 |
+
+Apache Hadoop's `FileSystem` and Eclipse's EFS are also virtual filesystems, but each is built for
+one platform (HDFS-style storage, and the Eclipse workspace), and neither reads entries from inside a
+jarfile, so they are left out.
+
+### Features
+
+Every cell below was tested on JDK 26.0.2 against small fixtures, by a probe that reads a known
+entry and checks its content, except the rows marked *documented*, which come from each library's
+own documentation.
+
+* ✅ -- works.
+* **opt** -- works only when an option is passed (named in the notes below the table); without it,
+  the result is wrong.
+* **wrong** -- returns a result, but the wrong one.
+* ❌ -- fails with an exception.
+* -- -- the library has no API for it.
+* ? -- not tested.
+
+| Feature | **cgvfs** | zipfs | `ZipFile` | `ZipInputStream` | `URL` | Commons VFS | TrueVFS | JBoss VFS | Okio | Spring Boot | Commons Compress | NetBeans |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| Directory | ✅ | -- | -- | -- | ✅ | ✅ | ✅ | ✅ | ✅ | -- | -- | ✅ |
+| Jarfile | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | -- | ✅ | ✅ |
+| Nested jarfile, stored | ✅ | ✅ | -- | -- | ❌ | ✅ | ✅ | ✅ | ❌ | ✅ | -- | ❌ |
+| Nested jarfile, deflated | ✅ | ✅ | -- | streaming only | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ | -- | ❌ |
+| Nested three deep | ✅ | ✅ | -- | ? | ❌ | ✅ | ✅ | ? | ❌ | ? | -- | ❌ |
+| Temporary files written to read a deflated nested jarfile | 0 | 0 | -- | 0 | -- | 1 | 2 | 1 | -- | -- | -- | -- |
+| Jarfile held in a `byte[]` | ✅ | -- | -- | ✅ | -- | ✅ | -- | ✅ | -- | -- | ✅ | -- |
+| Jarfile at an `http:` URL | ✅ | -- | -- | ✅ | ✅ | ✅ | ✅ | -- | -- | -- | -- | -- |
+| Jarfile in another `java.nio` filesystem (Jimfs) | ✅ | ✅ | -- | -- | -- | ? | ❌ | -- | -- | -- | ✅ | -- |
+| Module in the JDK's runtime image (`jrt:`) | ✅ | -- | -- | -- | ✅ | -- | -- | -- | -- | -- | -- | -- |
+| Multi-release jarfile, newest version for the running JVM | ✅ | opt | opt | -- | opt | wrong | wrong | wrong | wrong | ✅ | ? | wrong |
+| Entry names in IBM Code Page 437 | ✅ | opt | opt | opt | ? | opt | ✅ | ? | wrong | ? | opt | ❌ |
+| ZIP64, 70000 entries | ✅ | ✅ | ✅ | ✅ | ? | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Is a `java.nio.file.FileSystem` | ✅ | ✅ | -- | -- | -- | -- | ✅ | -- | -- | ✅ | -- | -- |
+| `Files.walk` over it | ✅ | ✅ | -- | -- | -- | -- | ❌ | -- | -- | ? | -- | -- |
+| Nested jarfile as a `FileSystem`, by URI | ✅ | ✅ | -- | -- | -- | -- | ? | -- | -- | ✅ | -- | -- |
+| Seek within a deflated entry | ✅ | ✅ | -- | -- | -- | ❌ | ✅ | ? | ? | ? | ? | ? |
+| 16 threads reading one entry 2000 times each | ✅ | ✅ | ✅ | -- | ✅ | see below | ✅ | ✅ | ✅ | ✅ | ✅ | see below |
+| Write | -- | ✅ | -- | -- | -- | ❌ | ✅ | -- | -- | -- | -- | directories only |
+| Other storage (*documented*) | any URL scheme with a JDK handler or `FileSystemProvider` | -- | -- | any `InputStream` | any URL scheme with a JDK handler | ftp, ftps, sftp, http(s), webdav, hdfs, ram, tar, gz, bz2 and more | tar, tar.gz, tar.bz2, tar.xz, odf, zip-raes | -- | -- | -- | 7z, tar, ar, arj, cpio, dump (as archives, not filesystems) | -- |
+| Change notification (*documented*) | -- | -- | -- | -- | -- | `DefaultFileMonitor` | -- | -- | -- | -- | -- | `FileChangeListener` |
+
+Notes:
+
+* **The options.** zipfs reads a multi-release jarfile's versions only when opened with
+  `releaseVersion` set (e.g. to `"runtime"`), and `ZipFile` only through
+  `new JarFile(file, true, OPEN_READ, Runtime.version())`; a `jar:` URL needs `#runtime` appended.
+  Without the option, all three return the base version. A CP437 entry name decodes correctly only
+  when `IBM437` is passed as the charset (zipfs `encoding`, the `ZipFile`, `ZipInputStream` and
+  Commons Compress constructors, and a Commons VFS file system option); otherwise it is decoded as
+  UTF-8 and comes back garbled. cgvfs and TrueVFS do both without being asked: the zip
+  specification says whether each entry's name is UTF-8 or CP437, by bit 11 of its general purpose
+  flags, so no option is needed.
+* **The failures.** `URL` rejects every nested jarfile, with `MalformedURLException: Nested JAR URLs
+  are not supported`; NetBeans fails the same way, from inside its own code. Okio throws
+  `UnsupportedOperationException: not implemented yet!` on a nested jarfile. Spring Boot's
+  `NestedJarFile` requires a nested jarfile to be stored, which its own build tooling guarantees.
+  TrueVFS fails to find a jarfile in a Jimfs filesystem, and `Files.walk` over a TrueVFS path throws
+  `UnsupportedOperationException: Not supported yet.` Commons VFS cannot seek within a deflated
+  entry (`FileSystemException: The file type does not support read in random access mode.`), and
+  cannot write into a zipfile. NetBeans reads a CP437 jarfile as empty.
+* **"wrong" for multi-release** means the library returned the base version of the entry where the
+  JVM would have loaded the version for its own release.
+* **Commons VFS under concurrency.** Reading one entry through one `FileObject` from 16 threads
+  works, but reading different entries does not, in the default configuration. When a `FileObject`
+  in a zipfile is detached, `ZipFileObject.doDetach` closes the whole zip file system, including the
+  `ZipFile` every other thread is reading from, if no stream on it is open at that moment. The check
+  and the close are not atomic, so other threads' reads fail. A `FileObject` is detached when it is
+  closed, when an `LRUFilesCache` evicts it, and -- under the default cache strategy,
+  `CacheStrategy.ON_RESOLVE` -- every time it is resolved. Resolving the path on each read, with
+  `manager.resolveFile(uri).getContent()`, failed 0 of 32000 reads on one thread, 64 on two threads,
+  and between 179 and 264 on 16, with `ZipException: ZipFile closed` and
+  `IllegalStateException: zip file closed`. Resolving each entry against a root `FileObject` that
+  stays open failed the same way. The benchmarks below use `CacheStrategy.MANUAL`, which never
+  refreshes on resolve, and never close an entry's `FileObject`.
+* **NetBeans under concurrency.** `JarFileSystem` (RELEASE310 and the current master) reads an
+  entry of up to 100000 bytes into RAM, which works from any number of threads. It copies a larger
+  entry to a temporary file, under `jarfscache<user.name>` in `java.io.tmpdir`, and returns a
+  stream that reads that file. The file's name depends only on the hash codes of the jarfile path
+  and the entry name, so every read of the same entry uses the same file. The copy is made under a
+  lock, but while any `FileObject` of the filesystem is alive (which is whenever an entry is being
+  read), every read makes the copy again, truncating the file first, and the streams returned to
+  earlier reads are read after the lock is released. A stream therefore reads whatever part of the
+  file has been rewritten so far. Reading random 1MB entries with `FileObject.asBytes()` failed 0
+  of 500 reads on one thread, 21 to 39 of 1000 on two, and about 250 of 8000 on 16, from both stored
+  and deflated jarfiles, with `IOException: Just 479232 bytes read from bin/07.bin` and the like
+  (`asBytes()` checks the length; `getInputStream()` returns the short content without an error).
+  The same file is also shared by two `JarFileSystem`s on one jarfile, by two JVMs of one user, and
+  by two jarfiles whose paths have the same hash code, such as `Aa.jar` and `BB.jar` in one
+  directory: a stream opened on `Aa.jar` then returns the entry of `BB.jar`. Reported as
+  [apache/netbeans#9761](https://github.com/apache/netbeans/issues/9761), with a fix in
+  [apache/netbeans#9762](https://github.com/apache/netbeans/pull/9762), which gives every read its
+  own temporary file, deleted when its stream is closed. The NetBeans benchmarks below were run with
+  that fix.
+* **Temporary files.** TrueVFS, Commons VFS and JBoss VFS extract a deflated nested jarfile to a
+  temporary file before reading it (Commons VFS into `vfs_cache` under `java.io.tmpdir`). cgvfs
+  inflates it into RAM, and spills it to a temporary file only above 64MB, a limit set by
+  `VfsSpec.setMaxBufferedJarRAMSize`. zipfs wrote no temporary file either. NetBeans writes one for
+  every entry over 100000 bytes, even in a jarfile that is not nested (see above).
+* **Writing** is the one thing cgvfs does not do: it is read-only by design. A caller that has to
+  modify a jarfile in place needs zipfs or TrueVFS.
+
 ## Benchmarks
 
-Two things are compared against, on the same work:
+> **These numbers are provisional.** They were measured while other work was running on the same
+> machine, so they are not reliable, and cells may be off by a large factor in either direction.
+> They will be replaced by a run on an idle machine.
 
-* The JDK's own zip filesystem provider, since both it and cgvfs are `java.nio.file.FileSystem`
-  implementations over a zipfile, and the same `java.nio.file.Files` calls read either one. The
-  benchmark runs identical code against both, differing only in how the filesystem was opened:
+Every library in the [comparison above](#compared-with-other-libraries) that can read an entry by
+name is measured on the same work, with [JMH](https://github.com/openjdk/jmh) 1.37. The benchmarks
+are in [`src/test/perf`](src/test/perf/io/github/classgraph/vfs/perf):
+[`RunBenchmarks`](src/test/perf/io/github/classgraph/vfs/perf/RunBenchmarks.java) generates the
+archives, runs everything, and writes the tables below; its Javadoc gives the command.
 
-  ```java
-  FileSystems.newFileSystem(zipFile, Map.of());                        // zipfs
-  FileSystems.newFileSystem(URI.create("cgvfs:" + zipFile), Map.of()); // cgvfs
-  ```
+Three kinds of content, each in five layouts:
 
-* `java.util.zip.ZipFile`, for entry lookup and bulk inflation, where there is no nio provider in
-  the picture on either side.
+* **Content.** *Classfiles*: the first 2000 classfiles of `java.base`, small entries that deflate
+  to about half their size, which is what a classpath scan reads. *Text*: 512 entries of 64KB of
+  pseudo-English text, which deflates to about a third. *Binary*: 32 entries of 1MB of
+  pseudo-random bytes, which do not compress.
+* **Layout.** A directory; a jarfile with its entries stored; a jarfile with its entries deflated;
+  and that deflated jarfile nested inside an outer jarfile, either stored or deflated there.
 
-Parameters:
+Two benchmarks:
 
-* AMD Ryzen 9 3950X, 16 physical cores with two hardware threads each (32 in total), 125GB RAM,
-  Linux, JDK 26.0.2. Archives are in `/tmp`, which is `tmpfs` here, so every read comes out of
-  memory and no disk is in the picture.
-* `random.zip` -- 5120 files of 1MB each from `/dev/urandom`, **stored** uncompressed (5.0GB, which
-  makes it a ZIP64 archive). Random data does not compress, so this measures the read path with the
-  inflater out of the picture.
-* `books.zip` -- 256 ebooks downloaded from Project Gutenberg, replicated to 5120 entries under
-  distinct names, **deflated** at level 9 (2.6GB of text compressed to 0.9GB). Both providers use
-  the same `java.util.zip.Inflater`.
-* `kotlin-compiler-embeddable-2.4.10.jar`, 26970 entries, for the lookup and inflation tables.
-* Timings against zipfs are the mean of two runs, which agreed to within 6% on every cell; the
-  partial-read timings are the mean of three, which agreed to within 2%. Cells below 100ms vary by
-  up to 40% between runs, so read those as "small" rather than as exact. Both providers were checked
-  to read the same number of bytes: 5368709120 and 2828491700.
+* **Random reads.** The archive is opened once and shared by 1, 2, 4, 8 or 16 threads, each of
+  which looks entries up by name, in a shuffled order, and reads each one in full. The result is
+  the total read rate over all threads, in MB/s.
+* **Whole archive.** One thread opens the archive, reads every entry in turn, and closes it. The
+  result is the time per archive, in milliseconds, which includes opening it.
 
-### Opening, enumerating and closing
+Each library reads an entry the way it is normally used to. cgvfs is measured twice: through
+`VfsRoot.getEntry(name).load()`, and through `Files.readAllBytes` on `VfsRoot.asFileSystem()`, the
+same call zipfs is read with. "JDK Files / ZipFile" is `Files.readAllBytes` for a directory and one
+`java.util.zip.ZipFile` shared by every thread for a jarfile; `URL` is `URL.openStream()` on a
+`file:` or `jar:` URL.
 
-The archive is opened, every regular file in it is enumerated with `Files.walk`, and it is closed --
-100 times, after 20 warmup iterations. This measures parsing the central directory, which is what
-you pay before reading anything at all.
+A library is left out of a layout it cannot read (see the [features](#features) table).
+`ZipInputStream` cannot read an entry by name, so it appears only in the whole-archive tables.
+NetBeans was run with `JarFileSystem` built from the fix in
+[apache/netbeans#9762](https://github.com/apache/netbeans/pull/9762), placed ahead of the NetBeans
+jarfiles on the classpath. Without that fix, NetBeans is left out of the binary content (see the
+notes above), since its reads of 1MB entries come back short when threads read concurrently. Each
+library was set up as described in those notes; Commons VFS in particular uses its own manager
+with `CacheStrategy.MANUAL`.
 
-| Archive | zipfs | cgvfs | speedup |
-| --- | ---: | ---: | ---: |
-| `random.zip` | 18.68 ms | **5.14 ms** | 3.63× |
-| `books.zip` | 17.82 ms | **4.74 ms** | 3.76× |
+Each cell is one JMH fork, with 2 warmup iterations and 3 measurement iterations of 1 second (2
+seconds for the whole-archive benchmark), and a heap of 8GB. Machine: AMD Ryzen 9 3950X, 16 physical
+cores with two hardware threads each, 125GB RAM, Linux, JDK 26.0.2. The archives are in `/tmp`,
+which is `tmpfs` here, so every read comes out of memory.
 
-Opening an archive and listing it costs about a quarter of what it costs under zipfs.
+Random reads, classes, MB/s:
 
-### Reading every file
+| Layout | Library | 1 thread | 2 threads | 4 threads | 8 threads | 16 threads |
+|---|---|--:|--:|--:|--:|--:|
+| dir | classgraph-vfs | 131 | 245 | 469 | 946 | 1,629 |
+| dir | classgraph-vfs (nio) | 134 | 248 | 511 | 939 | 1,686 |
+| dir | JDK Files / ZipFile | 556 | 1,160 | 1,907 | 3,233 | 3,748 |
+| dir | JDK URL.openStream | 224 | 379 | 767 | 1,367 | 1,835 |
+| dir | Apache Commons VFS | 303 | 578 | 1,056 | 1,852 | 1,832 |
+| dir | TrueVFS | 160 | 308 | 621 | 1,140 | 1,886 |
+| dir | JBoss VFS | 352 | 652 | 1,200 | 2,212 | 3,485 |
+| dir | Okio | 472 | 899 | 1,629 | 2,983 | 3,972 |
+| dir | NetBeans filesystems | 302 | 581 | 984 | 1,851 | 1,949 |
+| stored | classgraph-vfs | 2,254 | 4,038 | 5,479 | 5,169 | 5,135 |
+| stored | classgraph-vfs (nio) | 1,466 | 2,626 | 3,487 | 2,476 | 2,770 |
+| stored | JDK Files / ZipFile | 911 | 1,096 | 965 | 888 | 840 |
+| stored | JDK zipfs | 857 | 1,371 | 1,994 | 2,206 | 1,975 |
+| stored | JDK URL.openStream | 671 | 754 | 928 | 822 | 789 |
+| stored | Apache Commons VFS | 489 | 900 | 1,054 | 973 | 944 |
+| stored | TrueVFS | 131 | 222 | 275 | 256 | 232 |
+| stored | JBoss VFS | 819 | 999 | 980 | 910 | 887 |
+| stored | Okio | 464 | 832 | 1,439 | 2,622 | 3,461 |
+| stored | Apache Commons Compress | 1,232 | 2,097 | 2,673 | 2,795 | 2,750 |
+| stored | NetBeans filesystems | 427 | 401 | 338 | 324 | 313 |
+| deflated | classgraph-vfs | 262 | 521 | 994 | 1,885 | 3,024 |
+| deflated | classgraph-vfs (nio) | 239 | 465 | 912 | 1,471 | 1,290 |
+| deflated | JDK Files / ZipFile | 262 | 516 | 821 | 801 | 749 |
+| deflated | JDK zipfs | 253 | 464 | 871 | 1,492 | 1,742 |
+| deflated | JDK URL.openStream | 225 | 400 | 733 | 797 | 743 |
+| deflated | Apache Commons VFS | 199 | 374 | 665 | 859 | 771 |
+| deflated | TrueVFS | 134 | 221 | 267 | 264 | 233 |
+| deflated | JBoss VFS | 254 | 450 | 813 | 866 | 826 |
+| deflated | Okio | 188 | 366 | 691 | 1,300 | 1,825 |
+| deflated | Apache Commons Compress | 226 | 448 | 861 | 1,524 | 2,153 |
+| deflated | NetBeans filesystems | 146 | 140 | 142 | 116 | 129 |
+| nested-stored | classgraph-vfs | 273 | 527 | 960 | 1,849 | 3,054 |
+| nested-stored | classgraph-vfs (nio) | 246 | 465 | 831 | 1,385 | 1,282 |
+| nested-stored | JDK zipfs | 282 | 544 | 961 | 1,620 | 1,688 |
+| nested-stored | Apache Commons VFS | 188 | 371 | 641 | 840 | 724 |
+| nested-stored | TrueVFS | 111 | 189 | 274 | 266 | 233 |
+| nested-stored | JBoss VFS | 252 | 450 | 806 | 880 | 806 |
+| nested-stored | Spring Boot loader | 230 | 403 | 430 | 443 | 420 |
+| nested-deflated | classgraph-vfs | 292 | 577 | 1,091 | 2,066 | 3,555 |
+| nested-deflated | classgraph-vfs (nio) | 263 | 470 | 906 | 1,562 | 1,172 |
+| nested-deflated | JDK zipfs | 270 | 528 | 974 | 1,604 | 1,680 |
+| nested-deflated | Apache Commons VFS | 187 | 369 | 641 | 810 | 754 |
+| nested-deflated | TrueVFS | 110 | 191 | 254 | 265 | 233 |
+| nested-deflated | JBoss VFS | 252 | 457 | 768 | 867 | 822 |
 
-Every file in the archive is read in full with `Files.readAllBytes`, spread across a fixed thread
-pool. One provider is benchmarked at a time, with its own filesystem open for the whole sweep, so
-that the two never contend with each other. Total wall time for all 5120 entries.
+Random reads, text, MB/s:
 
-| Archive | Threads | zipfs | cgvfs | speedup |
-| --- | ---: | ---: | ---: | ---: |
-| `random.zip` (stored, 5.0GB) | 1 | 2526 ms | **1182 ms** | 2.14× |
-| | 2 | 1727 ms | **780 ms** | 2.21× |
-| | 4 | 1442 ms | **669 ms** | 2.16× |
-| | 8 | 1382 ms | **618 ms** | 2.23× |
-| | 16 | 1440 ms | **681 ms** | 2.11× |
-| | 32 | 1605 ms | **1063 ms** | 1.51× |
-| `books.zip` (deflated, 2.6GB) | 1 | 7480 ms | **6624 ms** | 1.13× |
-| | 2 | 3856 ms | **3437 ms** | 1.12× |
-| | 4 | 2038 ms | **1784 ms** | 1.14× |
-| | 8 | 1151 ms | **980 ms** | 1.17× |
-| | 16 | 797 ms | **617 ms** | 1.29× |
-| | 32 | 841 ms | **639 ms** | 1.31× |
+| Layout | Library | 1 thread | 2 threads | 4 threads | 8 threads | 16 threads |
+|---|---|--:|--:|--:|--:|--:|
+| dir | classgraph-vfs | 1,734 | 3,564 | 6,184 | 10,048 | 11,887 |
+| dir | classgraph-vfs (nio) | 1,841 | 3,424 | 6,319 | 10,677 | 11,237 |
+| dir | JDK Files / ZipFile | 3,808 | 6,792 | 10,577 | 13,214 | 11,226 |
+| dir | JDK URL.openStream | 1,967 | 3,131 | 5,616 | 6,141 | 6,521 |
+| dir | Apache Commons VFS | 2,440 | 4,391 | 6,646 | 7,658 | 6,872 |
+| dir | TrueVFS | 2,010 | 3,865 | 6,767 | 9,852 | 10,350 |
+| dir | JBoss VFS | 3,075 | 5,634 | 9,817 | 13,399 | 12,518 |
+| dir | Okio | 2,842 | 5,043 | 8,344 | 9,938 | 11,231 |
+| dir | NetBeans filesystems | 3,087 | 5,464 | 9,274 | 12,820 | 12,009 |
+| stored | classgraph-vfs | 5,239 | 9,622 | 11,737 | 13,696 | 12,828 |
+| stored | classgraph-vfs (nio) | 4,833 | 8,306 | 11,725 | 13,450 | 11,987 |
+| stored | JDK Files / ZipFile | 3,034 | 4,028 | 3,854 | 3,610 | 3,099 |
+| stored | JDK zipfs | 2,459 | 4,178 | 5,257 | 5,616 | 5,035 |
+| stored | JDK URL.openStream | 2,716 | 3,314 | 3,809 | 3,335 | 3,656 |
+| stored | Apache Commons VFS | 3,034 | 3,160 | 3,197 | 1,468 | 3,000 |
+| stored | TrueVFS | 1,697 | 2,666 | 4,941 | 4,745 | 4,511 |
+| stored | JBoss VFS | 2,943 | 3,883 | 3,685 | 3,568 | 3,582 |
+| stored | Okio | 2,450 | 4,463 | 7,285 | 8,683 | 10,419 |
+| stored | Apache Commons Compress | 3,170 | 5,143 | 6,920 | 6,897 | 6,687 |
+| stored | NetBeans filesystems | 1,941 | 1,962 | 1,772 | 1,739 | 1,670 |
+| deflated | classgraph-vfs | 592 | 1,177 | 2,243 | 4,453 | 8,048 |
+| deflated | classgraph-vfs (nio) | 547 | 1,081 | 2,125 | 4,131 | 6,873 |
+| deflated | JDK Files / ZipFile | 511 | 1,038 | 1,896 | 3,701 | 3,430 |
+| deflated | JDK zipfs | 494 | 956 | 1,800 | 3,392 | 4,761 |
+| deflated | JDK URL.openStream | 501 | 915 | 1,900 | 3,558 | 3,478 |
+| deflated | Apache Commons VFS | 714 | 1,382 | 2,686 | 3,897 | 3,537 |
+| deflated | TrueVFS | 1,663 | 2,891 | 5,117 | 4,770 | 4,473 |
+| deflated | JBoss VFS | 507 | 999 | 1,947 | 3,711 | 3,597 |
+| deflated | Okio | 463 | 916 | 1,767 | 3,382 | 6,477 |
+| deflated | Apache Commons Compress | 425 | 792 | 1,656 | 3,219 | 5,434 |
+| deflated | NetBeans filesystems | 441 | 411 | 376 | 384 | 386 |
+| nested-stored | classgraph-vfs | 596 | 1,170 | 2,223 | 4,444 | 7,886 |
+| nested-stored | classgraph-vfs (nio) | 527 | 1,084 | 2,135 | 4,114 | 6,894 |
+| nested-stored | JDK zipfs | 511 | 979 | 1,883 | 3,525 | 4,808 |
+| nested-stored | Apache Commons VFS | 708 | 1,359 | 2,682 | 3,479 | 3,574 |
+| nested-stored | TrueVFS | 1,449 | 2,626 | 4,655 | 4,785 | 4,353 |
+| nested-stored | JBoss VFS | 514 | 1,002 | 1,953 | 3,658 | 3,748 |
+| nested-stored | Spring Boot loader | 504 | 989 | 1,884 | 3,367 | 3,326 |
+| nested-deflated | classgraph-vfs | 612 | 1,169 | 2,326 | 4,651 | 8,426 |
+| nested-deflated | classgraph-vfs (nio) | 550 | 1,097 | 2,226 | 4,243 | 7,126 |
+| nested-deflated | JDK zipfs | 471 | 988 | 1,881 | 3,468 | 4,860 |
+| nested-deflated | Apache Commons VFS | 702 | 1,322 | 2,688 | 4,256 | 3,568 |
+| nested-deflated | TrueVFS | 1,510 | 2,810 | 4,558 | 4,736 | 4,365 |
+| nested-deflated | JBoss VFS | 511 | 1,002 | 1,952 | 3,713 | 3,664 |
 
-Reading a stored archive is a little over twice as fast; reading a deflated one is 1.1-1.3× as fast,
-since both providers spend most of that time in the same inflater. Neither provider improves beyond
-16 threads on this machine, and both get slower at 32.
+Random reads, binary, MB/s:
 
-### Reading part of an entry
+| Layout | Library | 1 thread | 2 threads | 4 threads | 8 threads | 16 threads |
+|---|---|--:|--:|--:|--:|--:|
+| dir | classgraph-vfs | 4,949 | 8,324 | 11,119 | 12,011 | 11,258 |
+| dir | classgraph-vfs (nio) | 4,751 | 8,360 | 11,085 | 12,708 | 11,332 |
+| dir | JDK Files / ZipFile | 5,604 | 9,643 | 12,028 | 13,299 | 11,255 |
+| dir | JDK URL.openStream | 2,990 | 4,631 | 6,790 | 6,609 | 6,961 |
+| dir | Apache Commons VFS | 3,899 | 6,066 | 7,196 | 7,522 | 5,820 |
+| dir | TrueVFS | 5,073 | 8,238 | 11,620 | 13,358 | 10,655 |
+| dir | JBoss VFS | 5,374 | 9,159 | 11,914 | 13,408 | 11,785 |
+| dir | Okio | 3,059 | 5,060 | 6,664 | 7,383 | 7,192 |
+| dir | NetBeans filesystems | 5,225 | 8,966 | 12,012 | 13,638 | 11,248 |
+| stored | classgraph-vfs | 5,381 | 8,647 | 11,995 | 11,829 | 11,567 |
+| stored | classgraph-vfs (nio) | 5,107 | 8,998 | 11,765 | 13,817 | 11,182 |
+| stored | JDK Files / ZipFile | 3,176 | 4,084 | 4,605 | 4,481 | 4,245 |
+| stored | JDK zipfs | 2,463 | 4,207 | 5,064 | 5,032 | 4,979 |
+| stored | JDK URL.openStream | 2,726 | 4,140 | 4,244 | 3,953 | 4,541 |
+| stored | Apache Commons VFS | 3,932 | 4,696 | 4,266 | 3,527 | 3,236 |
+| stored | TrueVFS | 4,488 | 7,420 | 10,629 | 11,851 | 9,364 |
+| stored | JBoss VFS | 3,105 | 4,044 | 4,629 | 4,446 | 4,478 |
+| stored | Okio | 2,633 | 4,400 | 5,955 | 6,611 | 7,039 |
+| stored | Apache Commons Compress | 3,141 | 5,217 | 6,703 | 7,316 | 7,016 |
+| stored | NetBeans filesystems | 1,013 | 1,285 | 1,223 | 1,249 | 1,260 |
+| deflated | classgraph-vfs | 3,202 | 5,659 | 8,397 | 10,412 | 9,342 |
+| deflated | classgraph-vfs (nio) | 2,391 | 4,393 | 6,140 | 7,376 | 5,979 |
+| deflated | JDK Files / ZipFile | 2,382 | 3,361 | 3,636 | 3,477 | 3,415 |
+| deflated | JDK zipfs | 2,046 | 3,492 | 4,748 | 4,997 | 4,807 |
+| deflated | JDK URL.openStream | 2,093 | 3,316 | 3,398 | 3,438 | 3,509 |
+| deflated | Apache Commons VFS | 2,377 | 3,152 | 3,339 | 3,316 | 3,276 |
+| deflated | TrueVFS | 4,408 | 7,229 | 10,757 | 12,082 | 9,375 |
+| deflated | JBoss VFS | 2,372 | 3,249 | 3,651 | 3,443 | 3,541 |
+| deflated | Okio | 2,193 | 3,829 | 5,861 | 7,191 | 7,275 |
+| deflated | Apache Commons Compress | 1,499 | 2,659 | 4,695 | 6,722 | 6,529 |
+| deflated | NetBeans filesystems | 886 | 1,005 | 987 | 981 | 992 |
+| nested-stored | classgraph-vfs | 3,174 | 5,511 | 8,740 | 9,369 | 9,036 |
+| nested-stored | classgraph-vfs (nio) | 2,271 | 4,233 | 6,084 | 4,170 | 6,178 |
+| nested-stored | JDK zipfs | 2,970 | 4,451 | 4,894 | 4,671 | 4,586 |
+| nested-stored | Apache Commons VFS | 2,223 | 3,002 | 3,110 | 3,219 | 3,106 |
+| nested-stored | TrueVFS | 4,340 | 7,457 | 9,733 | 11,717 | 7,921 |
+| nested-stored | JBoss VFS | 2,012 | 3,196 | 3,433 | 3,371 | 3,338 |
+| nested-stored | Spring Boot loader | 2,470 | 3,355 | 3,377 | 3,302 | 3,235 |
+| nested-deflated | classgraph-vfs | 5,764 | 9,312 | 13,182 | 14,076 | 14,027 |
+| nested-deflated | classgraph-vfs (nio) | 3,785 | 6,475 | 7,756 | 4,358 | 7,514 |
+| nested-deflated | JDK zipfs | 2,884 | 4,366 | 4,853 | 4,736 | 4,619 |
+| nested-deflated | Apache Commons VFS | 2,252 | 2,845 | 3,121 | 2,944 | 3,062 |
+| nested-deflated | TrueVFS | 4,245 | 7,332 | 9,971 | 12,081 | 9,515 |
+| nested-deflated | JBoss VFS | 2,212 | 3,024 | 3,342 | 3,304 | 3,488 |
 
-A caller that opens a channel rather than a stream often wants a header, a footer, or a field at a
-known offset, and a deflated entry cannot be read at an offset without inflating everything up to
-it. cgvfs inflates only as far as the furthest offset that has been read, buffering what it has
-inflated so far, so that going back over a part already read does not inflate it again. Reading the
-first 64 bytes of each of the 5120 entries of `books.zip` through `Files.newByteChannel`.
+Open, read every entry, close, classes, ms:
 
-| Threads | zipfs | cgvfs | speedup |
-| ---: | ---: | ---: | ---: |
-| 1 | 7133 ms | **212 ms** | 33.7× |
-| 2 | 3669 ms | **114 ms** | 32.2× |
-| 4 | 1878 ms | **58 ms** | 32.4× |
-| 8 | 993 ms | **31 ms** | 32.0× |
-| 16 | 606 ms | **20 ms** | 30.4× |
-| 32 | 564 ms | **16 ms** | 34.8× |
+| Library | dir | stored | deflated | nested-stored | nested-deflated |
+|---|--:|--:|--:|--:|--:|
+| classgraph-vfs | 54.2 | 7.1 | 32.7 | 31.5 | 35.4 |
+| classgraph-vfs (nio) | 50.0 | 8.4 | 33.9 | 32.5 | 37.1 |
+| JDK Files / ZipFile | 13.2 | 8.6 | 27.8 |  |  |
+| JDK zipfs |  | 9.0 | 29.3 | 27.6 | 36.3 |
+| JDK URL.openStream | 31.9 | 10.6 | 30.5 |  |  |
+| JDK ZipInputStream |  | 8.2 | 33.0 | 34.7 | 48.9 |
+| Apache Commons VFS | 41.3 | 32.5 | 52.7 | 62.7 | 71.2 |
+| TrueVFS | 48.6 | 161.5 | 189.4 | 209.3 | 209.3 |
+| JBoss VFS | 20.2 | 10.1 | 29.9 | 33.6 | 42.0 |
+| Okio | 15.2 | 18.5 | 40.9 |  |  |
+| Spring Boot loader |  |  |  | 30.0 |  |
+| Apache Commons Compress |  | 15.7 | 42.1 |  |  |
+| NetBeans filesystems | 27.7 | 19.1 | 42.3 |  |  |
 
-Reading a small part of a deflated entry costs about 32× less than under zipfs, at every thread
-count.
+Open, read every entry, close, text, ms:
 
-### Entry lookup
+| Library | dir | stored | deflated | nested-stored | nested-deflated |
+|---|--:|--:|--:|--:|--:|
+| classgraph-vfs | 18.4 | 7.4 | 58.4 | 58.2 | 80.1 |
+| classgraph-vfs (nio) | 16.8 | 7.3 | 59.6 | 59.8 | 80.2 |
+| JDK Files / ZipFile | 9.2 | 11.5 | 65.2 |  |  |
+| JDK zipfs |  | 13.4 | 68.5 | 69.5 | 90.9 |
+| JDK URL.openStream | 16.8 | 12.2 | 66.9 |  |  |
+| JDK ZipInputStream |  | 13.3 | 94.2 | 96.3 | 131.6 |
+| Apache Commons VFS | 17.1 | 15.1 | 52.7 | 65.3 | 85.1 |
+| TrueVFS | 16.2 | 67.7 | 135.5 | 148.2 | 163.0 |
+| JBoss VFS | 10.7 | 11.9 | 67.7 | 73.9 | 97.9 |
+| Okio | 11.8 | 14.4 | 72.5 |  |  |
+| Spring Boot loader |  |  |  | 67.1 |  |
+| Apache Commons Compress |  | 14.0 | 81.7 |  |  |
+| NetBeans filesystems | 11.9 | 16.9 | 72.6 |  |  |
 
-Looking up every one of the 26970 entries of `kotlin-compiler-embeddable-2.4.10.jar` by name, 400
-times over.
+Open, read every entry, close, binary, ms:
 
-| Threads | `java.util.zip` (shared) | `java.util.zip` (per thread) | cgvfs | speedup vs shared | speedup vs per thread |
-| ---: | ---: | ---: | ---: | ---: | ---: |
-| 1 | 927 ms | 969 ms | **153 ms** | 6.1× | 6.3× |
-| 2 | 1081 ms | 459 ms | **74 ms** | 14.6× | 6.2× |
-| 4 | 1615 ms | 230 ms | **41 ms** | 39.4× | 5.6× |
-| 8 | 1496 ms | 145 ms | **35 ms** | 42.7× | 4.1× |
-| 16 | 1593 ms | 102 ms | **14 ms** | 113.8× | 7.3× |
-| 32 | 1552 ms | 74 ms | **11 ms** | 141.1× | 6.7× |
-
-Lookup under one shared `ZipFile` gets *slower* as threads are added; the middle column shows the
-same work scaling once each thread has its own `ZipFile`, at the cost of parsing the central
-directory and holding a file handle per thread.
-
-### Bulk inflation
-
-Inflating every entry of the same jarfile, 20 times over.
-
-| Threads | `java.util.zip` (shared) | cgvfs | speedup |
-| ---: | ---: | ---: | ---: |
-| 1 | 9342 ms | **8593 ms** | 1.09× |
-| 2 | 5123 ms | **4532 ms** | 1.13× |
-| 4 | 3215 ms | **2457 ms** | 1.31× |
-| 8 | 3081 ms | **1510 ms** | 2.04× |
-| 16 | 3103 ms | **978 ms** | 3.17× |
-| 32 | 3206 ms | **941 ms** | 3.41× |
-
-Inflation under a shared `ZipFile` stops scaling at four threads, while cgvfs keeps scaling to 16.
-
-The benchmarks are
-[`ZipfsVsCgvfsBenchmark`](src/test/perf/io/github/classgraph/vfs/perf/ZipfsVsCgvfsBenchmark.java),
-which documents how to build the two archives and how to run it, and
-[`ZipFileLockingBenchmark`](src/test/perf/io/github/classgraph/vfs/perf/ZipFileLockingBenchmark.java).
-The partial-read numbers were measured with a throwaway harness rather than a checked-in benchmark.
+| Library | dir | stored | deflated | nested-stored | nested-deflated |
+|---|--:|--:|--:|--:|--:|
+| classgraph-vfs | 7.5 | 7.0 | 11.3 | 11.3 | 33.6 |
+| classgraph-vfs (nio) | 6.8 | 6.4 | 13.5 | 13.6 | 31.9 |
+| JDK Files / ZipFile | 6.0 | 11.3 | 14.6 |  |  |
+| JDK zipfs |  | 13.3 | 17.0 | 24.8 | 27.0 |
+| JDK URL.openStream | 10.4 | 10.8 | 14.6 |  |  |
+| JDK ZipInputStream |  | 13.2 | 66.3 | 71.4 | 89.9 |
+| Apache Commons VFS | 10.2 | 10.1 | 16.1 | 52.1 | 51.2 |
+| TrueVFS | 6.6 | 37.6 | 37.5 | 66.6 | 66.3 |
+| JBoss VFS | 6.5 | 11.3 | 14.5 | 41.8 | 49.3 |
+| Okio | 11.2 | 13.3 | 15.5 |  |  |
+| Spring Boot loader |  |  |  | 13.4 |  |
+| Apache Commons Compress |  | 10.7 | 23.9 |  |  |
+| NetBeans filesystems | 6.1 | 33.0 | 41.1 |  |  |
 
 ## Recipes
 

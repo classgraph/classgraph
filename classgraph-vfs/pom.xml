@@ -48,6 +48,80 @@
 			<artifactId>jimfs</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- The benchmarks in src/test/perf -->
+		<dependency>
+			<groupId>org.openjdk.jmh</groupId>
+			<artifactId>jmh-core</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.openjdk.jmh</groupId>
+			<artifactId>jmh-generator-annprocess</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<!-- The libraries the benchmarks compare against -->
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-vfs2</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-compress</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>net.java.truevfs</groupId>
+			<artifactId>truevfs-access</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>net.java.truevfs</groupId>
+			<artifactId>truevfs-kernel-impl</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>net.java.truevfs</groupId>
+			<artifactId>truevfs-driver-file</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>net.java.truevfs</groupId>
+			<artifactId>truevfs-driver-jar</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<!-- TrueVFS needs a key manager at runtime to unmount a zipfile, even one that is not encrypted -->
+			<groupId>net.java.truecommons</groupId>
+			<artifactId>truecommons-key-disable</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.jboss</groupId>
+			<artifactId>jboss-vfs</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<!-- jboss-vfs needs it at runtime, but declares it with "provided" scope -->
+			<groupId>org.jboss.logging</groupId>
+			<artifactId>jboss-logging</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.squareup.okio</groupId>
+			<artifactId>okio-jvm</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-loader</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.netbeans.api</groupId>
+			<artifactId>org-openide-filesystems</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -64,6 +138,29 @@
 						</manifestEntries>
 					</archive>
 				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<executions>
+					<execution>
+						<!-- Names JMH's annotation processor explicitly, for the reason given on the same
+						     execution in classgraph/pom.xml: since JDK 23, javac no longer finds it on the
+						     test classpath by itself. -->
+						<id>default-testCompile</id>
+						<configuration>
+							<annotationProcessors>
+								<annotationProcessor>org.openjdk.jmh.generators.BenchmarkProcessor</annotationProcessor>
+							</annotationProcessors>
+							<annotationProcessorPaths>
+								<path>
+									<groupId>org.openjdk.jmh</groupId>
+									<artifactId>jmh-generator-annprocess</artifactId>
+								</path>
+							</annotationProcessorPaths>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>

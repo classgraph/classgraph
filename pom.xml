@@ -185,6 +185,80 @@
 				<version>3.1.1</version>
 				<scope>test</scope>
 			</dependency>
+			<!-- The other virtual filesystems and zip readers that the classgraph-vfs benchmarks compare -->
+			<!-- against: -->
+			<dependency>
+				<groupId>org.apache.commons</groupId>
+				<artifactId>commons-vfs2</artifactId>
+				<version>2.10.0</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.commons</groupId>
+				<artifactId>commons-compress</artifactId>
+				<version>1.28.0</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>net.java.truevfs</groupId>
+				<artifactId>truevfs-access</artifactId>
+				<version>0.14.0</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>net.java.truevfs</groupId>
+				<artifactId>truevfs-kernel-impl</artifactId>
+				<version>0.14.0</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>net.java.truevfs</groupId>
+				<artifactId>truevfs-driver-file</artifactId>
+				<version>0.14.0</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>net.java.truevfs</groupId>
+				<artifactId>truevfs-driver-jar</artifactId>
+				<version>0.14.0</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>net.java.truecommons</groupId>
+				<artifactId>truecommons-key-disable</artifactId>
+				<version>2.5.0</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.jboss</groupId>
+				<artifactId>jboss-vfs</artifactId>
+				<version>3.3.2.Final</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.jboss.logging</groupId>
+				<artifactId>jboss-logging</artifactId>
+				<version>3.6.3.Final</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>com.squareup.okio</groupId>
+				<artifactId>okio-jvm</artifactId>
+				<version>3.18.2</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-loader</artifactId>
+				<version>4.1.2</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.netbeans.api</groupId>
+				<artifactId>org-openide-filesystems</artifactId>
+				<version>RELEASE310</version>
+				<scope>test</scope>
+			</dependency>
 
 			<!-- "provided" dependencies (soft compile-time dependencies that do not create a runtime dependency): -->
 			<dependency>

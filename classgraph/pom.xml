@@ -117,9 +117,9 @@
 						     Naming it is also the only way to say this that every supported JDK understands:
 						     the -proc:full flag that turns discovery back on does not exist before JDK 21,
 						     whereas asking for a processor by name has always enabled processing.
-						     Only this module has benchmarks, so only this module needs the processor.
-						     Everything else about the execution, including the lint flags, is inherited from
-						     the same execution id in the parent pom. -->
+						     Only this module and classgraph-vfs have benchmarks, so only they need the
+						     processor. Everything else about the execution, including the lint flags, is
+						     inherited from the same execution id in the parent pom. -->
 						<id>default-testCompile</id>
 						<configuration>
 							<annotationProcessors>
