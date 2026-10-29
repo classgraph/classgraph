@@ -356,6 +356,13 @@ public class ReadMethodBenchmark {
     @Param("1")
     public int threads;
 
+    /**
+     * If nonzero, read a jarfile of entries that are all this size (see {@link BenchmarkFixtures#sizedPath(int)}),
+     * instead of the jarfile of {@link #content}, to find the entry size at which one method overtakes another.
+     */
+    @Param("0")
+    public int entrySize;
+
     /** The stored jarfile. */
     private Path archive;
 
@@ -384,8 +391,9 @@ public class ReadMethodBenchmark {
      */
     @Setup(Level.Trial)
     public void setup() throws IOException, InterruptedException {
-        archive = BenchmarkFixtures.path(content, Layout.STORED);
-        totalBytes = BenchmarkFixtures.totalBytes(content);
+        archive = entrySize == 0 ? BenchmarkFixtures.path(content, Layout.STORED)
+                : BenchmarkFixtures.sizedPath(entrySize);
+        totalBytes = entrySize == 0 ? BenchmarkFixtures.totalBytes(content) : BenchmarkFixtures.SIZED_TOTAL_BYTES;
         fileLength = Files.size(archive);
         final List<long[]> entries = new ArrayList<>();
         try (var zipFile = ZipFile.builder().setPath(archive).get()) {

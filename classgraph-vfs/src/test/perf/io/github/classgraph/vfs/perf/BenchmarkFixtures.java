@@ -104,6 +104,9 @@ public final class BenchmarkFixtures {
         }
     }
 
+    /** The total size of the entries of each jarfile that {@link #sizedPath(int)} generates. */
+    public static final int SIZED_TOTAL_BYTES = 32 << 20;
+
     /** Words the pseudo-English text is built from. */
     private static final String[] WORDS = ("the of and to in a is that for it as was with be by on not he i this "
             + "are or his from at which but have an they you were her she there their one all we can has been if "
@@ -142,6 +145,37 @@ public final class BenchmarkFixtures {
                 .resolve(content.label() + "-" + layout.label() + (layout == Layout.DIR ? "" : ".jar"));
         if (!Files.exists(path)) {
             generate(content, layout, path);
+        }
+        return path;
+    }
+
+    /**
+     * The path of a stored jarfile of {@link #SIZED_TOTAL_BYTES} of pseudo-random entries that are all the same
+     * size, generating it first if it does not exist.
+     *
+     * @param entrySize
+     *            the size of each entry, which must divide {@link #SIZED_TOTAL_BYTES}.
+     * @return the jarfile.
+     * @throws IOException
+     *             if the jarfile could not be generated.
+     */
+    public static synchronized Path sizedPath(final int entrySize) throws IOException {
+        if (entrySize <= 0 || SIZED_TOTAL_BYTES % entrySize != 0) {
+            throw new IllegalArgumentException("Entry size must divide " + SIZED_TOTAL_BYTES + ": " + entrySize);
+        }
+        final var path = dir().resolve("sized-" + entrySize + "-stored.jar");
+        if (!Files.exists(path)) {
+            final var random = new Random(entrySize);
+            final Map<String, byte[]> entries = new LinkedHashMap<>();
+            for (var i = 0; i < SIZED_TOTAL_BYTES / entrySize; i++) {
+                final var bytes = new byte[entrySize];
+                random.nextBytes(bytes);
+                entries.put(String.format("sized/%06d.bin", i), bytes);
+            }
+            Files.createDirectories(path.getParent());
+            final var tmp = path.resolveSibling(path.getFileName() + ".tmp");
+            Files.write(tmp, zip(entries, true));
+            Files.move(tmp, path);
         }
         return path;
     }
