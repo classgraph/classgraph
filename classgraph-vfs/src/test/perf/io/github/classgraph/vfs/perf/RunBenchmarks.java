@@ -241,7 +241,7 @@ public final class RunBenchmarks {
                                 && param(result, "library").equals(library.name())) {
                             // (The score is in milliseconds per operation)
                             rows.computeIfAbsent(layout.label() + " | " + library.displayName(),
-                                    _ -> new LinkedHashMap<>()).put(Integer.parseInt(param(result, "threads")),
+                                    k -> new LinkedHashMap<>()).put(Integer.parseInt(param(result, "threads")),
                                             totalMB / (result.getPrimaryResult().getScore() / 1e3));
                         }
                     }

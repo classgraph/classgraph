@@ -33,7 +33,6 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.io.RandomAccessFile;
-import java.lang.foreign.Arena;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousFileChannel;
 import java.nio.channels.FileChannel;
@@ -82,28 +81,8 @@ import io.github.classgraph.vfs.perf.BenchmarkFixtures.Layout;
 public class ReadMethodBenchmark {
     /** A way of reading a file. */
     public enum Method {
-        /** Map the whole file through a shared {@link Arena}, and unmap it on close, as classgraph-vfs does. */
-        MMAP_ARENA {
-            @Override
-            FileReader open(final Path path) throws IOException {
-                final var channel = FileChannel.open(path, StandardOpenOption.READ);
-                final var arena = Arena.ofShared();
-                final var buffer = channel.map(FileChannel.MapMode.READ_ONLY, 0L, channel.size(), arena)
-                        .asByteBuffer();
-                return new FileReader() {
-                    @Override
-                    public void read(final long pos, final byte[] dst, final int len) {
-                        buffer.get((int) pos, dst, 0, len);
-                    }
-
-                    @Override
-                    public void close() throws IOException {
-                        arena.close();
-                        channel.close();
-                    }
-                };
-            }
-        },
+        // Mapping through a shared Arena, as classgraph-vfs does on JDK 22 and later, is not compared here, since
+        // this branch compiles for JDK 17. Its timing differs from MMAP_BUFFER only in the cost of the unmap.
 
         /** Map the whole file as a {@link java.nio.MappedByteBuffer}, which is unmapped only by the GC. */
         MMAP_BUFFER {
@@ -276,7 +255,7 @@ public class ReadMethodBenchmark {
                                     throw new EOFException();
                                 }
                             }
-                        } catch (final InterruptedException _) {
+                        } catch (final InterruptedException e) {
                             Thread.currentThread().interrupt();
                             throw new InterruptedIOException();
                         } catch (final ExecutionException e) {

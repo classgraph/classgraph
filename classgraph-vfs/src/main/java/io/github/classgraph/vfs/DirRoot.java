@@ -554,7 +554,7 @@ public final class DirRoot extends VfsRoot {
             // file here, so they make the directory look case-insensitive, which only means that the real path of
             // each file looked up in it is checked, as if this method had not been called.)
             return !Files.exists(flippedPath, LinkOption.NOFOLLOW_LINKS) || !Files.isSameFile(path, flippedPath);
-        } catch (final IOException | SecurityException _) {
+        } catch (final IOException | SecurityException e) {
             return null;
         }
     }
@@ -580,7 +580,7 @@ public final class DirRoot extends VfsRoot {
         final BasicFileAttributes attributes;
         try {
             attributes = Files.readAttributes(path, BasicFileAttributes.class);
-        } catch (final IOException _) {
+        } catch (final IOException e) {
             // The file is missing, or its metadata cannot be read. FileUtils#readAttributes is not used here, since
             // on this failure it falls back to File#isFile, a second metadata read that fails the same way
             return null;

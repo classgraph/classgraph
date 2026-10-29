@@ -59,10 +59,12 @@ import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
  */
 public class VfsInterruptTest {
     /**
-     * True where a jarfile is memory-mapped rather than read through its file channel, which is on Windows only. A
-     * read of a mapped jarfile does not check whether the thread has been interrupted, so it is not stopped.
+     * True where a jarfile is memory-mapped rather than read through its file channel, which is on Windows, and on
+     * other OSes from JDK 25. A small read of a mapped jarfile does not check whether the thread has been
+     * interrupted, so it is not stopped. (This is {@code PathSlice.MAP_FILES}, which is not visible here.)
      */
-    private static final boolean JARFILES_ARE_MAPPED = VersionFinder.OS == OperatingSystem.Windows;
+    private static final boolean JARFILES_ARE_MAPPED = VersionFinder.OS == OperatingSystem.Windows
+            || Runtime.version().feature() >= 25;
 
     /**
      * Clear the interrupt status, so that an assertion failing part-way through a test cannot leak an interrupted

@@ -189,7 +189,7 @@ final class ExactNameListings {
                     }
                 }
             }
-        } catch (final IOException | DirectoryIteratorException | SecurityException _) {
+        } catch (final IOException | DirectoryIteratorException | SecurityException e) {
             // A directory that can be searched but not read
             return null;
         }
