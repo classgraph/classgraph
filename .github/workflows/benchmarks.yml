@@ -70,6 +70,11 @@ jobs:
       run: |
         sep=":"
         if [ "$RUNNER_OS" = "Windows" ]; then sep=";"; fi
+        mkdir -p classgraph-vfs/target/bench-results
+        java --enable-native-access=ALL-UNNAMED \
+            -cp "classgraph-vfs/target/test-classes${sep}classgraph-vfs/target/classes${sep}$(cat classgraph-vfs/target/bench-cp.txt)" \
+            probe/CostProbe.java 2>&1 | grep -v SLF4J | tee classgraph-vfs/target/bench-results/results.md
+        exit 0
         if [ -n "$JMH" ]; then
           mkdir -p classgraph-vfs/target/bench-results
           # Word splitting of $JMH is wanted: it holds several arguments
