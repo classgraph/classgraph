@@ -32,6 +32,7 @@ import java.io.File;
 import java.io.IOError;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.DirectoryIteratorException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
@@ -271,15 +272,12 @@ public final class DirRoot extends VfsRoot {
      */
     private boolean walkChildren(final Path currDir, final String namePrefix, final VfsVisitor visitor,
             final Deque<WalkStep> pending, final @Nullable LogNode log) {
-        final List<Path> children = new ArrayList<>();
-        try (var dirStream = Files.newDirectoryStream(currDir)) {
-            for (final Path child : dirStream) {
-                children.add(child);
-                // Each entry listed counts as progress, so that the threads waiting for this one do not time out
-                // while a large directory on a slow filesystem is still being listed
-                getVfs().interruptionChecker().progress();
-            }
-        } catch (final IOException e) {
+        final List<DirListing.Child> children;
+        try {
+            // Each entry listed counts as progress, so that the threads waiting for this one do not time out while
+            // a large directory on a slow filesystem is still being listed
+            children = DirListing.list(currDir, getVfs().interruptionChecker()::progress);
+        } catch (final IOException | DirectoryIteratorException e) {
             // A directory that cannot be opened is skipped, rather than aborting the whole listing
             if (log != null) {
                 log.log("Could not read directory " + currDir + " : " + e.getMessage());
@@ -290,14 +288,15 @@ public final class DirRoot extends VfsRoot {
         // not specified. Compare the filenames rather than the Paths, since Path#compareTo is case-insensitive on
         // Windows, which would order the same set of files differently there.
         CollectionUtils.sortIfNotEmpty(children,
-                Comparator.comparing(child -> String.valueOf(child.getFileName())));
+                Comparator.comparing(child -> String.valueOf(child.path().getFileName())));
         // Visit the files of a directory before walking its subdirectories, so that the reads that follow
         // the walk are grouped the same way the filesystem groups the metadata they need
         final List<Path> subDirs = new ArrayList<>();
-        for (final Path child : children) {
-            // Read the attributes of each child once, both to tell the files from the subdirectories and to hand
-            // to the entry, so that a walk costs one metadata read per child
-            final var attributes = FileUtils.readAttributes(child);
+        for (final var listed : children) {
+            // The attributes of each child both tell the files from the subdirectories and are handed to the
+            // entry, so that a walk reads the metadata of each child at most once
+            final var child = listed.path();
+            final var attributes = listed.attributes();
             if (attributes.isDirectory()) {
                 subDirs.add(child);
             } else if (attributes.isRegularFile()) {
@@ -376,7 +375,18 @@ public final class DirRoot extends VfsRoot {
         }
         // Whether the file can be read is not checked, since reading it throws if it cannot, and a check here would
         // cost a second syscall on every lookup
-        final var entry = fileEntryForNio(name);
+        final DirEntry entry;
+        final var path = resolveExactName(name);
+        final var listedAttributes = path == null ? null : exactNameListings.listedAttributes(name);
+        if (path == null) {
+            entry = null;
+        } else if (listedAttributes != null) {
+            // The listing of its directory found the file under exactly this name, and read its metadata, so the
+            // file need not be read again. (A file deleted since the listing is still found, and fails to load.)
+            entry = listedAttributes.isRegularFile() ? new DirEntry(this, path, name, listedAttributes) : null;
+        } else {
+            entry = fileEntryForNio(name);
+        }
         if (entry != null) {
             entriesByName.put(name, entry);
         }

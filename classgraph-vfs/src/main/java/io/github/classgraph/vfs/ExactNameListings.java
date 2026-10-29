@@ -30,14 +30,19 @@ package io.github.classgraph.vfs;
 
 import java.io.IOException;
 import java.nio.file.DirectoryIteratorException;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.jspecify.annotations.Nullable;
+
+import io.github.classgraph.base.internal.utils.VersionFinder;
+import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
 
 /**
  * The names that the directories under a base directory list, kept so that whether a name found by the filesystem
@@ -65,6 +70,18 @@ final class ExactNameListings {
     private final Map<String, Set<String>> listings = new ConcurrentHashMap<>();
 
     /**
+     * Whether listing a directory also reads the attributes of its children at no extra cost, which is the case on
+     * Windows (see {@link DirListing}).
+     */
+    private final boolean listingReadsAttributes;
+
+    /**
+     * The attributes of each listed file and directory, by its path relative to {@link #dir}, if
+     * {@link #listingReadsAttributes} is true.
+     */
+    private final Map<String, BasicFileAttributes> listedAttributes = new ConcurrentHashMap<>();
+
+    /**
      * Constructor.
      *
      * @param dir
@@ -72,6 +89,45 @@ final class ExactNameListings {
      */
     ExactNameListings(final Path dir) {
         this.dir = dir;
+        this.listingReadsAttributes = VersionFinder.OS == OperatingSystem.Windows
+                && dir.getFileSystem() == FileSystems.getDefault();
+    }
+
+    /**
+     * Returns the attributes of a file or directory as they were read when its directory was listed, without
+     * reading the filesystem except to list a directory along its path that has not been listed yet. The attributes
+     * may be out of date: a file deleted or changed since its directory was listed is still described as it was
+     * then.
+     *
+     * @param name
+     *            the path relative to the base directory, in canonical form (see
+     *            {@link VfsRoot#isCanonicalEntryName}).
+     * @return the attributes, with symbolic links followed, or null if listing a directory does not read the
+     *         attributes of its children on this filesystem, if some segment of the name is not in the listing of
+     *         its directory, or if some directory along the path could not be listed.
+     */
+    @Nullable
+    BasicFileAttributes listedAttributes(final String name) {
+        if (!listingReadsAttributes) {
+            return null;
+        }
+        var segmentStart = 0;
+        while (segmentStart < name.length()) {
+            final var slashIdx = name.indexOf('/', segmentStart);
+            final var segmentEnd = slashIdx < 0 ? name.length() : slashIdx;
+            final var parent = segmentStart == 0 ? "" : name.substring(0, segmentStart - 1);
+            var listing = listings.get(parent);
+            if (listing == null) {
+                listing = list(parent);
+            }
+            // A name missing from a listing is not listed again here, unlike in isCaseFolded, since a lookup of a
+            // missing file would then list its whole directory -- the caller reads the filesystem instead
+            if (listing == null || !listing.contains(name.substring(segmentStart, segmentEnd))) {
+                return null;
+            }
+            segmentStart = segmentEnd + 1;
+        }
+        return listedAttributes.get(name);
     }
 
     /**
@@ -117,9 +173,21 @@ final class ExactNameListings {
      */
     private @Nullable Set<String> list(final String relativeDir) {
         final var names = new HashSet<String>();
-        try (var listing = Files.newDirectoryStream(relativeDir.isEmpty() ? dir : dir.resolve(relativeDir))) {
-            for (final var file : listing) {
-                names.add(file.getFileName().toString());
+        final var dirPath = relativeDir.isEmpty() ? dir : dir.resolve(relativeDir);
+        try {
+            if (listingReadsAttributes) {
+                final var namePrefix = relativeDir.isEmpty() ? "" : relativeDir + "/";
+                for (final var child : DirListing.list(dirPath, /* onEachChild = */ null)) {
+                    final var fileName = child.path().getFileName().toString();
+                    names.add(fileName);
+                    listedAttributes.put(namePrefix + fileName, child.attributes());
+                }
+            } else {
+                try (var listing = Files.newDirectoryStream(dirPath)) {
+                    for (final var file : listing) {
+                        names.add(file.getFileName().toString());
+                    }
+                }
             }
         } catch (final IOException | DirectoryIteratorException | SecurityException _) {
             // A directory that can be searched but not read
