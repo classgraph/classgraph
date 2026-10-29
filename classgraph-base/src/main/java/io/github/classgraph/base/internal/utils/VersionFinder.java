@@ -44,6 +44,12 @@ public final class VersionFinder {
     /** Java major version (e.g. 17 for "17.0.4", 21 for "21-ea"). */
     public static final int JAVA_MAJOR_VERSION = Runtime.version().feature();
 
+    /** Whether the JVM runs on an x86-64 processor. */
+    public static final boolean IS_X86_64 = switch (System.getProperty("os.arch", "")) {
+    case "amd64", "x86_64" -> true;
+    default -> false;
+    };
+
     /** The operating system type. */
     public enum OperatingSystem {
         /** Windows. */
