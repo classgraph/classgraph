@@ -421,8 +421,8 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      *
      * <p>
      * A file that cannot be read is still returned, and fails with {@link IOException} when read. A directory root
-     * remembers the files that it listed or looked up, so a file deleted after that is still returned, and fails
-     * when read.
+     * remembers the files that it listed or looked up, and on Windows the listings of the directories it looked
+     * files up in, so a file deleted after its directory was listed may still be returned, and fails when read.
      *
      * <p>
      * Names must use {@code '/'} as the separator without leading or trailing slashes, repeated slashes, or
