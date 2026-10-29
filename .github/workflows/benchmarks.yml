@@ -29,6 +29,10 @@ on:
         description: 'Comma-separated Layout names to run (empty for all)'
         type: string
         default: ''
+      jmh:
+        description: 'Arguments to org.openjdk.jmh.Main, to run them instead of RunBenchmarks (empty for RunBenchmarks)'
+        type: string
+        default: ''
 
 jobs:
   benchmarks:
@@ -62,9 +66,20 @@ jobs:
         LIBRARIES: ${{ inputs.libraries }}
         CONTENTS: ${{ inputs.contents }}
         LAYOUTS: ${{ inputs.layouts }}
+        JMH: ${{ inputs.jmh }}
       run: |
         sep=":"
         if [ "$RUNNER_OS" = "Windows" ]; then sep=";"; fi
+        if [ -n "$JMH" ]; then
+          mkdir -p classgraph-vfs/target/bench-results
+          # Word splitting of $JMH is wanted: it holds several arguments
+          java -cp "classgraph-vfs/target/test-classes${sep}classgraph-vfs/target/classes${sep}$(cat classgraph-vfs/target/bench-cp.txt)" \
+              org.openjdk.jmh.Main $JMH -rf json -rff classgraph-vfs/target/bench-results/jmh.json \
+              | tee classgraph-vfs/target/bench-results/jmh.log
+          awk '/^Benchmark /,0' classgraph-vfs/target/bench-results/jmh.log \
+              | sed 's/^/    /' > classgraph-vfs/target/bench-results/results.md
+          exit 0
+        fi
         props=("-Dcgvfs.bench.quick=$QUICK")
         if [ -n "$LIBRARIES" ]; then props+=("-Dcgvfs.bench.libraries=$LIBRARIES"); fi
         if [ -n "$CONTENTS" ]; then props+=("-Dcgvfs.bench.contents=$CONTENTS"); fi
