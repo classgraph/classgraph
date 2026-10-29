@@ -64,6 +64,7 @@ import org.openjdk.jmh.annotations.Threads;
 
 import io.github.classgraph.vfs.perf.BenchmarkFixtures.Content;
 import io.github.classgraph.vfs.perf.BenchmarkFixtures.Layout;
+import io.github.classgraph.vfs.reader.RandomAccessByteBufferReader;
 
 /**
  * Compares ways of reading a file, for the reads that classgraph-vfs makes of a stored jarfile: open the file, read
@@ -83,6 +84,36 @@ public class ReadMethodBenchmark {
     public enum Method {
         // Mapping through a shared Arena, as classgraph-vfs does on JDK 22 and later, is not compared here, since
         // this branch compiles for JDK 17. Its timing differs from MMAP_BUFFER only in the cost of the unmap.
+
+        /**
+         * Map the whole file through a shared {@link Arena}, and copy out of it through the
+         * {@link RandomAccessByteBufferReader} that classgraph-vfs reads a mapping with, which copies so that a
+         * read of a file truncated after it was mapped throws inside the read.
+         */
+        MMAP_READER {
+            @Override
+            FileReader open(final Path path) throws IOException {
+                final var channel = FileChannel.open(path, StandardOpenOption.READ);
+                final var arena = Arena.ofShared();
+                final var buffer = channel.map(FileChannel.MapMode.READ_ONLY, 0L, channel.size(), arena)
+                        .asByteBuffer();
+                final var mappingReader = new RandomAccessByteBufferReader(buffer, 0L, buffer.capacity());
+                return new FileReader() {
+                    @Override
+                    public void read(final long pos, final byte[] dst, final int len) throws IOException {
+                        if (mappingReader.read(pos, dst, 0, len) != len) {
+                            throw new EOFException();
+                        }
+                    }
+
+                    @Override
+                    public void close() throws IOException {
+                        arena.close();
+                        channel.close();
+                    }
+                };
+            }
+        },
 
         /** Map the whole file as a {@link java.nio.MappedByteBuffer}, which is unmapped only by the GC. */
         MMAP_BUFFER {
