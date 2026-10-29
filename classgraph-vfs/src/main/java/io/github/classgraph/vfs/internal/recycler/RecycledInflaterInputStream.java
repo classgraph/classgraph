@@ -37,6 +37,8 @@ import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 import java.util.zip.ZipException;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * An {@link InputStream} that inflates deflated zip entry data using an {@link Inflater} acquired from a
  * {@link Recycler} and returned when this stream is closed.
@@ -64,19 +66,33 @@ public final class RecycledInflaterInputStream extends InputStream {
     private boolean suppliedDummyByte;
 
     /**
-     * Staging buffer for reading deflated input bytes from {@link #rawInputStream}. Must not be used as an inflate
-     * output buffer while the inflater still references it as input.
+     * Staging buffer for reading deflated input bytes from {@link #rawInputStream}, or null before the first read.
+     * Must not be used as an inflate output buffer while the inflater still references it as input.
      */
-    private final byte[] buf = new byte[INFLATE_BUF_SIZE];
+    private byte @Nullable [] buf;
+
+    /** The size that {@link #buf} grows to once its first fill has been inflated. */
+    private final int maxBufSize;
+
+    /**
+     * The smallest size of the first fill of {@link #buf}, which is otherwise as large as the first read asked for.
+     * Reading only the first 64 bytes of each 1 MB deflated entry took 7.5 us per entry with this first fill, 10-12
+     * us with an 8 kB first fill, and 40 us when the first fill was 64 kB. Since a read of a whole entry asks for
+     * at least as many bytes as the buffer can hold, its first fill is the full buffer, and it is not slowed down.
+     */
+    private static final int MIN_FIRST_FILL = 4096;
 
     /** Destination buffer for {@link #read()}. */
     private final byte[] singleByteBuf = new byte[1];
 
-    /** The size of {@link #buf}. */
-    private static final int INFLATE_BUF_SIZE = 8192;
+    /**
+     * The largest size of {@link #buf}. Reading 64 kB of deflated bytes at a time rather than 8 kB inflated 1 MB
+     * entries 25-45% faster, from 1 to 8 threads.
+     */
+    private static final int INFLATE_BUF_SIZE = 65536;
 
     /**
-     * Constructor.
+     * Constructor, for a stream of deflated bytes of unknown length.
      *
      * @param rawInputStream
      *            the stream of deflated bytes
@@ -86,7 +102,27 @@ public final class RecycledInflaterInputStream extends InputStream {
      */
     public RecycledInflaterInputStream(final InputStream rawInputStream,
             final Recycler<Inflater, RuntimeException> inflaterRecycler) {
+        this(rawInputStream, Long.MAX_VALUE, inflaterRecycler);
+    }
+
+    /**
+     * Constructor.
+     *
+     * @param rawInputStream
+     *            the stream of deflated bytes
+     * @param deflatedSize
+     *            the number of deflated bytes in the stream, which keeps the buffer that they are read into no
+     *            larger than them, or a negative value or {@link Long#MAX_VALUE} if not known
+     * @param inflaterRecycler
+     *            the recycler from which to acquire and return the {@link Inflater}, created via
+     *            {@link #newInflaterRecycler()}
+     */
+    public RecycledInflaterInputStream(final InputStream rawInputStream, final long deflatedSize,
+            final Recycler<Inflater, RuntimeException> inflaterRecycler) {
         this.rawInputStream = rawInputStream;
+        // The buffer needs at least one byte, which is also where the trailing dummy byte goes
+        this.maxBufSize = deflatedSize < 0L ? INFLATE_BUF_SIZE
+                : (int) Math.max(1, Math.min(deflatedSize, INFLATE_BUF_SIZE));
         this.inflaterRecycler = inflaterRecycler;
         this.inflater = inflaterRecycler.acquire();
     }
@@ -193,6 +229,13 @@ public final class RecycledInflaterInputStream extends InputStream {
                         // Should not happen for jarfiles
                         throw new IOException("Inflater needs preset dictionary");
                     } else if (inflater.needsInput()) {
+                        var buf = this.buf;
+                        if (buf == null) {
+                            buf = new byte[Math.min(maxBufSize, Math.max(MIN_FIRST_FILL, len - totInflatedBytes))];
+                        } else if (buf.length < maxBufSize) {
+                            buf = new byte[maxBufSize];
+                        }
+                        this.buf = buf;
                         // Read a chunk of data from the raw InputStream
                         final var numRawBytesRead = rawInputStream.read(buf, 0, buf.length);
                         if (numRawBytesRead == -1) {

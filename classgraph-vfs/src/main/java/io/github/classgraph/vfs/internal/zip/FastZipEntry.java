@@ -28,23 +28,45 @@
  */
 package io.github.classgraph.vfs.internal.zip;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Locale;
 import java.util.TimeZone;
+import java.util.zip.DataFormatException;
+import java.util.zip.Inflater;
+import java.util.zip.ZipException;
 
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.vfs.internal.recycler.RecycledInflaterInputStream;
+import io.github.classgraph.vfs.internal.slice.ArraySlice;
 import io.github.classgraph.vfs.internal.slice.Slice;
+import io.github.classgraph.vfs.reader.RandomAccessArrayReader;
 
 /** A zip entry within a {@link LogicalZipFile}. */
 public final class FastZipEntry implements Comparable<FastZipEntry> {
     /** The theoretical maximum deflate expansion ratio (1032:1). */
     private static final long MAX_DEFLATE_RATIO = 1032L;
+
+    /**
+     * The largest deflated size of an entry that {@link #load()} inflates in one go, rather than through a stream.
+     * Above this size, reading all of the deflated bytes into an array before inflating them costs more than it
+     * saves, because the deflated bytes no longer stay in the CPU cache between being read and being inflated (with
+     * 1 MB entries, inflating in one go was 40% slower at 8 threads). {@link java.util.zip.ZipFile} sizes its
+     * inflater input buffer with the same limit.
+     */
+    private static final long MAX_WHOLE_INFLATE_DEFLATED_SIZE = 64 * 1024;
+
+    /**
+     * The largest inflated size of an entry that {@link #load()} inflates in one go, which bounds the array that an
+     * inflated size given by the central directory can make it allocate up front.
+     */
+    private static final long MAX_WHOLE_INFLATE_SIZE = 16 * 1024 * 1024;
 
     /** The parent logical zipfile. */
     final LogicalZipFile parentLogicalZipFile;
@@ -243,17 +265,25 @@ public final class FastZipEntry implements Comparable<FastZipEntry> {
     public Slice getRawSlice() throws IOException {
         var slice = this.slice;
         if (slice == null) {
-            final var randomAccessReader = parentLogicalZipFile.slice.randomAccessReader();
+            // The fixed-size part of the LOC header is read in one go, since each typed read of a file-backed
+            // reader is a separate read of the file
+            final var locHeader = new byte[30];
+            if (locHeaderPos > parentLogicalZipFile.slice.sliceLength - locHeader.length
+                    || parentLogicalZipFile.slice.randomAccessReader().read(locHeaderPos, locHeader, 0,
+                            locHeader.length) < locHeader.length) {
+                throw new IOException("Unexpected EOF when trying to read zip entry LOC header: " + entryName);
+            }
+            final var locHeaderReader = new RandomAccessArrayReader(locHeader, 0, locHeader.length);
 
             // Check header magic
-            if (randomAccessReader.readInt(locHeaderPos) != 0x04034b50) {
+            if (locHeaderReader.readInt(0) != 0x04034b50) {
                 throw new IOException("Zip entry has bad LOC header: " + entryName);
             }
             // (The filename length and extra field length in the LOC header are unsigned 16-bit values, so they
             // must be read with readUnsignedShort -- reading them as signed shorts makes any length of 32768 or
             // more negative, which moves dataStartPos back before the LOC header)
-            final var dataStartPos = locHeaderPos + 30 + randomAccessReader.readUnsignedShort(locHeaderPos + 26)
-                    + randomAccessReader.readUnsignedShort(locHeaderPos + 28);
+            final var dataStartPos = locHeaderPos + 30 + locHeaderReader.readUnsignedShort(26)
+                    + locHeaderReader.readUnsignedShort(28);
             if (dataStartPos > parentLogicalZipFile.slice.sliceLength) {
                 throw new IOException("Unexpected EOF when trying to read zip entry data: " + entryName);
             }
@@ -291,7 +321,8 @@ public final class FastZipEntry implements Comparable<FastZipEntry> {
      *             zipfile has been closed.
      */
     public InputStream open() throws IOException {
-        final var rawInputStream = getRawSlice().open();
+        final var rawSlice = getRawSlice();
+        final var rawInputStream = rawSlice.open();
         if (!isDeflated) {
             return rawInputStream;
         }
@@ -303,7 +334,7 @@ public final class FastZipEntry implements Comparable<FastZipEntry> {
                         + "try-with-resources block it was opened in) before the entry was read or the class was "
                         + "loaded");
             }
-            return new RecycledInflaterInputStream(rawInputStream, vfs.inflaterRecycler());
+            return new RecycledInflaterInputStream(rawInputStream, rawSlice.sliceLength, vfs.inflaterRecycler());
         } catch (final IOException | RuntimeException | Error e) {
             // The caller never sees a stream if this throws, so the raw stream has to be closed here
             try {
@@ -323,8 +354,119 @@ public final class FastZipEntry implements Comparable<FastZipEntry> {
      *             if the entry could not be read.
      */
     public byte[] load() throws IOException {
+        if (!isDeflated) {
+            return getRawSlice().load();
+        }
+        var inflatedSizeHint = inflatedSizeHint();
+        final var rawSlice = getRawSlice();
+        // An entry of a zipfile that is in memory is inflated in one go whatever its deflated size, since its
+        // deflated bytes are inflated where they are, without being read into an array first
+        if (inflatedSizeHint <= MAX_WHOLE_INFLATE_SIZE
+                && (rawSlice instanceof ArraySlice || rawSlice.sliceLength <= MAX_WHOLE_INFLATE_DEFLATED_SIZE)) {
+            final var content = inflateWhole((int) inflatedSizeHint);
+            if (content != null) {
+                return content;
+            }
+            // The deflated data inflates to more than the central directory says, so the inflated size is unknown
+            inflatedSizeHint = -1L;
+        }
         // Slice.readAllBytesAsArray closes the stream
-        return isDeflated ? Slice.readAllBytesAsArray(open(), inflatedSizeHint()) : getRawSlice().load();
+        return Slice.readAllBytesAsArray(open(), inflatedSizeHint);
+    }
+
+    /**
+     * Inflate the whole of a deflated entry in one go: the deflated bytes are read with a single read (or used in
+     * place, if the zipfile is in memory), and inflated straight into an array of the inflated size given by the
+     * central directory. This avoids the per-chunk reads and copies of inflating through {@link #open()}.
+     *
+     * @param inflatedSize
+     *            the inflated size given by the central directory.
+     * @return the inflated content, or null if the deflated data inflates to more than {@code inflatedSize} bytes,
+     *         in which case the caller has to inflate it through a stream instead.
+     * @throws IOException
+     *             if the entry could not be read or inflated, or if the {@link io.github.classgraph.vfs.Vfs} that
+     *             opened its zipfile has been closed.
+     */
+    private byte @Nullable [] inflateWhole(final int inflatedSize) throws IOException {
+        final var rawSlice = getRawSlice();
+        final var storedSize = (int) rawSlice.sliceLength;
+        final byte[] input;
+        final int inputStart;
+        if (rawSlice instanceof final ArraySlice arraySlice) {
+            input = arraySlice.arr;
+            inputStart = (int) arraySlice.sliceStartPos;
+        } else {
+            input = new byte[storedSize];
+            inputStart = 0;
+            if (storedSize > 0 && rawSlice.randomAccessReader().read(0, input, 0, storedSize) < storedSize) {
+                throw new IOException("Unexpected EOF when trying to read zip entry data: " + entryName);
+            }
+        }
+        final var vfs = parentLogicalZipFile.vfs;
+        if (vfs.isClosed()) {
+            throw new IOException("Cannot read from a jarfile after the Vfs backing it has been closed");
+        }
+        final var inflaterRecycler = vfs.inflaterRecycler();
+        final var inflater = inflaterRecycler.acquire();
+        try {
+            inflater.setInput(input, inputStart, storedSize);
+            final var output = new byte[inflatedSize];
+            final var numInflatedBytes = inflate(inflater, storedSize, output);
+            if (!inflater.finished() && inflate(inflater, storedSize, new byte[1]) > 0) {
+                // The data inflates to more than the central directory says
+                return null;
+            }
+            return numInflatedBytes == inflatedSize ? output : Arrays.copyOf(output, numInflatedBytes);
+        } catch (final IllegalStateException e) {
+            // Closing the Vfs ends the Inflater, which can happen while it is in use
+            throw new IOException("Cannot read a file after the Vfs has been closed", e);
+        } catch (final DataFormatException e) {
+            // ZipException has no constructor that takes a cause
+            final var zipException = new ZipException(
+                    e.getMessage() != null ? e.getMessage() : "Invalid deflated zip entry data");
+            zipException.initCause(e);
+            throw zipException;
+        } finally {
+            inflaterRecycler.recycle(inflater);
+        }
+    }
+
+    /**
+     * Inflate into {@code output} until it is full or the deflated data ends, supplying the dummy byte that the
+     * "nowrap" Inflater option can need at the end of its input (see ZipFile.ZipFileInflaterInputStream.fill()).
+     *
+     * @param inflater
+     *            the {@link Inflater}, whose input has been set to the whole of the deflated data.
+     * @param storedSize
+     *            the length of the deflated data.
+     * @param output
+     *            the array to inflate into.
+     * @return the number of bytes inflated.
+     * @throws DataFormatException
+     *             if the deflated data is invalid.
+     * @throws IOException
+     *             if the deflated data is cut short or needs a preset dictionary.
+     */
+    private static int inflate(final Inflater inflater, final int storedSize, final byte[] output)
+            throws DataFormatException, IOException {
+        var numInflatedBytes = 0;
+        while (!inflater.finished() && numInflatedBytes < output.length) {
+            final var n = inflater.inflate(output, numInflatedBytes, output.length - numInflatedBytes);
+            if (n > 0) {
+                numInflatedBytes += n;
+            } else if (inflater.needsDictionary()) {
+                // Should not happen for jarfiles
+                throw new IOException("Inflater needs preset dictionary");
+            } else if (inflater.needsInput()) {
+                // The Inflater counts the dummy byte among the bytes it has read, so once it has read more than the
+                // deflated data, the dummy byte has been used up, and the deflated data was cut short
+                if (inflater.getBytesRead() > storedSize) {
+                    throw new EOFException("Unexpected end of deflated zip entry data");
+                }
+                inflater.setInput(new byte[1]);
+            }
+        }
+        return numInflatedBytes;
     }
 
     /**

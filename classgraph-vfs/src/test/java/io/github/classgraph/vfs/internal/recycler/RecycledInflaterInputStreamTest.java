@@ -32,9 +32,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
@@ -75,6 +77,67 @@ class RecycledInflaterInputStreamTest {
 
     private static Recycler<Inflater, RuntimeException> inflaterRecycler() {
         return RecycledInflaterInputStream.newInflaterRecycler();
+    }
+
+    /**
+     * A negative deflated size means that the size is not known, so the deflated bytes are read 64kb at a time,
+     * rather than into a buffer sized by the negative number, which was one byte long.
+     *
+     * @throws IOException
+     *             if the stream could not be read
+     */
+    @Test
+    void aNegativeDeflatedSizeReadsTheDeflatedBytes64kbAtATime() throws IOException {
+        final var rawBytes = rawBytes();
+        final List<Integer> readLengths = new ArrayList<>();
+        try (var inflaterInputStream = new RecycledInflaterInputStream(
+                recordingStream(deflate(rawBytes), readLengths), -1L, inflaterRecycler())) {
+            // Ask for 64kb at a time, since the first read of deflated bytes is no larger than the read asked for.
+            // (InputStream#readNBytes and #readAllBytes ask for less than that)
+            final var inflatedBytes = new ByteArrayOutputStream();
+            final var outBuf = new byte[65536];
+            for (int numBytesRead; (numBytesRead = inflaterInputStream.read(outBuf, 0, outBuf.length)) != -1;) {
+                inflatedBytes.write(outBuf, 0, numBytesRead);
+            }
+            assertThat(inflatedBytes.toByteArray()).isEqualTo(rawBytes);
+        }
+        assertThat(readLengths).isNotEmpty().allSatisfy(len -> assertThat(len).isEqualTo(65536));
+    }
+
+    /**
+     * Reading only the start of an entry reads only 4kb of deflated bytes, rather than 64kb, and the reads after
+     * that are 64kb long again.
+     *
+     * @throws IOException
+     *             if the stream could not be read
+     */
+    @Test
+    void aShortFirstReadReadsOnly4kbOfDeflatedBytes() throws IOException {
+        final var rawBytes = rawBytes();
+        final var deflatedBytes = deflate(rawBytes);
+        assertThat(deflatedBytes.length).isGreaterThan(4096);
+        final List<Integer> readLengths = new ArrayList<>();
+        try (var inflaterInputStream = new RecycledInflaterInputStream(recordingStream(deflatedBytes, readLengths),
+                deflatedBytes.length, inflaterRecycler())) {
+            assertThat(inflaterInputStream.readNBytes(64)).isEqualTo(Arrays.copyOf(rawBytes, 64));
+            assertThat(readLengths).containsExactly(4096);
+            assertThat(inflaterInputStream.readAllBytes())
+                    .isEqualTo(Arrays.copyOfRange(rawBytes, 64, rawBytes.length));
+        }
+        final var laterFillSize = Math.min(deflatedBytes.length, 65536);
+        assertThat(readLengths.subList(1, readLengths.size())).isNotEmpty()
+                .allSatisfy(len -> assertThat(len).isEqualTo(laterFillSize));
+    }
+
+    /** A stream of the given bytes that records the length of every read of it. */
+    private static ByteArrayInputStream recordingStream(final byte[] bytes, final List<Integer> readLengths) {
+        return new ByteArrayInputStream(bytes) {
+            @Override
+            public synchronized int read(final byte[] b, final int off, final int len) {
+                readLengths.add(len);
+                return super.read(b, off, len);
+            }
+        };
     }
 
     /** Read the given deflated bytes back through a {@link RecycledInflaterInputStream}. */
@@ -345,9 +408,9 @@ class RecycledInflaterInputStreamTest {
     @Test
     @Timeout(value = 60, threadMode = ThreadMode.SEPARATE_THREAD)
     void closingWhileAReadIsInFlightWaitsForTheReadBeforeRecycling() throws Exception {
-        // Random bytes do not compress, so the deflated stream is longer than one staging buffer, and inflating
-        // the first read's worth needs a second read of the raw stream
-        final var rawBytes = new byte[65536];
+        // Random bytes do not compress, so the deflated stream is longer than one staging buffer (64 kB at most),
+        // and inflating the first read's worth (128 kB) needs a second read of the raw stream
+        final var rawBytes = new byte[262144];
         new Random(1).nextBytes(rawBytes);
         final var deflatedBytes = deflate(rawBytes);
 
@@ -394,7 +457,7 @@ class RecycledInflaterInputStreamTest {
             final var inflaterInputStream = new RecycledInflaterInputStream(rawInputStream, recycler);
             final var streamInflater = createdInstances.get(0);
 
-            final var readBuf = new byte[32768];
+            final var readBuf = new byte[131072];
             final AtomicReference<Object> readResult = new AtomicReference<>();
             final var reader = new Thread(() -> {
                 try {

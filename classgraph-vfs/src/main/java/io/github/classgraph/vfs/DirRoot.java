@@ -32,9 +32,12 @@ import java.io.File;
 import java.io.IOError;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,7 +45,9 @@ import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.jspecify.annotations.Nullable;
 
@@ -73,8 +78,27 @@ public final class DirRoot extends VfsRoot {
     /** The normalized directory path string using {@code '/'} separators. */
     private final String pathStr;
 
+    /**
+     * The string form of {@link #dir} followed by {@code '/'}, if {@link #dir} is in the default filesystem and
+     * that filesystem's separator is {@code '/'}, otherwise null. See {@link #isExactName}.
+     */
+    private final @Nullable String dirPrefix;
+
+    /**
+     * For each root-relative directory path that has been looked up in ({@code ""} for the root), whether it and
+     * every directory above it within the root look names up case-sensitively.
+     */
+    private final Map<String, Boolean> caseSensitiveDirs = new ConcurrentHashMap<>();
+
     /** Cached list of entries under this directory, initialized on first call to {@link #getEntries()}. */
     private volatile @Nullable List<VfsEntry> entries;
+
+    /**
+     * The entries that a walk listed or a lookup found, by root-relative path, so that looking a file up again
+     * reads no metadata. An entry holds the file's path and metadata, never its content. Names that were not found
+     * are not recorded, so a file created after the root was listed is still found.
+     */
+    private final Map<String, DirEntry> entriesByName = new ConcurrentHashMap<>();
 
     /**
      * Constructor.
@@ -106,6 +130,11 @@ public final class DirRoot extends VfsRoot {
         } catch (final IOError | SecurityException e) {
             throw new IOException("Could not form URI for " + this.dir + " : " + e, e);
         }
+        final var dirStr = this.dir.toString();
+        this.dirPrefix = this.dir.getFileSystem() == FileSystems.getDefault()
+                && "/".equals(this.dir.getFileSystem().getSeparator())
+                        ? dirStr.endsWith("/") ? dirStr : dirStr + "/"
+                        : null;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -267,9 +296,13 @@ public final class DirRoot extends VfsRoot {
             final var attributes = FileUtils.readAttributes(child);
             if (attributes.isDirectory()) {
                 subDirs.add(child);
-            } else if (attributes.isRegularFile() && !visitor
-                    .visitEntry(new DirEntry(this, child, namePrefix + child.getFileName(), attributes))) {
-                return false;
+            } else if (attributes.isRegularFile()) {
+                final var name = namePrefix + child.getFileName();
+                final var entry = new DirEntry(this, child, name, attributes);
+                entriesByName.put(name, entry);
+                if (!visitor.visitEntry(entry)) {
+                    return false;
+                }
             }
         }
         // Push in reverse, so that the subdirectories are walked in sorted order
@@ -300,16 +333,50 @@ public final class DirRoot extends VfsRoot {
         return relativeName.toString();
     }
 
+    /**
+     * Returns whether {@code name} is exactly the root-relative path of {@code resolved}, the normalized result of
+     * resolving {@code name} against {@link #dir}. On the default filesystem with {@code '/'} as its separator,
+     * parsing and normalizing a path removes repeated and trailing separators and {@code "."} and {@code ".."}
+     * segments, so the name is exact if and only if the string form of {@code resolved} is {@link #dirPrefix}
+     * followed by {@code name}. Comparing strings this way costs a fraction of {@link #relativeName}, which
+     * relativizes the path and joins its segments.
+     *
+     * @param name
+     *            the root-relative path that was looked up.
+     * @param resolved
+     *            {@code name} resolved against {@link #dir} and normalized, already checked to be under it.
+     * @return true if {@code name} is the exact root-relative path of {@code resolved}.
+     */
+    private boolean isExactName(final String name, final Path resolved) {
+        if (dirPrefix == null) {
+            return name.equals(relativeName(resolved));
+        }
+        if (name.isEmpty()) {
+            // The root itself
+            return resolved.equals(dir);
+        }
+        final var resolvedStr = resolved.toString();
+        return resolvedStr.length() == dirPrefix.length() + name.length() && resolvedStr.startsWith(dirPrefix)
+                && resolvedStr.endsWith(name);
+    }
+
     @Override
     @Nullable
     VfsEntry getEntryImpl(final String name) throws IOException {
         if (name.isEmpty()) {
             return null;
         }
-        final var resolved = pathForNio(name);
-        return resolved != null && FileUtils.canReadAndIsFile(resolved)
-                ? new DirEntry(this, resolved, name, /* attributes = */ null)
-                : null;
+        final var known = entriesByName.get(name);
+        if (known != null) {
+            return known;
+        }
+        // Whether the file can be read is not checked, since reading it throws if it cannot, and a check here would
+        // cost a second syscall on every lookup
+        final var entry = fileEntryForNio(name);
+        if (entry != null) {
+            entriesByName.put(name, entry);
+        }
+        return entry;
     }
 
     /**
@@ -323,6 +390,21 @@ public final class DirRoot extends VfsRoot {
      */
     @Nullable
     Path pathForNio(final String name) throws IOException {
+        final var resolved = resolveExactName(name);
+        if (resolved != null && isCaseFoldedLookup(name, resolved, /* knownToExist = */ false)) {
+            return null;
+        }
+        return resolved;
+    }
+
+    /**
+     * Resolve an exact root-relative path to a filesystem {@link Path}, without reading the filesystem.
+     *
+     * @param name
+     *            the root-relative path, or {@code ""} for the root itself.
+     * @return the resolved {@link Path}, or {@code null} if invalid, outside the root, or not in canonical form.
+     */
+    private @Nullable Path resolveExactName(final String name) {
         final Path resolved;
         try {
             resolved = dir.resolve(name).normalize();
@@ -339,25 +421,129 @@ public final class DirRoot extends VfsRoot {
         // route is not a match: one with "." or ".." segments in it, or, on Windows, one written with the platform
         // separator rather than '/'. Path#resolve accepts all of those, whereas the same name would not be found in
         // an archive root, where the name is looked up in a map of the names the entries are stored under
-        if (!name.equals(relativeName(resolved))) {
-            return null;
-        }
-        // The filesystems of Windows and macOS answer a lookup for a name whose case does not match the name the
-        // file is stored under, and this method matches names exactly, so such a match is not one
+        return isExactName(name, resolved) ? resolved : null;
+    }
+
+    /**
+     * Returns whether the filesystem found an existing file under a name whose case differs from the name it is
+     * stored under. The filesystems of Windows and macOS answer a lookup for such a name, and names are matched
+     * exactly, so such a match is not one.
+     *
+     * @param name
+     *            the root-relative path, which has already been checked to be in canonical form.
+     * @param resolved
+     *            the resolved path of {@code name}.
+     * @param knownToExist
+     *            true if the caller has already found that {@code resolved} exists, so that it is not checked
+     *            again.
+     * @return true if the lookup matched a name whose case differs from {@code name}, or false if it did not, or if
+     *         nothing exists at {@code resolved}.
+     * @throws IOException
+     *             if the real path of the file could not be read.
+     */
+    private boolean isCaseFoldedLookup(final String name, final Path resolved, final boolean knownToExist)
+            throws IOException {
         // Another VFS view already enforces exact names. Rechecking its existence and real path here would
         // recursively duplicate those lookups at every wrapper level instead of delegating once.
         // The provider name also recognizes copies loaded by plugins in other classloaders: their namespace has
         // the same exact-match contract, even though their VfsPath is not an instance of this loader's class.
         final boolean classGraphView = resolved instanceof VfsPath || VfsFileSystemProvider.class.getName()
                 .equals(resolved.getFileSystem().provider().getClass().getName());
-        if (!classGraphView && Files.exists(resolved) && isCaseFoldedMatch(dir, resolved)) {
-            return null;
-        }
-        return resolved;
+        return !classGraphView && !isInCaseSensitiveDirs(name) && (knownToExist || Files.exists(resolved))
+                && isCaseFoldedMatch(dir, resolved);
     }
 
     /**
-     * Look up a regular file entry by root-relative path for a NIO view, including unreadable files.
+     * Returns whether every directory that the lookup of {@code name} looks a name up in, from the root down to the
+     * parent of the last segment, is known to look names up case-sensitively, in which case the lookup cannot have
+     * matched a name whose case differs from the name looked up, and {@link #isCaseFoldedMatch} need not read the
+     * real path of the file.
+     *
+     * @param name
+     *            the root-relative path, which has already been checked to be in canonical form.
+     * @return true if every directory along the path is known to be case-sensitive, or false if any of them is
+     *         case-insensitive or could not be checked.
+     */
+    private boolean isInCaseSensitiveDirs(final String name) {
+        return Boolean.TRUE.equals(areDirsCaseSensitive(name));
+    }
+
+    /**
+     * Returns whether every directory along the lookup of {@code name} is case-sensitive, caching the answer for
+     * the parent directory of {@code name} if it is known and the parent directory holds the last segment of
+     * {@code name}.
+     *
+     * @param name
+     *            the root-relative path, in canonical form.
+     * @return true if every directory along the path is case-sensitive, false if any of them is case-insensitive,
+     *         or null if this could not be determined.
+     */
+    private @Nullable Boolean areDirsCaseSensitive(final String name) {
+        final var lastSlashIdx = name.lastIndexOf('/');
+        final var parent = lastSlashIdx < 0 ? "" : name.substring(0, lastSlashIdx);
+        final var known = caseSensitiveDirs.get(parent);
+        if (known != null) {
+            return known;
+        }
+        final var parentIsCaseSensitive = isCaseSensitiveDir(parent, name.substring(lastSlashIdx + 1));
+        final var ancestorsAreCaseSensitive = parent.isEmpty() ? Boolean.TRUE : areDirsCaseSensitive(parent);
+        final Boolean allCaseSensitive = Boolean.FALSE.equals(parentIsCaseSensitive)
+                || Boolean.FALSE.equals(ancestorsAreCaseSensitive) ? Boolean.FALSE
+                        : parentIsCaseSensitive == null || ancestorsAreCaseSensitive == null ? null : Boolean.TRUE;
+        // Only a directory that was found to hold the name is cached, so that looking up names in directories that
+        // do not exist cannot fill the cache
+        if (allCaseSensitive != null && parentIsCaseSensitive != null) {
+            caseSensitiveDirs.put(parent, allCaseSensitive);
+        }
+        return allCaseSensitive;
+    }
+
+    /**
+     * Find out whether a directory looks names up case-sensitively, by looking up a name that it holds with the
+     * case of its ASCII letters flipped (every filesystem that folds case folds the case of ASCII letters). Whether
+     * a directory folds case is fixed when the directory is created (Linux sets the casefold attribute only on an
+     * empty directory, and the other filesystems that fold case do so for the whole volume), so the answer can be
+     * cached for as long as the root is open.
+     *
+     * @param dirName
+     *            the root-relative path of the directory, or {@code ""} for the root itself.
+     * @param fileName
+     *            the name of a file or directory that the lookup expects the directory to hold.
+     * @return true if the directory is case-sensitive, false if it is case-insensitive, or null if this could not
+     *         be determined, because the name has no ASCII letters, or because the directory does not hold it.
+     */
+    private @Nullable Boolean isCaseSensitiveDir(final String dirName, final String fileName) {
+        final var flipped = new StringBuilder(fileName.length());
+        for (var i = 0; i < fileName.length(); i++) {
+            final var c = fileName.charAt(i);
+            flipped.append(c >= 'a' && c <= 'z' ? (char) (c - 'a' + 'A')
+                    : c >= 'A' && c <= 'Z' ? (char) (c - 'A' + 'a') : c);
+        }
+        final var flippedName = flipped.toString();
+        if (flippedName.equals(fileName)) {
+            return null;
+        }
+        final var dirPath = dirName.isEmpty() ? dir : dir.resolve(dirName);
+        final var path = dirPath.resolve(fileName);
+        final var flippedPath = dirPath.resolve(flippedName);
+        try {
+            if (!Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
+                return null;
+            }
+            // If the flipped name names nothing, then the directory is case-sensitive. If it names another file,
+            // then the directory holds two names that differ only in case, which it can only do if it is
+            // case-sensitive. (Two symbolic links to the same file whose names differ only in case look like one
+            // file here, so they make the directory look case-insensitive, which only means that the real path of
+            // each file looked up in it is checked, as if this method had not been called.)
+            return !Files.exists(flippedPath, LinkOption.NOFOLLOW_LINKS) || !Files.isSameFile(path, flippedPath);
+        } catch (final IOException | SecurityException _) {
+            return null;
+        }
+    }
+
+    /**
+     * Look up a regular file entry by root-relative path, including unreadable files, with one metadata read and
+     * without consulting {@link #entriesByName}, so that a NIO view sees files deleted since the root was listed.
      *
      * @param name
      *            the root-relative path.
@@ -366,12 +552,23 @@ public final class DirRoot extends VfsRoot {
      *             if checking case-sensitive path matching fails.
      */
     @Nullable
-    VfsEntry fileEntryForNio(final String name) throws IOException {
-        final var path = pathForNio(name);
+    DirEntry fileEntryForNio(final String name) throws IOException {
+        final var path = resolveExactName(name);
         if (path == null) {
             return null;
         }
-        final var attributes = FileUtils.readAttributes(path);
-        return attributes.isRegularFile() ? new DirEntry(this, path, name, attributes) : null;
+        // The metadata is read before the case of the name is checked, since a missing file then costs only this
+        // one read, and a file that is found need not be checked for existence again before its real path is read
+        final BasicFileAttributes attributes;
+        try {
+            attributes = Files.readAttributes(path, BasicFileAttributes.class);
+        } catch (final IOException _) {
+            // The file is missing, or its metadata cannot be read. FileUtils#readAttributes is not used here, since
+            // on this failure it falls back to File#isFile, a second metadata read that fails the same way
+            return null;
+        }
+        return attributes.isRegularFile() && !isCaseFoldedLookup(name, path, /* knownToExist = */ true)
+                ? new DirEntry(this, path, name, attributes)
+                : null;
     }
 }
