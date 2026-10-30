@@ -51,8 +51,11 @@ import io.github.classgraph.base.internal.utils.VersionFinder;
 public final class RandomAccessByteBufferReader implements RandomAccessReader {
     /**
      * The smallest bulk read of a buffer that can fault that is copied in bulk, rather than one {@code long} at a
-     * time, on x86-64 (see {@link #canFault}). On JDK 26, a 1 MB read takes 74 us one {@code long} at a time and 47
-     * us in bulk. Elsewhere, no read of a buffer that can fault is copied in bulk.
+     * time, on x86-64 (see {@link #canFault}). Measured on JDK 25 and 26 on Linux, macOS and Windows, by random
+     * reads of a mapped file in the page cache, each followed by {@link #awaitFault()}: below 64 bytes a bulk copy
+     * takes up to 30% longer, and from 64 bytes up a copy one {@code long} at a time takes as long or longer, up to
+     * 1.7 times as long (Linux, JDK 26, 1 thread, 72 to 255 bytes). Elsewhere, no read of a buffer that can fault
+     * is copied in bulk.
      *
      * <p>
      * TODO: this works around a JVM bug on aarch64, where a compiled bulk copy calls a routine
@@ -60,7 +63,7 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
      * kills the JVM instead of throwing an {@link InternalError}. When a JDK fixes that, copy in bulk on aarch64
      * too on that JDK and later, from the size at which bulk is measured to be faster.
      */
-    private static final int MIN_BULK_COPY_SIZE = VersionFinder.IS_X86_64 ? 256 : Integer.MAX_VALUE;
+    private static final int MIN_BULK_COPY_SIZE = VersionFinder.IS_X86_64 ? 64 : Integer.MAX_VALUE;
 
     /** A lock that no thread ever holds, which {@link #awaitFault()} asks about. */
     private static final Object FAULT_FENCE = new Object();
