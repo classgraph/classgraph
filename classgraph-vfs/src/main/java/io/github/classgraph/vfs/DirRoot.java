@@ -135,17 +135,66 @@ public final class DirRoot extends VfsRoot {
      */
     private static final Queue<DirHandle> openDirHandles = new ConcurrentLinkedQueue<>();
 
-    /**
-     * An open handle on a directory of a root.
-     *
-     * @param root
-     *            the root.
-     * @param dirName
-     *            the root-relative path of the directory, or {@code ""} for the root itself.
-     * @param stream
-     *            the handle.
-     */
-    private record DirHandle(DirRoot root, String dirName, SecureDirectoryStream<Path> stream) {
+    /** An open handle on a directory of a root. */
+    static final class DirHandle {
+        /** The root. */
+        private final DirRoot root;
+
+        /** The root-relative path of the directory, or {@code ""} for the root itself. */
+        private final String dirName;
+
+        /** The handle. */
+        private final SecureDirectoryStream<Path> stream;
+
+        /**
+         * Whether the directory and every directory above it within the root have been found to look names up
+         * case-sensitively (see {@link DirRoot#areDirsCaseSensitive}), so that a name found through this handle
+         * need not be checked for case. A handle opened on a directory that replaced this one starts out false.
+         */
+        private volatile boolean inCaseSensitiveDirs;
+
+        /**
+         * Constructor.
+         *
+         * @param root
+         *            the root.
+         * @param dirName
+         *            the root-relative path of the directory, or {@code ""} for the root itself.
+         * @param stream
+         *            the handle.
+         */
+        DirHandle(final DirRoot root, final String dirName, final SecureDirectoryStream<Path> stream) {
+            this.root = root;
+            this.dirName = dirName;
+            this.stream = stream;
+        }
+
+        /**
+         * Return the root.
+         *
+         * @return the root.
+         */
+        DirRoot root() {
+            return root;
+        }
+
+        /**
+         * Return the root-relative path of the directory.
+         *
+         * @return the root-relative path of the directory, or {@code ""} for the root itself.
+         */
+        String dirName() {
+            return dirName;
+        }
+
+        /**
+         * Return the handle.
+         *
+         * @return the handle.
+         */
+        SecureDirectoryStream<Path> stream() {
+            return stream;
+        }
     }
 
     /**
@@ -154,6 +203,12 @@ public final class DirRoot extends VfsRoot {
      * {@link SecureDirectoryStream}.
      */
     private final boolean useDirHandles;
+
+    /**
+     * Whether the directory is in the filesystem of a ClassGraph VFS, including a copy of this library loaded by
+     * another classloader, whose names are already matched exactly, so that they are not checked for case here.
+     */
+    private final boolean isVfsView;
 
     /**
      * Open handles on the directories that files have been looked up or opened in, by root-relative path
@@ -201,6 +256,8 @@ public final class DirRoot extends VfsRoot {
                         ? dirStr.endsWith("/") ? dirStr : dirStr + "/"
                         : null;
         this.useDirHandles = dirPrefix != null;
+        this.isVfsView = this.dir instanceof VfsPath || VfsFileSystemProvider.class.getName()
+                .equals(this.dir.getFileSystem().provider().getClass().getName());
     }
 
     @Override
@@ -341,27 +398,26 @@ public final class DirRoot extends VfsRoot {
     /**
      * Read the metadata of a file, relative to the handle on its directory if there is one.
      *
+     * @param dirName
+     *            the root-relative path of the file's directory, or {@code ""} for the root itself.
+     * @param handle
+     *            the handle on the file's directory, or null if there is none.
+     * @param fileName
+     *            the name of the file within its directory, if {@code handle} is not null.
      * @param name
-     *            the root-relative path of the file, in canonical form.
+     *            the root-relative path of the file.
      * @param path
-     *            the path that {@link #resolveExactName(String)} resolved {@code name} to.
+     *            the path that {@link #resolveExactName(String)} resolved the file's name to, or null if it was not
+     *            resolved (see {@link #resolveCanonicalName(String)}).
      * @return the metadata, or null if the file does not exist or its metadata could not be read.
      */
-    private @Nullable BasicFileAttributes readAttributes(final String name, final Path path) {
-        final var lastSlashIdx = name.lastIndexOf('/');
-        final var dirName = lastSlashIdx < 0 ? "" : name.substring(0, lastSlashIdx);
-        final DirHandle handle;
-        try {
-            handle = dirHandle(dirName);
-        } catch (final NoSuchFileException | NotDirectoryException _) {
-            // The file's directory does not exist, so neither does the file
-            return null;
-        }
-        if (handle != null) {
+    private @Nullable BasicFileAttributes readAttributes(final String dirName, final @Nullable DirHandle handle,
+            final @Nullable Path fileName, final String name, final @Nullable Path path) {
+        if (handle != null && fileName != null) {
             try {
                 // The POSIX view, since the basic view of a SecureDirectoryStream wraps the attributes it reads in
                 // an object that does not give the POSIX permissions
-                return handle.stream().getFileAttributeView(path.getFileName(), PosixFileAttributeView.class)
+                return handle.stream().getFileAttributeView(fileName, PosixFileAttributeView.class)
                         .readAttributes();
             } catch (final IOException | ClosedDirectoryStreamException _) {
                 // The file is not in the directory the handle is open on, which may have been replaced since the
@@ -370,7 +426,8 @@ public final class DirRoot extends VfsRoot {
         }
         final BasicFileAttributes attributes;
         try {
-            attributes = Files.readAttributes(path, BasicFileAttributes.class);
+            attributes = Files.readAttributes(path != null ? path : resolveCanonicalName(name),
+                    BasicFileAttributes.class);
         } catch (final IOException _) {
             // The file is missing, or its metadata cannot be read. FileUtils#readAttributes is not used here, since
             // on this failure it falls back to File#isFile, a second metadata read that fails the same way
@@ -390,27 +447,58 @@ public final class DirRoot extends VfsRoot {
      * @param name
      *            the root-relative path of the file.
      * @param path
-     *            the path of the file.
+     *            the path of the file, or null if it has not been built (see
+     *            {@link #resolveCanonicalName(String)}).
+     * @param entryHandle
+     *            the handle on the file's directory that the file's entry was found through, or null. It may have
+     *            been closed since, in which case the handle that is open on the directory now is used instead.
+     * @param fileName
+     *            the name of the file within its directory, if {@code entryHandle} is not null.
      * @return the channel, which the caller must close.
      * @throws IOException
      *             if the file could not be opened.
      */
-    FileChannel openFile(final String name, final Path path) throws IOException {
-        final var lastSlashIdx = name.lastIndexOf('/');
-        final var handle = dirHandle(lastSlashIdx < 0 ? "" : name.substring(0, lastSlashIdx));
-        if (handle != null) {
-            try {
-                final var channel = handle.stream().newByteChannel(path.getFileName(),
-                        Set.of(StandardOpenOption.READ));
-                if (channel instanceof final FileChannel fileChannel) {
-                    return fileChannel;
-                }
-                channel.close();
-            } catch (final IOException | ClosedDirectoryStreamException _) {
-                // Open the file by its whole path, which throws the exception to report if it fails again
+    FileChannel openFile(final String name, final @Nullable Path path, final @Nullable DirHandle entryHandle,
+            final @Nullable Path fileName) throws IOException {
+        if (entryHandle != null && fileName != null) {
+            final var channel = openFile(entryHandle, fileName);
+            if (channel != null) {
+                return channel;
             }
         }
-        return FileChannel.open(path, StandardOpenOption.READ);
+        final var resolvedPath = path != null ? path : resolveCanonicalName(name);
+        final var lastSlashIdx = name.lastIndexOf('/');
+        final var handle = dirHandle(lastSlashIdx < 0 ? "" : name.substring(0, lastSlashIdx));
+        if (handle != null && handle != entryHandle) {
+            final var channel = openFile(handle, resolvedPath.getFileName());
+            if (channel != null) {
+                return channel;
+            }
+        }
+        // Open the file by its whole path, which throws the exception to report if it fails again
+        return FileChannel.open(resolvedPath, StandardOpenOption.READ);
+    }
+
+    /**
+     * Open a file for reading relative to a handle on its directory.
+     *
+     * @param handle
+     *            the handle.
+     * @param fileName
+     *            the name of the file within the directory.
+     * @return the channel, which the caller must close, or null if the file could not be opened through the handle.
+     */
+    private static @Nullable FileChannel openFile(final DirHandle handle, final Path fileName) {
+        try {
+            final var channel = handle.stream().newByteChannel(fileName, Set.of(StandardOpenOption.READ));
+            if (channel instanceof final FileChannel fileChannel) {
+                return fileChannel;
+            }
+            channel.close();
+        } catch (final IOException | ClosedDirectoryStreamException _) {
+            // The file is not in the directory the handle is open on, or the handle was closed
+        }
+        return null;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -647,16 +735,24 @@ public final class DirRoot extends VfsRoot {
         // Whether the file can be read is not checked, since reading it throws if it cannot, and a check here would
         // cost a second syscall on every lookup
         final DirEntry entry;
-        final var path = resolveExactName(name);
-        final var listedAttributes = path == null ? null : exactNameListings.listedAttributes(name);
-        if (path == null) {
-            entry = null;
-        } else if (listedAttributes != null) {
-            // The listing of its directory found the file under exactly this name, and read its metadata, so the
-            // file need not be read again. (A file deleted since the listing is still found, and fails to load.)
-            entry = listedAttributes.isRegularFile() ? new DirEntry(this, path, name, listedAttributes) : null;
+        final var lastSlashIdx = dirPrefix == null ? NOT_CANONICAL : lastSlashIdxIfCanonical(name);
+        if (lastSlashIdx != NOT_CANONICAL) {
+            // The name resolves to dirPrefix followed by the name (see resolveExactName), so the file is looked up
+            // through the handle on its directory without building its path, which is only built if it is needed
+            entry = fileEntry(name, lastSlashIdx, null);
         } else {
-            entry = fileEntry(name, path);
+            final var path = resolveExactName(name);
+            final var listedAttributes = path == null ? null : exactNameListings.listedAttributes(name);
+            if (path == null) {
+                entry = null;
+            } else if (listedAttributes != null) {
+                // The listing of its directory found the file under exactly this name, and read its metadata, so
+                // the file need not be read again. (A file deleted since the listing is still found, and fails to
+                // load.)
+                entry = listedAttributes.isRegularFile() ? new DirEntry(this, path, name, listedAttributes) : null;
+            } else {
+                entry = fileEntry(name, name.lastIndexOf('/'), path);
+            }
         }
         if (entry != null) {
             entriesByName.put(name, entry);
@@ -676,10 +772,23 @@ public final class DirRoot extends VfsRoot {
     @Nullable
     Path pathForNio(final String name) throws IOException {
         final var resolved = resolveExactName(name);
-        if (resolved != null && isCaseFoldedLookup(name, resolved, /* knownToExist = */ false)) {
+        if (resolved != null
+                && isCaseFoldedLookup(name, name.lastIndexOf('/'), resolved, /* knownToExist = */ false)) {
             return null;
         }
         return resolved;
+    }
+
+    /**
+     * Return the path of a file of this root that was looked up without building its path, which is only done for a
+     * name that {@link #lastSlashIdxIfCanonical(String)} accepts, when {@link #dirPrefix} is not null.
+     *
+     * @param name
+     *            the root-relative path of the file.
+     * @return the path, the same one that {@link #resolveExactName(String)} resolves the name to.
+     */
+    Path resolveCanonicalName(final String name) {
+        return dir.resolve(name);
     }
 
     /**
@@ -692,7 +801,7 @@ public final class DirRoot extends VfsRoot {
     private @Nullable Path resolveExactName(final String name) {
         final Path resolved;
         try {
-            if (dirPrefix != null && isCanonicalName(name)) {
+            if (dirPrefix != null && lastSlashIdxIfCanonical(name) != NOT_CANONICAL) {
                 // On a filesystem with '/' as its separator, a name with no empty, "." or ".." segments resolves to
                 // dirPrefix followed by the name, a path under the root that is already normalized and exact
                 return dir.resolve(name);
@@ -714,27 +823,40 @@ public final class DirRoot extends VfsRoot {
         return isExactName(name, resolved) ? resolved : null;
     }
 
+    /** The value of {@link #lastSlashIdxIfCanonical(String)} for a name that is not in canonical form. */
+    private static final int NOT_CANONICAL = -2;
+
     /**
-     * Returns whether a root-relative path has no empty, {@code "."} or {@code ".."} segments, so that it does not
-     * begin or end with {@code '/'} or hold two in a row.
+     * Check that a root-relative path has no empty, {@code "."} or {@code ".."} segments, so that it does not begin
+     * or end with {@code '/'} or hold two in a row, and holds no NUL character, which no path on the filesystems
+     * with {@code '/'} as their separator can hold.
      *
      * @param name
      *            the root-relative path.
-     * @return true if every segment of {@code name} is a name other than {@code "."} or {@code ".."}.
+     * @return the index of the last {@code '/'} in {@code name}, or -1 if it has none, if every segment of
+     *         {@code name} is a name other than {@code "."} or {@code ".."} and it holds no NUL character,
+     *         otherwise {@link #NOT_CANONICAL}.
      */
-    private static boolean isCanonicalName(final String name) {
-        var segmentStart = 0;
-        for (var i = 0; i <= name.length(); i++) {
-            if (i == name.length() || name.charAt(i) == '/') {
-                final var segmentLength = i - segmentStart;
-                if (segmentLength == 0 || segmentLength <= 2 && name.charAt(segmentStart) == '.'
-                        && (segmentLength == 1 || name.charAt(segmentStart + 1) == '.')) {
-                    return false;
-                }
-                segmentStart = i + 1;
-            }
+    private static int lastSlashIdxIfCanonical(final String name) {
+        // String#indexOf is compiled to vector instructions, so the name is searched with it rather than one
+        // character at a time
+        if (name.indexOf('\0') >= 0) {
+            return NOT_CANONICAL;
         }
-        return true;
+        var segmentStart = 0;
+        while (true) {
+            final var slashIdx = name.indexOf('/', segmentStart);
+            final var segmentLength = (slashIdx < 0 ? name.length() : slashIdx) - segmentStart;
+            if (segmentLength == 0 || segmentLength <= 2 && name.charAt(segmentStart) == '.'
+                    && (segmentLength == 1 || name.charAt(segmentStart + 1) == '.')) {
+                return NOT_CANONICAL;
+            }
+            if (slashIdx < 0) {
+                // The last segment begins after the last '/'
+                return segmentStart - 1;
+            }
+            segmentStart = slashIdx + 1;
+        }
     }
 
     /**
@@ -744,8 +866,10 @@ public final class DirRoot extends VfsRoot {
      *
      * @param name
      *            the root-relative path, which has already been checked to be in canonical form.
+     * @param lastSlashIdx
+     *            the index of the last {@code '/'} in {@code name}, or -1 if it has none.
      * @param resolved
-     *            the resolved path of {@code name}.
+     *            the resolved path of {@code name}, or null to resolve it here if it is needed.
      * @param knownToExist
      *            true if the caller has already found that {@code resolved} exists, so that it is not checked
      *            again.
@@ -754,55 +878,44 @@ public final class DirRoot extends VfsRoot {
      * @throws IOException
      *             if the real path of the file could not be read.
      */
-    private boolean isCaseFoldedLookup(final String name, final Path resolved, final boolean knownToExist)
-            throws IOException {
+    private boolean isCaseFoldedLookup(final String name, final int lastSlashIdx, final @Nullable Path resolved,
+            final boolean knownToExist) throws IOException {
         // Another VFS view already enforces exact names. Rechecking its existence and real path here would
         // recursively duplicate those lookups at every wrapper level instead of delegating once.
         // The provider name also recognizes copies loaded by plugins in other classloaders: their namespace has
         // the same exact-match contract, even though their VfsPath is not an instance of this loader's class.
-        final boolean classGraphView = resolved instanceof VfsPath || VfsFileSystemProvider.class.getName()
-                .equals(resolved.getFileSystem().provider().getClass().getName());
-        if (classGraphView || isInCaseSensitiveDirs(name, knownToExist)
-                || !(knownToExist || Files.exists(resolved))) {
+        // The resolved path is in the filesystem of the root directory, so this is decided once, in the constructor.
+        if (isVfsView || Boolean.TRUE.equals(areDirsCaseSensitive(name, lastSlashIdx, knownToExist))) {
+            return false;
+        }
+        final var resolvedPath = resolved != null ? resolved : resolveCanonicalName(name);
+        if (!knownToExist && !Files.exists(resolvedPath)) {
             return false;
         }
         final var caseFolded = exactNameListings.isCaseFolded(name);
         // A directory that cannot be listed is checked by reading the real path of the file instead
-        return caseFolded != null ? caseFolded : isCaseFoldedMatch(dir, resolved);
-    }
-
-    /**
-     * Returns whether every directory that the lookup of {@code name} looks a name up in, from the root down to the
-     * parent of the last segment, is known to look names up case-sensitively, in which case the lookup cannot have
-     * matched a name whose case differs from the name looked up, and the name need not be checked against the
-     * listings of those directories.
-     *
-     * @param name
-     *            the root-relative path, which has already been checked to be in canonical form.
-     * @param knownToExist
-     *            true if the caller has already found that the file or directory {@code name} exists.
-     * @return true if every directory along the path is known to be case-sensitive, or false if any of them is
-     *         case-insensitive or could not be checked.
-     */
-    private boolean isInCaseSensitiveDirs(final String name, final boolean knownToExist) {
-        return Boolean.TRUE.equals(areDirsCaseSensitive(name, knownToExist));
+        return caseFolded != null ? caseFolded : isCaseFoldedMatch(dir, resolvedPath);
     }
 
     /**
      * Returns whether every directory along the lookup of {@code name} is case-sensitive, caching the answer for
      * the parent directory of {@code name} if it is known and the parent directory holds the last segment of
-     * {@code name}.
+     * {@code name}. If every directory that the lookup looks a name up in, from the root down to the parent of the
+     * last segment, is case-sensitive, then the lookup cannot have matched a name whose case differs from the name
+     * looked up, and the name need not be checked against the listings of those directories.
      *
      * @param name
      *            the root-relative path, in canonical form.
+     * @param lastSlashIdx
+     *            the index of the last {@code '/'} in {@code name}, or -1 if it has none.
      * @param knownToExist
      *            true if the caller has already found that the file or directory {@code name} exists, and with it
      *            every directory above it.
      * @return true if every directory along the path is case-sensitive, false if any of them is case-insensitive,
      *         or null if this could not be determined.
      */
-    private @Nullable Boolean areDirsCaseSensitive(final String name, final boolean knownToExist) {
-        final var lastSlashIdx = name.lastIndexOf('/');
+    private @Nullable Boolean areDirsCaseSensitive(final String name, final int lastSlashIdx,
+            final boolean knownToExist) {
         final var parent = lastSlashIdx < 0 ? "" : name.substring(0, lastSlashIdx);
         final var known = caseSensitiveDirs.get(parent);
         if (known != null) {
@@ -811,7 +924,7 @@ public final class DirRoot extends VfsRoot {
         final var parentIsCaseSensitive = isCaseSensitiveDir(parent, name.substring(lastSlashIdx + 1),
                 knownToExist);
         final var ancestorsAreCaseSensitive = parent.isEmpty() ? Boolean.TRUE
-                : areDirsCaseSensitive(parent, knownToExist);
+                : areDirsCaseSensitive(parent, parent.lastIndexOf('/'), knownToExist);
         final Boolean allCaseSensitive = Boolean.FALSE.equals(parentIsCaseSensitive)
                 || Boolean.FALSE.equals(ancestorsAreCaseSensitive) ? Boolean.FALSE
                         : parentIsCaseSensitive == null || ancestorsAreCaseSensitive == null ? null : Boolean.TRUE;
@@ -883,27 +996,52 @@ public final class DirRoot extends VfsRoot {
     @Nullable
     DirEntry fileEntryForNio(final String name) throws IOException {
         final var path = resolveExactName(name);
-        return path == null ? null : fileEntry(name, path);
+        return path == null ? null : fileEntry(name, name.lastIndexOf('/'), path);
     }
 
     /**
-     * Look up a regular file entry whose name has already been resolved, with one metadata read.
+     * Look up a regular file entry, with one metadata read.
      *
      * @param name
      *            the root-relative path.
+     * @param lastSlashIdx
+     *            the index of the last {@code '/'} in {@code name}, or -1 if it has none.
      * @param path
-     *            the path that {@link #resolveExactName(String)} resolved {@code name} to.
+     *            the path that {@link #resolveExactName(String)} resolved {@code name} to, or null if the name was
+     *            not resolved, which is only done for a name that {@link #lastSlashIdxIfCanonical(String)} accepts.
      * @return the file entry, or {@code null} if not a regular file.
      * @throws IOException
      *             if checking case-sensitive path matching fails.
      */
-    private @Nullable DirEntry fileEntry(final String name, final Path path) throws IOException {
+    private @Nullable DirEntry fileEntry(final String name, final int lastSlashIdx, final @Nullable Path path)
+            throws IOException {
+        final var dirName = lastSlashIdx < 0 ? "" : name.substring(0, lastSlashIdx);
+        final DirHandle handle;
+        try {
+            handle = dirHandle(dirName);
+        } catch (final NoSuchFileException | NotDirectoryException _) {
+            // The file's directory does not exist, so neither does the file
+            return null;
+        }
+        // If the path was not built, the name of the file within its directory is made from the string, which costs
+        // less than building the path and taking the name from it
+        final var fileName = handle == null ? null
+                : path != null ? path.getFileName() : dir.getFileSystem().getPath(name.substring(lastSlashIdx + 1));
         // The metadata is read before the case of the name is checked, since a missing file then costs only this
         // one read, and a file that is found need not be checked for existence again before its real path is read
-        final var attributes = readAttributes(name, path);
-        return attributes != null && attributes.isRegularFile()
-                && !isCaseFoldedLookup(name, path, /* knownToExist = */ true)
-                        ? new DirEntry(this, path, name, attributes)
-                        : null;
+        final var attributes = readAttributes(dirName, handle, fileName, name, path);
+        if (attributes == null || !attributes.isRegularFile()) {
+            return null;
+        }
+        if (handle == null || !handle.inCaseSensitiveDirs) {
+            if (isCaseFoldedLookup(name, lastSlashIdx, path, /* knownToExist = */ true)) {
+                return null;
+            }
+            if (handle != null && Boolean.TRUE.equals(caseSensitiveDirs.get(dirName))) {
+                handle.inCaseSensitiveDirs = true;
+            }
+        }
+        // The entry keeps the handle, so that the file is opened through it without looking it up again
+        return new DirEntry(this, path, name, attributes, handle, fileName);
     }
 }

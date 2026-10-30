@@ -50,14 +50,27 @@ import io.github.classgraph.vfs.internal.slice.Slice;
 
 /** A file entry in a directory root. */
 final class DirEntry extends VfsEntry {
-    /** The filesystem path of the file. */
-    private final Path path;
+    /**
+     * The filesystem path of the file, or {@code null} until {@link #getNioPath()} builds it, for an entry that was
+     * looked up without building it. A file is read without it, through {@link #dirHandle}. (Threads that build it
+     * at once build equal paths, so it needs no lock.)
+     */
+    private @Nullable Path path;
 
     /** The entry path relative to the root directory. */
     private final String name;
 
     /** Pre-fetched file attributes from directory listing, or {@code null} if not yet read. */
     private final @Nullable BasicFileAttributes attributes;
+
+    /**
+     * The handle on the file's directory that its attributes were read through, or {@code null} if they were not
+     * read through a handle. The file is opened through it, saving a second lookup of the handle.
+     */
+    private final DirRoot.@Nullable DirHandle dirHandle;
+
+    /** The name of the file within its directory, if {@link #dirHandle} is not {@code null}. */
+    private final @Nullable Path fileName;
 
     /** Cached file length in bytes, or {@code -1} if not yet read. */
     private volatile long length = -1L;
@@ -76,10 +89,35 @@ final class DirEntry extends VfsEntry {
      */
     DirEntry(final DirRoot root, final Path path, final String name,
             final @Nullable BasicFileAttributes attributes) {
+        this(root, path, name, attributes, null, null);
+    }
+
+    /**
+     * Constructor.
+     *
+     * @param root
+     *            the directory root containing this entry.
+     * @param path
+     *            the file path, or {@code null} to build it from the name if it is needed, which
+     *            {@link DirRoot#resolveCanonicalName(String)} must be able to do.
+     * @param name
+     *            the entry path relative to the root directory.
+     * @param attributes
+     *            the file's attributes if already read, or {@code null}.
+     * @param dirHandle
+     *            the handle on the file's directory that the attributes were read through, or {@code null}.
+     * @param fileName
+     *            the name of the file within its directory, if {@code dirHandle} is not {@code null}.
+     */
+    DirEntry(final DirRoot root, final @Nullable Path path, final String name,
+            final @Nullable BasicFileAttributes attributes, final DirRoot.@Nullable DirHandle dirHandle,
+            final @Nullable Path fileName) {
         super(root);
         this.path = path;
         this.name = name;
         this.attributes = attributes;
+        this.dirHandle = dirHandle;
+        this.fileName = fileName;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -98,7 +136,12 @@ final class DirEntry extends VfsEntry {
 
     @Override
     public Path getNioPath() {
-        return path;
+        var pathCurr = path;
+        if (pathCurr == null) {
+            pathCurr = ((DirRoot) getRoot()).resolveCanonicalName(name);
+            path = pathCurr;
+        }
+        return pathCurr;
     }
 
     @Override
@@ -117,7 +160,7 @@ final class DirEntry extends VfsEntry {
         var lengthCurr = length;
         if (lengthCurr < 0L) {
             try {
-                lengthCurr = Files.size(path);
+                lengthCurr = Files.size(getNioPath());
             } catch (final IOException _) {
                 return -1L;
             }
@@ -138,7 +181,7 @@ final class DirEntry extends VfsEntry {
             }
         }
         try {
-            return Files.getLastModifiedTime(path).toMillis();
+            return Files.getLastModifiedTime(getNioPath()).toMillis();
         } catch (final IOException _) {
             return 0L;
         }
@@ -148,7 +191,7 @@ final class DirEntry extends VfsEntry {
     boolean isReadable() {
         // A walk tells the files from the subdirectories with the metadata it already reads, and does not check
         // whether each file can be read, so a file that was listed may still be unreadable
-        return FileUtils.canReadAndIsFile(path);
+        return FileUtils.canReadAndIsFile(getNioPath());
     }
 
     @Override
@@ -159,7 +202,7 @@ final class DirEntry extends VfsEntry {
             return unmodifiableEnumSet(posixAttributes.permissions());
         }
         try {
-            return unmodifiableEnumSet(Files.readAttributes(path, PosixFileAttributes.class).permissions());
+            return unmodifiableEnumSet(Files.readAttributes(getNioPath(), PosixFileAttributes.class).permissions());
         } catch (final IOException | UnsupportedOperationException _) {
             // The filesystem does not record POSIX permissions (e.g. on Windows)
             return null;
@@ -190,7 +233,7 @@ final class DirEntry extends VfsEntry {
      */
     private PathSlice openSlice() throws IOException {
         final var root = checkRootNotClosed();
-        return PathSlice.forDirEntry(path, root.openFile(name, path), root.getVfs());
+        return PathSlice.forDirEntry(getNioPath(), root.openFile(name, path, dirHandle, fileName), root.getVfs());
     }
 
     /**
@@ -254,18 +297,27 @@ final class DirEntry extends VfsEntry {
             // grown since it was looked up is noticed in the same read: then, and if it has shrunk, the file is read
             // again below, at the length it has now
             final var content = new byte[(int) lengthAtLookup];
-            final var buffers = new ByteBuffer[] { ByteBuffer.wrap(content), ByteBuffer.allocate(1) };
+            final var contentBuffer = ByteBuffer.wrap(content);
+            final var buffers = new ByteBuffer[] { contentBuffer, ByteBuffer.allocate(1) };
             var numBytesRead = 0L;
-            try (var channel = root.openFile(name, path)) {
+            try (var channel = root.openFile(name, path, dirHandle, fileName)) {
                 if (Thread.currentThread().isInterrupted()) {
-                    throw new InterruptedIOException("Interrupted while reading " + path);
+                    throw new InterruptedIOException("Interrupted while reading " + getNioPath());
                 }
                 // A read from a network filesystem can be short, so reading goes on until the array is full or the
-                // end of the file is reached. When a read that asked for the whole array and the extra byte fills
-                // only the array, the end of the file was reached (POSIX lets a read of a regular file be short only
-                // at the end of the file), so the file has the length it was looked up with
+                // end of the file is reached. When a read that asked for the rest of the array and the extra byte
+                // fills only the array, the end of the file was reached (POSIX lets a read of a regular file be
+                // short only at the end of the file), so the file has the length it was looked up with. A large
+                // file is read in chunks (see PathSlice#MAX_ARRAY_READ_SIZE), and the last chunk with the extra byte
                 do {
-                    final var numBytesReadThisCall = channel.read(buffers);
+                    final long numBytesReadThisCall;
+                    if (lengthAtLookup - numBytesRead > PathSlice.MAX_ARRAY_READ_SIZE) {
+                        contentBuffer.limit((int) numBytesRead + PathSlice.MAX_ARRAY_READ_SIZE);
+                        numBytesReadThisCall = channel.read(contentBuffer);
+                    } else {
+                        contentBuffer.limit(content.length);
+                        numBytesReadThisCall = channel.read(buffers);
+                    }
                     if (numBytesReadThisCall < 0L) {
                         break;
                     }
