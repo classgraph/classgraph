@@ -94,6 +94,21 @@ public final class PathSlice extends Slice {
             || Runtime.version().feature() >= 25;
 
     /**
+     * The most that one read of a file channel into a heap array asks for. The JDK reads into a heap array through
+     * a temporary native buffer as large as the read, which it keeps for each thread, and then copies that buffer
+     * into the array, so a large read copies through a buffer that does not fit in the CPU caches. Measured on JDK
+     * 26 on Linux x86-64 by reading every file of 64 MB of files of a single size into a new array, reading in
+     * chunks of 256 KB rather than in one read is 1.5 times as fast for a 1 MB file on 32 threads, 1.8 times as
+     * fast for a 4 MB file on 8 threads, and 1.4 times as fast for a 16 MB file on 1 thread (on GitHub's
+     * ubuntu-latest runners, 3.0 times as fast for a 4 MB file on 4 threads, and 2.7 times for a 16 MB file on 1
+     * thread). Of chunks of 16 KB to 1 MB, measured with ChunkedReadBenchmark on Linux, Windows and macOS on x86-64
+     * and aarch64, 256 KB was the closest to the fastest size for each file size and thread count: 6-8% slower on
+     * average, against 6-11% for 512 KB and 1 MB, 10% for 128 KB, 17-21% for 64 KB and 24% for one read. It also
+     * keeps the native buffer each thread holds on to at 256 KB.
+     */
+    public static final int MAX_ARRAY_READ_SIZE = 256 * 1024;
+
+    /**
      * Whether {@link #read()} returns a view of the memory mapping rather than a copy. A file that is mapped cannot
      * be truncated on Windows, but it can be on Linux and macOS, and a read of a mapping beyond the new end of the
      * file throws an {@link InternalError}. The readers of the mapping turn that error into an {@link IOException},
