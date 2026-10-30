@@ -902,24 +902,21 @@ difference matters. A file the process has no permission to read is still return
 throws an `IOException`. A directory root remembers the files it has listed or looked up, so a file
 deleted since then is still returned too, and reading it throws an `IOException`.
 
-`getEntry` matches the name exactly, including the case of every character, on every operating system
-and for every kind of root, so a name it finds is a name a classloader will also find. Windows and
-macOS have case-insensitive filesystems, and a lookup that such a filesystem answered by folding the
-case of the name is rejected here rather than handing back an entry under a name that is not the one
-it is stored under. A symbolic link is found by its own name, even if that name differs from the
-name of the file it points at only in case. The one exception is a case-insensitive filesystem
-mounted on Linux, such as a directory with the casefold attribute on ext4, f2fs or tmpfs, or a vfat,
-exFAT or CIFS mount: there the real path of a file is spelled the way it was looked up rather than
-the way it is stored, which leaves nothing to tell a folded name by, so such a filesystem can still
-find a name in a case it is not stored in.
+A jarfile or a module image matches the name exactly, including the case of every character. A
+directory root, and a module exploded into a directory, find a file the way the filesystem does, so on
+a filesystem that ignores case, such as those of Windows and macOS (by default), a name whose case
+differs from the name the file is stored under still finds the file. Such a filesystem cannot hold two
+names in one directory that differ only in case, so the name finds only that file. The entry is named
+by the name you asked for, so its `getPathFromRoot()` can differ in case from the name the file is
+stored under, which is the name a walk or `getEntries()` reports. The same holds for `load(name)`.
 
 When the case should be ignored instead, `getEntryCaseInsensitive` returns the entry stored under
 exactly the name asked for if there is one, and otherwise the first entry whose name matches with the
 case of both ignored, and `getEntriesCaseInsensitive` returns all entries that match -- a root
 can hold several, since a zipfile is free to store both `META-INF/MANIFEST.MF` and
 `meta-inf/manifest.mf`, and a case-sensitive filesystem is free to hold both as files. Both behave
-the same way on every operating system and for every kind of root, and the entries they return carry
-the name they are stored under, not the name they were asked for:
+the same way for every kind of root. `getEntriesCaseInsensitive` returns entries named the way they
+are stored, and so does `getEntryCaseInsensitive` when it falls back to ignoring case:
 
 ```java
 // Finds "Com/Xyz/Widget.txt" too

@@ -37,9 +37,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.nio.file.ClosedFileSystemException;
-import java.nio.file.DirectoryIteratorException;
 import java.nio.file.FileSystem;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -416,18 +414,24 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Returns the entry with the given exact, case-sensitive canonical path relative to the package root, or
-     * {@code null} if no such file entry exists.
+     * Returns the entry with the given canonical path relative to the package root, or {@code null} if no such file
+     * entry exists.
      *
      * <p>
      * A file that cannot be read is still returned, and fails with {@link IOException} when read. A directory root
-     * remembers the files that it listed or looked up, and on Windows the listings of the directories it looked
-     * files up in, so a file deleted after its directory was listed may still be returned, and fails when read.
+     * remembers the files that it listed or looked up, so a file deleted after it was listed or looked up may still
+     * be returned, and fails when read.
      *
      * <p>
      * Names must use {@code '/'} as the separator without leading or trailing slashes, repeated slashes, or
-     * {@code "."} / {@code ".."} segments. Case-folded matches on case-insensitive filesystems (such as on Windows
-     * and macOS) are rejected; use {@link #getEntryCaseInsensitive(String)} for case-insensitive lookup.
+     * {@code "."} / {@code ".."} segments. A jarfile or module image matches names exactly, case included. A
+     * directory root, or a module exploded into a directory, finds a file the way its filesystem does, so on a
+     * filesystem that ignores case, such as those of Windows and macOS (by default), a name whose case differs from
+     * the name the file is stored under finds the file. Such a filesystem cannot hold two names in one directory
+     * that differ only in case, so the name finds only that one file. The entry returned is named by the name asked
+     * for, so its {@link VfsEntry#getPathFromRoot()} may differ in case from the name that {@link #getEntries()}
+     * and the filesystem report for the same file. {@link #getEntryCaseInsensitive(String)} finds an entry whose
+     * name differs in case in every kind of root.
      *
      * <p>
      * To read a file whose name you know, without needing its entry, {@link #load(String)} gives the same result as
@@ -438,7 +442,7 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      *
      * @param name
      *            the path of the entry relative to the package root (e.g. {@code "com/xyz/Widget.class"}).
-     * @return the entry, or null if no entry with that exact name exists.
+     * @return the entry, or null if no entry with that name exists.
      * @throws IOException
      *             if the root could not be searched, or if this root or its {@link Vfs} has been closed.
      */
@@ -460,8 +464,10 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     abstract @Nullable VfsEntry getEntryImpl(String name) throws IOException;
 
     /**
-     * Read the entire uncompressed content of the entry with the given exact, case-sensitive canonical path
-     * relative to the package root into a new byte array, or return {@code null} if no such file entry exists.
+     * Read the entire uncompressed content of the entry with the given canonical path relative to the package root
+     * into a new byte array, or return {@code null} if no such file entry exists. The name is matched as
+     * {@link #getEntry(String)} matches it, so a directory root on a filesystem that ignores case finds a file
+     * under a name whose case differs from the name the file is stored under.
      *
      * <p>
      * To read a file whose name you know, without needing its entry, this method gives the same result as
@@ -472,7 +478,7 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      *
      * @param name
      *            the path of the entry relative to the package root (e.g. {@code "com/xyz/Widget.class"}).
-     * @return the content of the entry, or null if no entry with that exact name exists.
+     * @return the content of the entry, or null if no entry with that name exists.
      * @throws IOException
      *             if the root could not be searched, the entry could not be read or exceeds the maximum array size,
      *             or if this root or its {@link Vfs} has been closed.
@@ -495,78 +501,6 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     byte @Nullable [] loadImpl(final String name) throws IOException {
         final var entry = getEntryImpl(name);
         return entry == null ? null : entry.load();
-    }
-
-    /**
-     * Returns whether {@code path} resolved within canonical directory {@code dir} matched a file whose stored name
-     * differs only in case (excluding symbolic links whose link name matches the requested case).
-     *
-     * @param dir
-     *            the canonicalized base directory.
-     * @param path
-     *            the looked-up path resolved against {@code dir}.
-     * @return true if the lookup succeeded only via case folding.
-     * @throws IOException
-     *             if the real path of the file could not be read.
-     */
-    static boolean isCaseFoldedMatch(final Path dir, final Path path) throws IOException {
-        final var realPath = path.toRealPath();
-        if (!realPath.startsWith(dir)) {
-            // A symbolic link led out of the directory, so the real path is nothing like the path it was reached
-            // through, rather than that same path with the case of its characters normalized
-            return false;
-        }
-        // The real path also has symbolic links resolved and, on Windows, 8.3 short names expanded, and either of
-        // those can make it differ from the path it was reached through by more than the case of its characters, so
-        // a difference of case alone is what marks a possible case-folded match. The two names are compared as
-        // strings, since Path#equals ignores the case of a path on Windows, which is the very difference being
-        // looked for. The directory is left out of the comparison, since it is spelled the way this root was opened
-        // at it, which is not always the way it is spelled on disk
-        final var realRelativePath = dir.relativize(realPath);
-        final var relativePath = dir.relativize(path);
-        final var realName = realRelativePath.toString();
-        final var name = relativePath.toString();
-        if (realName.equals(name) || !realName.equalsIgnoreCase(name)) {
-            return false;
-        }
-        // A symbolic link whose name differs from the name of its target only in case, such as alias.txt ->
-        // Alias.txt, gives the same difference without any folding. What tells the two apart is whether each
-        // differently-cased segment is listed in its directory exactly as it was looked up: a link is listed
-        // under its own name, whereas a folded name is not listed at all. The listing is compared with
-        // String#equals rather than filtered by a glob, since the glob of the Windows filesystem ignores case. The
-        // two names differ only in case, so they have the same segments
-        for (int i = 0; i < relativePath.getNameCount(); i++) {
-            final var segment = relativePath.getName(i).toString();
-            if (!segment.equals(realRelativePath.getName(i).toString())
-                    && !isListedExactly(i == 0 ? dir : dir.resolve(relativePath.subpath(0, i)), segment)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Returns whether {@code parentDir} contains an entry with the exact case-sensitive name {@code fileName}.
-     *
-     * @param parentDir
-     *            the directory.
-     * @param fileName
-     *            the entry name.
-     * @return true if the directory lists the name with exact case.
-     */
-    private static boolean isListedExactly(final Path parentDir, final String fileName) {
-        try (var listing = Files.newDirectoryStream(parentDir)) {
-            for (final var file : listing) {
-                if (fileName.equals(file.getFileName().toString())) {
-                    return true;
-                }
-            }
-            return false;
-        } catch (final IOException | DirectoryIteratorException _) {
-            // A directory that can be searched but not read. Without a listing, a name that differs from its real
-            // name only in case is taken to be a folded one
-            return false;
-        }
     }
 
     /**
