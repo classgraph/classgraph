@@ -334,9 +334,13 @@ public class RandomAccessFileChannelReaderTest {
         }
     }
 
-    /** Reading up to the end of the file must still stop at the end of the file. */
+    /**
+     * A read that runs off the end of a file that is shorter than its slice, which means the file was truncated
+     * after the slice was made, throws, rather than returning a short count or -1, which a caller that streams the
+     * content would take to be the end of the content.
+     */
     @Test
-    public void readPastEndOfFileStopsAtEndOfFile(@TempDir final Path tmpDir) throws IOException {
+    public void readPastEndOfFileWithinTheSliceThrows(@TempDir final Path tmpDir) throws IOException {
         final Path file = writeTestFile(tmpDir, 8);
         try (FileChannel fileChannel = FileChannel.open(file, StandardOpenOption.READ);
                 ShortReadFileChannel shortReadChannel = new ShortReadFileChannel(fileChannel)) {
@@ -345,7 +349,18 @@ public class RandomAccessFileChannelReaderTest {
             final RandomAccessFileChannelReader reader = new RandomAccessFileChannelReader(shortReadChannel, 0L,
                     16L);
             final byte[] arr = new byte[16];
-            assertThat(reader.read(0, arr, 0, 16)).isEqualTo(8);
+            assertThatThrownBy(new ThrowingCallable() {
+                @Override
+                public void call() throws Throwable {
+                    reader.read(0, arr, 0, 16);
+                }
+            }).isInstanceOf(IOException.class).hasMessageContaining("truncated");
+            assertThatThrownBy(new ThrowingCallable() {
+                @Override
+                public void call() throws Throwable {
+                    reader.read(12, arr, 0, 4);
+                }
+            }).isInstanceOf(IOException.class).hasMessageContaining("truncated");
         }
     }
 }

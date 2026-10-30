@@ -142,8 +142,8 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
             FileChannel fileChannel = fileChannelSource.fileChannel();
             // FileChannel#read is not required to transfer the whole of the requested range in a single call,
             // and a read from a network filesystem can be short, so keep reading until the requested number of
-            // bytes has been read or the end of the file is reached. (Every caller treats a short read as a
-            // truncated file, so a short read that is not at the end of the file has to be completed here.)
+            // bytes has been read. (A caller that streams the content, such as an InputStream, takes a short read
+            // to mean the content has ended, so a short read has to be completed here.)
             int numBytesRead = 0;
             while (numBytesRead < numBytesToRead) {
                 final int numBytesReadThisCall;
@@ -163,11 +163,16 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
                     fileChannel = nextFileChannel;
                     continue;
                 }
-                if (numBytesReadThisCall <= 0) {
-                    // -1 => end of file, which here means the file is shorter than its slice. A FileChannel is
-                    // always in blocking mode, and the window above always leaves room while this loop runs, so
-                    // ReadableByteChannel#read guarantees that at least one byte is read, and a FileChannel that
-                    // keeps to its contract never returns 0 here
+                if (numBytesReadThisCall < 0) {
+                    // The end of the file is within the slice, so the file has been truncated since the slice was
+                    // made. That is thrown rather than returned as a short read or -1, which a caller that streams
+                    // the content would take to be the end of the content
+                    throw new IOException("File is truncated");
+                }
+                if (numBytesReadThisCall == 0) {
+                    // A FileChannel is always in blocking mode, and the window above always leaves room while this
+                    // loop runs, so ReadableByteChannel#read guarantees that at least one byte is read, and a
+                    // FileChannel that keeps to its contract never returns 0 here
                     break;
                 }
                 numBytesRead += numBytesReadThisCall;
