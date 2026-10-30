@@ -692,6 +692,11 @@ public final class DirRoot extends VfsRoot {
     private @Nullable Path resolveExactName(final String name) {
         final Path resolved;
         try {
+            if (dirPrefix != null && isCanonicalName(name)) {
+                // On a filesystem with '/' as its separator, a name with no empty, "." or ".." segments resolves to
+                // dirPrefix followed by the name, a path under the root that is already normalized and exact
+                return dir.resolve(name);
+            }
             resolved = dir.resolve(name).normalize();
         } catch (final InvalidPathException e) {
             // A name that is not a legal path on this filesystem names nothing
@@ -707,6 +712,29 @@ public final class DirRoot extends VfsRoot {
         // separator rather than '/'. Path#resolve accepts all of those, whereas the same name would not be found in
         // an archive root, where the name is looked up in a map of the names the entries are stored under
         return isExactName(name, resolved) ? resolved : null;
+    }
+
+    /**
+     * Returns whether a root-relative path has no empty, {@code "."} or {@code ".."} segments, so that it does not
+     * begin or end with {@code '/'} or hold two in a row.
+     *
+     * @param name
+     *            the root-relative path.
+     * @return true if every segment of {@code name} is a name other than {@code "."} or {@code ".."}.
+     */
+    private static boolean isCanonicalName(final String name) {
+        var segmentStart = 0;
+        for (var i = 0; i <= name.length(); i++) {
+            if (i == name.length() || name.charAt(i) == '/') {
+                final var segmentLength = i - segmentStart;
+                if (segmentLength == 0 || segmentLength <= 2 && name.charAt(segmentStart) == '.'
+                        && (segmentLength == 1 || name.charAt(segmentStart + 1) == '.')) {
+                    return false;
+                }
+                segmentStart = i + 1;
+            }
+        }
+        return true;
     }
 
     /**
@@ -734,7 +762,8 @@ public final class DirRoot extends VfsRoot {
         // the same exact-match contract, even though their VfsPath is not an instance of this loader's class.
         final boolean classGraphView = resolved instanceof VfsPath || VfsFileSystemProvider.class.getName()
                 .equals(resolved.getFileSystem().provider().getClass().getName());
-        if (classGraphView || isInCaseSensitiveDirs(name) || !(knownToExist || Files.exists(resolved))) {
+        if (classGraphView || isInCaseSensitiveDirs(name, knownToExist)
+                || !(knownToExist || Files.exists(resolved))) {
             return false;
         }
         final var caseFolded = exactNameListings.isCaseFolded(name);
@@ -750,11 +779,13 @@ public final class DirRoot extends VfsRoot {
      *
      * @param name
      *            the root-relative path, which has already been checked to be in canonical form.
+     * @param knownToExist
+     *            true if the caller has already found that the file or directory {@code name} exists.
      * @return true if every directory along the path is known to be case-sensitive, or false if any of them is
      *         case-insensitive or could not be checked.
      */
-    private boolean isInCaseSensitiveDirs(final String name) {
-        return Boolean.TRUE.equals(areDirsCaseSensitive(name));
+    private boolean isInCaseSensitiveDirs(final String name, final boolean knownToExist) {
+        return Boolean.TRUE.equals(areDirsCaseSensitive(name, knownToExist));
     }
 
     /**
@@ -764,18 +795,23 @@ public final class DirRoot extends VfsRoot {
      *
      * @param name
      *            the root-relative path, in canonical form.
+     * @param knownToExist
+     *            true if the caller has already found that the file or directory {@code name} exists, and with it
+     *            every directory above it.
      * @return true if every directory along the path is case-sensitive, false if any of them is case-insensitive,
      *         or null if this could not be determined.
      */
-    private @Nullable Boolean areDirsCaseSensitive(final String name) {
+    private @Nullable Boolean areDirsCaseSensitive(final String name, final boolean knownToExist) {
         final var lastSlashIdx = name.lastIndexOf('/');
         final var parent = lastSlashIdx < 0 ? "" : name.substring(0, lastSlashIdx);
         final var known = caseSensitiveDirs.get(parent);
         if (known != null) {
             return known;
         }
-        final var parentIsCaseSensitive = isCaseSensitiveDir(parent, name.substring(lastSlashIdx + 1));
-        final var ancestorsAreCaseSensitive = parent.isEmpty() ? Boolean.TRUE : areDirsCaseSensitive(parent);
+        final var parentIsCaseSensitive = isCaseSensitiveDir(parent, name.substring(lastSlashIdx + 1),
+                knownToExist);
+        final var ancestorsAreCaseSensitive = parent.isEmpty() ? Boolean.TRUE
+                : areDirsCaseSensitive(parent, knownToExist);
         final Boolean allCaseSensitive = Boolean.FALSE.equals(parentIsCaseSensitive)
                 || Boolean.FALSE.equals(ancestorsAreCaseSensitive) ? Boolean.FALSE
                         : parentIsCaseSensitive == null || ancestorsAreCaseSensitive == null ? null : Boolean.TRUE;
@@ -798,10 +834,14 @@ public final class DirRoot extends VfsRoot {
      *            the root-relative path of the directory, or {@code ""} for the root itself.
      * @param fileName
      *            the name of a file or directory that the lookup expects the directory to hold.
+     * @param knownToExist
+     *            true if the caller has already found that the directory holds {@code fileName}, so that it is not
+     *            checked again.
      * @return true if the directory is case-sensitive, false if it is case-insensitive, or null if this could not
      *         be determined, because the name has no ASCII letters, or because the directory does not hold it.
      */
-    private @Nullable Boolean isCaseSensitiveDir(final String dirName, final String fileName) {
+    private @Nullable Boolean isCaseSensitiveDir(final String dirName, final String fileName,
+            final boolean knownToExist) {
         final var flipped = new StringBuilder(fileName.length());
         for (var i = 0; i < fileName.length(); i++) {
             final var c = fileName.charAt(i);
@@ -816,7 +856,7 @@ public final class DirRoot extends VfsRoot {
         final var path = dirPath.resolve(fileName);
         final var flippedPath = dirPath.resolve(flippedName);
         try {
-            if (!Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
+            if (!knownToExist && !Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
                 return null;
             }
             // If the flipped name names nothing, then the directory is case-sensitive. If it names another file,
