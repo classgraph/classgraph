@@ -47,7 +47,8 @@ jobs:
     - name: Set up JDK
       uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
       with:
-        distribution: 'zulu'
+        # Zulu has no JDK 26 for Windows on aarch64
+        distribution: ${{ matrix.os == 'windows-11-arm' && 'liberica' || 'zulu' }}
         java-version: '26'
         cache: 'maven'
     - name: Build the benchmarks
@@ -55,6 +56,19 @@ jobs:
       run: |
         ./mvnw --no-transfer-progress -B -q -pl classgraph-vfs -am test-compile dependency:build-classpath \
             -DskipTests -Dmdep.includeScope=test -Dmdep.outputFile=target/bench-cp.txt
+    - name: Build NetBeans JarFileSystem with the fix from apache/netbeans#9762
+      shell: bash
+      # Without the fix, NetBeans is not run on binary content (see RunBenchmarks). Remove this step once a
+      # NetBeans release has the fix, and update the NetBeans dependency instead.
+      run: |
+        sep=":"
+        if [ "$RUNNER_OS" = "Windows" ]; then sep=";"; fi
+        mkdir -p target/netbeans-fix/src target/netbeans-fix/classes
+        curl -fsSL -o target/netbeans-fix/src/JarFileSystem.java \
+            https://raw.githubusercontent.com/lukehutch/netbeans/f30b11315ab2a8ddfadcba2113843ecc81e314a0/platform/openide.filesystems/src/org/openide/filesystems/JarFileSystem.java
+        javac --release 21 -nowarn -d target/netbeans-fix/classes \
+            -cp "$(cat classgraph-vfs/target/bench-cp.txt)" target/netbeans-fix/src/JarFileSystem.java
+        jar cf target/netbeans-fix.jar -C target/netbeans-fix/classes .
     - name: Stop Spotlight indexing
       if: runner.os == 'macOS'
       # Otherwise it indexes the archives the benchmarks generate while the first library is measured
@@ -73,7 +87,7 @@ jobs:
         if [ -n "$JMH" ]; then
           mkdir -p classgraph-vfs/target/bench-results
           # Word splitting of $JMH is wanted: it holds several arguments
-          java -cp "classgraph-vfs/target/test-classes${sep}classgraph-vfs/target/classes${sep}$(cat classgraph-vfs/target/bench-cp.txt)" \
+          java -cp "target/netbeans-fix.jar${sep}classgraph-vfs/target/test-classes${sep}classgraph-vfs/target/classes${sep}$(cat classgraph-vfs/target/bench-cp.txt)" \
               org.openjdk.jmh.Main $JMH -rf json -rff classgraph-vfs/target/bench-results/jmh.json \
               | tee classgraph-vfs/target/bench-results/jmh.log
           awk '/^Benchmark /,0' classgraph-vfs/target/bench-results/jmh.log \
@@ -85,7 +99,7 @@ jobs:
         if [ -n "$CONTENTS" ]; then props+=("-Dcgvfs.bench.contents=$CONTENTS"); fi
         if [ -n "$LAYOUTS" ]; then props+=("-Dcgvfs.bench.layouts=$LAYOUTS"); fi
         java "${props[@]}" \
-            -cp "classgraph-vfs/target/test-classes${sep}classgraph-vfs/target/classes${sep}$(cat classgraph-vfs/target/bench-cp.txt)" \
+            -cp "target/netbeans-fix.jar${sep}classgraph-vfs/target/test-classes${sep}classgraph-vfs/target/classes${sep}$(cat classgraph-vfs/target/bench-cp.txt)" \
             io.github.classgraph.vfs.perf.RunBenchmarks classgraph-vfs/target/bench-results
     - name: Summarize
       if: always()
