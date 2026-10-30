@@ -47,7 +47,7 @@ jobs:
     - name: Set up JDK
       uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
       with:
-        distribution: 'zulu'
+        distribution: ${{ matrix.os == 'windows-11-arm' && 'liberica' || 'zulu' }}
         java-version: '26'
         cache: 'maven'
     - name: Build the benchmarks
