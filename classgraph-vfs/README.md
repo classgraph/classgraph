@@ -457,6 +457,12 @@ own documentation.
 | Nested jarfile as a `FileSystem`, by URI | ✅ | ✅ | -- | -- | -- | -- | ? | -- | -- | ✅ | -- | -- |
 | Seek within a deflated entry | ✅ | ✅ | -- | -- | -- | ❌ | ✅ | ? | ? | ? | ? | ? |
 | 16 threads reading one entry 2000 times each | ✅ | ✅ | ✅ | -- | ✅ | see below | ✅ | ✅ | ✅ | ✅ | ✅ | see below |
+| Jarfile truncated while open, stored entry | ✅ | wrong | wrong | wrong | wrong | wrong | ✅ | wrong | ✅ | ? | wrong | ✅ |
+| Jarfile truncated while open, deflated entry | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Memory-maps the jarfile | yes | no | no | no | no | no | no | no | no | no | no | no |
+| Open to JDK mapped-file bug 1: JVM crash on aarch64 when the jarfile is truncated or its storage fails | no (worked around) | no | no | no | no | no | no | no | no | no | no | no |
+| Open to JDK mapped-file bug 2: wrong bytes returned, and an `InternalError` thrown later, in the same case | no (worked around) | no | no | no | no | no | no | no | no | no | no | no |
+| Open to JDK mapped-file bug 3: JVM crash on x86-64 in the same case | no (worked around) | no | no | no | no | no | no | no | no | no | no | no |
 | Write | -- | ✅ | -- | -- | -- | ❌ | ✅ | -- | -- | -- | -- | directories only |
 | Other storage (*documented*) | any URL scheme with a JDK handler or `FileSystemProvider` | -- | -- | any `InputStream` | any URL scheme with a JDK handler | ftp, ftps, sftp, http(s), webdav, hdfs, ram, tar, gz, bz2 and more | tar, tar.gz, tar.bz2, tar.xz, odf, zip-raes | -- | -- | -- | 7z, tar, ar, arj, cpio, dump (as archives, not filesystems) | -- |
 | Change notification (*documented*) | -- | -- | -- | -- | -- | `DefaultFileMonitor` | -- | -- | -- | -- | -- | `FileChangeListener` |
@@ -518,6 +524,29 @@ Notes:
   inflates it into RAM, and spills it to a temporary file only above 64MB, a limit set by
   `VfsSpec.setMaxBufferedJarRAMSize`. zipfs wrote no temporary file either. NetBeans writes one for
   every entry over 100000 bytes, even in a jarfile that is not nested (see above).
+* **A jarfile truncated while it is open.** Each library read every entry of a 32MB jarfile five
+  times, the jarfile was truncated to 4096 bytes, and every entry was read again, on Linux x86-64,
+  JDK 25 and 26. Here ✅ means the library either threw an exception or returned the right content
+  (TrueVFS, and cgvfs for a deflated nested jarfile, which both hold the content in RAM), and
+  **wrong** means it returned short content with no error. `ZipFile`, `URL`, Commons VFS and JBoss VFS
+  (which all read through `ZipFile`) and zipfs return the first entry cut off at the new end of the
+  file, and throw on the next one. Commons Compress returns every entry short, and the entries that
+  now start past the end of the file as empty. `ZipInputStream` ends the archive early: its next
+  `getNextEntry()` returns null. Spring Boot was tested only on a stored nested jarfile, whose entries
+  are deflated.
+* **The JVM bugs.** Reading a memory-mapped file after it has been truncated, or after its storage
+  has failed (a network share that went away, a disk that was detached), meets three JDK bugs: (1) on
+  aarch64, a compiled bulk copy of more than 80 bytes kills the JVM with `SIGBUS`; (2) a compiled read
+  returns bytes that are not in the file and throws its `InternalError` later, outside the read (see
+  [JDK-8154592](https://bugs.openjdk.org/browse/JDK-8154592)); and (3) on x86-64, C2 can box such a
+  byte through an index it does not check, and the JVM dies with `SIGSEGV`. cgvfs maps a jarfile, and
+  works around all three on JDK 25 and later, as its tests check in CI on Linux (x86-64 and aarch64)
+  and macOS (aarch64); Windows does not let a mapped file be truncated. None of the
+  other libraries maps the jarfile, so none of them can meet these bugs: no class in their jars, nor
+  in the JDK's `java.util.zip`, `java.util.jar` and zipfs code (JDK 17, 25 and 26), calls
+  `FileChannel.map` or uses a `MemorySegment`. On Linux x86-64, no file other than the JDK's own was
+  mapped while each library read every entry of a jarfile of each layout. They read with
+  `RandomAccessFile` or `FileChannel`, where the same failure is an `IOException`, or a short read.
 * **Writing** is the one thing cgvfs does not do: it is read-only by design. A caller that has to
   modify a jarfile in place needs zipfs or TrueVFS.
 
