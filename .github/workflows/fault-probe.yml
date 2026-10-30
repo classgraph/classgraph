@@ -12,11 +12,11 @@ on:
 jobs:
   probe:
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 150
+    timeout-minutes: 330
     strategy:
       fail-fast: false
       matrix:
-        os: [ windows-2022, windows-2025, windows-11-arm ]
+        os: [ ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-15-intel, windows-2025, windows-11-arm ]
         jdk: [ 17, 25, 26 ]
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -37,7 +37,10 @@ jobs:
     - name: Probe
       shell: bash
       env:
-        ONLY: vhd_detach
+        ONLY: local_setLength dm_error nfs_truncate nfs_down dmg_detach vhd_detach
+        KINDS: chunk64 chunk64F chunk80F readerRead readerReadBB readerReadDirect readerByte readerInt readerLong
+        SIZES: 100 8192 1048576
+        READ_SIZES: 8 30 64 100 255 256 8192 1048576
       run: |
         java -version
         sep=":"
@@ -49,3 +52,47 @@ jobs:
       with:
         name: fault-${{ matrix.os }}-${{ matrix.jdk }}
         path: fault-out
+
+  # The cost of each way of copying out of a mapping, by read size and thread count (ReadBench)
+  readbench:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-15-intel, windows-2025, windows-11-arm ]
+        jdk: [ 25, 26 ]
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+    - name: Set up JDK 26 to build ClassGraph
+      uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+      with:
+        distribution: ${{ matrix.os == 'windows-11-arm' && 'liberica' || 'zulu' }}
+        java-version: '26'
+    - name: Build ClassGraph
+      shell: bash
+      run: ./mvnw --no-transfer-progress -B -q -pl classgraph-vfs -am compile
+    - name: Set up the JDK to benchmark
+      uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+      with:
+        distribution: ${{ matrix.os == 'windows-11-arm' && 'liberica' || 'zulu' }}
+        java-version: ${{ matrix.jdk }}
+    - name: Benchmark
+      shell: bash
+      run: |
+        java -version
+        sep=":"
+        if [ "$RUNNER_OS" = "Windows" ]; then sep=";"; fi
+        P=benchmark/faultprobe
+        mkdir -p rb-out/classes rb-work
+        CP="rb-out/classes${sep}classgraph-base/target/classes${sep}classgraph-vfs/target/classes"
+        javac -d rb-out/classes -cp "$CP" $P/Common.java $P/Arena25.java $P/ReaderOps.java $P/ReadBench.java
+        echo "$(uname -m) $(nproc 2>/dev/null || sysctl -n hw.ncpu) cores" > rb-out/results.txt
+        for kind in bulk bulkF chunk64F chunk80F longLoop8BB readerRead readerReadBB readerReadDirect channel; do
+          java -Xmx1g -cp "$CP" ReadBench rb-work arena $kind | tee -a rb-out/results.txt
+        done
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      if: always()
+      with:
+        name: readbench-${{ matrix.os }}-${{ matrix.jdk }}
+        path: rb-out/results.txt

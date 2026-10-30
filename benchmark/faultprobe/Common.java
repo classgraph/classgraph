@@ -196,6 +196,17 @@ public final class Common {
         }
     }
 
+    /** Bulk copies of at most n bytes each. */
+    static void chunked(final ByteBuffer buf, final int off, final byte[] dst, final int len, final int n) {
+        int i = 0;
+        for (; i + n <= len; i += n) {
+            buf.get(off + i, dst, i, n);
+        }
+        if (i < len) {
+            buf.get(off + i, dst, i, len - i);
+        }
+    }
+
     static void longLoopVH(final ByteBuffer buf, final int off, final byte[] dst, final int len) {
         int i = 0;
         for (; i + Long.BYTES <= len; i += Long.BYTES) {
@@ -223,6 +234,11 @@ public final class Common {
             };
         }
         final ByteBuffer buf = c.buf;
+        if (kind.startsWith("chunk")) {
+            // Bulk copies of at most N bytes each, e.g. "chunk64"
+            final int n = Integer.parseInt(kind.substring(5));
+            return (off, dst, len) -> chunked(buf, (int) off, dst, len, n);
+        }
         switch (kind) {
         case "byte1":
             return (off, dst, len) -> dst[0] = buf.get((int) off);

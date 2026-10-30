@@ -85,14 +85,19 @@ run_scenario() {
     if [ "$mode" = quick ]; then
         kinds="bulk"
     else
-        kinds="byte1 byte1F long1F bulk bulkF longLoop8BB segCopy readerRead readerLong channel"
+        kinds=${KINDS:-"byte1 byte1F long1F bulk bulkF longLoop8BB segCopy readerRead readerLong channel"}
     fi
     for map in $MAPS; do
         for kind in $kinds; do
             case $kind in segCopy*) [ "$map" = arena ] || continue ;; esac
             case $kind in reader*) [ "$map" = arena ] && [ -n "$HAVE_READER" ] || continue ;; esac
             case $kind in channel) [ "$map" = legacy ] || continue ;; esac
-            case $kind in byte1*|long1*|readerLong) sizes="8" ;; channel) sizes="8192" ;; *) sizes="100 8192" ;; esac
+            case $kind in
+            byte1*|long1*|readerLong|readerByte|readerInt) sizes="8" ;;
+            channel) sizes="8192" ;;
+            readerRead*) sizes=${READ_SIZES:-"100 8192"} ;;
+            *) sizes=${SIZES:-"100 8192"} ;;
+            esac
             if [ "$mode" = quick ]; then sizes="8192"; fi
             for size in $sizes; do
                 echo "| $sc | $map | $kind | $size | $(run_case "$sc" "$map" "$kind" "$size" false) | $(run_case "$sc" "$map" "$kind" "$size" true) |" \
