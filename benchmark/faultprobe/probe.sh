@@ -53,7 +53,8 @@ run_case() {
     local d="$WORK/hs/$name"
     mkdir -p "$d"
     "before_$sc" >> "$OUT/logs/$sc-hooks.log" 2>&1
-    limit 180 java -Xmx512m -XX:ErrorFile="$(jp "$d")/hs_err_pid%p.log" -cp "$CP" FaultProbe "$(jp "$FILE")" \
+    # MSYS_NO_PATHCONV: Git Bash would otherwise rewrite inducer arguments such as diskpart's "/s"
+    MSYS_NO_PATHCONV=1 limit 180 java -Xmx512m -XX:ErrorFile="$(jp "$d")/hs_err_pid%p.log" -cp "$CP" FaultProbe "$(jp "$FILE")" \
         "$map" "$kind" "$size" "$hot" "${INDUCE[@]}" > "$OUT/logs/$name.log" 2>&1
     local code=$?
     "after_$sc" >> "$OUT/logs/$sc-hooks.log" 2>&1
@@ -72,7 +73,7 @@ run_case() {
 # Every kind, or with "quick" only enough to show whether the inducer works on a mapped file
 run_scenario() {
     local sc=$1 mode=$2 kinds sizes
-    if [ -n "${ONLY:-}" ] && [ "$ONLY" != "$sc" ]; then return; fi
+    if [ -n "${ONLY:-}" ] && [[ " $ONLY " != *" $sc "* ]]; then return; fi
     echo "== $sc $(date +%T)" >&2
     "prepare_$sc" > "$OUT/logs/$sc-prepare.log" 2>&1
     if [ $? -ne 0 ]; then
@@ -258,8 +259,9 @@ before_smb_truncate() { create /c/cgsmb/f.bin; }
 after_smb_truncate() { :; }
 
 prepare_smb_down() {
-    # Stopping LanmanServer alone leaves the srv2 driver serving open sessions; fail if the share is still reachable
-    prepare_smb && INDUCE=(cmd powershell -NoProfile -Command "Stop-Service LanmanServer -Force; sc.exe stop srv2 | Out-Null; Start-Sleep 2; if (Test-Path '\\\\localhost\\cgsmb\\f.bin') { Write-Output 'share still reachable'; exit 1 }")
+    # Stopping LanmanServer alone removes the share but goes on serving the files already open through it, so close
+    # those first; fail if the share is still reachable
+    prepare_smb && INDUCE=(cmd powershell -NoProfile -Command "Get-SmbOpenFile | Close-SmbOpenFile -Force; Get-SmbSession | Close-SmbSession -Force; Stop-Service LanmanServer -Force; sc.exe stop srv2 | Out-Null; Start-Sleep 2; if (Test-Path '\\\\localhost\\cgsmb\\f.bin') { Write-Output 'share still reachable'; exit 1 }")
 }
 before_smb_down() { smb_server_start; create /c/cgsmb/f.bin; }
 after_smb_down() { smb_server_start; }

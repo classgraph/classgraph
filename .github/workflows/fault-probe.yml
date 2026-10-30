@@ -36,6 +36,8 @@ jobs:
         java-version: ${{ matrix.jdk }}
     - name: Probe
       shell: bash
+      env:
+        ONLY: smb_down vhd_detach
       run: |
         java -version
         sep=":"
