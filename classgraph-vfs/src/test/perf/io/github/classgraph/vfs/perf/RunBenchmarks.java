@@ -48,9 +48,9 @@ import io.github.classgraph.vfs.perf.BenchmarkFixtures.Content;
 import io.github.classgraph.vfs.perf.BenchmarkFixtures.Layout;
 
 /**
- * Runs {@link FirstReadBenchmark} at 1, 2, 4, 8 and 16 threads and {@link WholeArchiveBenchmark} on one thread, for
- * every {@link Library} on every {@link Content} type and every {@link Layout} the library supports. Each JMH run's
- * results are written as JSON to the results directory, and the tables in the README are written to
+ * Runs {@link FirstReadBenchmark} at 1, 2, 4, 8, 16 and 32 threads and {@link WholeArchiveBenchmark} on one thread,
+ * for every {@link Library} on every {@link Content} type and every {@link Layout} the library supports. Each JMH
+ * run's results are written as JSON to the results directory, and the tables in the README are written to
  * {@code results.md} there. A full run takes about an hour and a half.
  *
  * <p>
@@ -83,7 +83,7 @@ import io.github.classgraph.vfs.perf.BenchmarkFixtures.Layout;
  */
 public final class RunBenchmarks {
     /** The thread counts {@link FirstReadBenchmark} is run at. */
-    private static final int[] THREAD_COUNTS = { 1, 2, 4, 8, 16 };
+    private static final int[] THREAD_COUNTS = { 1, 2, 4, 8, 16, 32 };
 
     /** Constructor. */
     private RunBenchmarks() {
