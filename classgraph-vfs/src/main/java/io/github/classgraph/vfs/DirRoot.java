@@ -32,13 +32,21 @@ import java.io.File;
 import java.io.IOError;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.channels.FileChannel;
+import java.nio.file.ClosedDirectoryStreamException;
 import java.nio.file.DirectoryIteratorException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.NotDirectoryException;
 import java.nio.file.Path;
+import java.nio.file.SecureDirectoryStream;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.PosixFileAttributeView;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -104,6 +112,25 @@ public final class DirRoot extends VfsRoot {
      */
     private final Map<String, DirEntry> entriesByName = new ConcurrentHashMap<>();
 
+    /** The most directory handles a root keeps open (see {@link #dirHandles}). */
+    private static final int MAX_DIR_HANDLES = 256;
+
+    /**
+     * Whether files are looked up and opened relative to a handle on their directory (see {@link #dirHandles}),
+     * which is only possible on the default filesystem, and not on Windows, whose JDK has no
+     * {@link SecureDirectoryStream}.
+     */
+    private final boolean useDirHandles;
+
+    /**
+     * Open handles on the directories that files have been looked up or opened in, by root-relative path
+     * ({@code ""} for the root). Reading a file's metadata or opening it relative to a handle on its directory
+     * resolves only the file's own name, rather than every segment of its path, which makes each of these system
+     * calls cheaper. A name that is not found through a handle is looked up again by its whole path, so that a
+     * directory that has been deleted and recreated since its handle was opened is still read.
+     */
+    private final Map<String, SecureDirectoryStream<Path>> dirHandles = new ConcurrentHashMap<>();
+
     /**
      * Constructor.
      *
@@ -140,6 +167,157 @@ public final class DirRoot extends VfsRoot {
                 && "/".equals(this.dir.getFileSystem().getSeparator())
                         ? dirStr.endsWith("/") ? dirStr : dirStr + "/"
                         : null;
+        this.useDirHandles = dirPrefix != null;
+    }
+
+    @Override
+    void releaseResources(final @Nullable LogNode log) {
+        for (final var dirName : new ArrayList<>(dirHandles.keySet())) {
+            final var handle = dirHandles.remove(dirName);
+            if (handle != null) {
+                closeDirHandle(handle);
+            }
+        }
+    }
+
+    /**
+     * Close a directory handle. A thread that is using the handle when it is closed gets
+     * {@link ClosedDirectoryStreamException}, and reads the file by its whole path instead.
+     *
+     * @param handle
+     *            the handle.
+     */
+    private static void closeDirHandle(final SecureDirectoryStream<Path> handle) {
+        try {
+            handle.close();
+        } catch (final IOException _) {
+            // Nothing was written through the handle, so there is nothing to lose
+        }
+    }
+
+    /**
+     * Return the open handle on a directory of this root, opening it if it is not yet open.
+     *
+     * @param dirName
+     *            the root-relative path of the directory, or {@code ""} for the root itself.
+     * @return the handle, or null if files are not read through directory handles, or the handle could not be
+     *         opened, or {@link #MAX_DIR_HANDLES} handles are already open.
+     * @throws NoSuchFileException
+     *             if the directory does not exist, so that no file can be found in it.
+     * @throws NotDirectoryException
+     *             if the path of the directory names something that is not a directory.
+     */
+    private @Nullable SecureDirectoryStream<Path> dirHandle(final String dirName)
+            throws NoSuchFileException, NotDirectoryException {
+        if (!useDirHandles) {
+            return null;
+        }
+        final var known = dirHandles.get(dirName);
+        if (known != null || dirHandles.size() >= MAX_DIR_HANDLES) {
+            return known;
+        }
+        final DirectoryStream<Path> stream;
+        try {
+            stream = Files.newDirectoryStream(dirName.isEmpty() ? dir : dir.resolve(dirName));
+        } catch (final NoSuchFileException | NotDirectoryException e) {
+            throw e;
+        } catch (final IOException | SecurityException _) {
+            return null;
+        }
+        if (!(stream instanceof final SecureDirectoryStream<Path> handle)) {
+            try {
+                stream.close();
+            } catch (final IOException _) {
+                // Nothing was read through the stream
+            }
+            return null;
+        }
+        final var raced = dirHandles.putIfAbsent(dirName, handle);
+        if (raced != null) {
+            closeDirHandle(handle);
+            return raced;
+        }
+        // A handle added after the close of this root released the handles would never be closed, so check for a
+        // close only after adding it
+        if (isClosed() && dirHandles.remove(dirName, handle)) {
+            closeDirHandle(handle);
+            return null;
+        }
+        return handle;
+    }
+
+    /**
+     * Read the metadata of a file, relative to the handle on its directory if there is one.
+     *
+     * @param name
+     *            the root-relative path of the file, in canonical form.
+     * @param path
+     *            the path that {@link #resolveExactName(String)} resolved {@code name} to.
+     * @return the metadata, or null if the file does not exist or its metadata could not be read.
+     */
+    private @Nullable BasicFileAttributes readAttributes(final String name, final Path path) {
+        final var lastSlashIdx = name.lastIndexOf('/');
+        final var dirName = lastSlashIdx < 0 ? "" : name.substring(0, lastSlashIdx);
+        final SecureDirectoryStream<Path> handle;
+        try {
+            handle = dirHandle(dirName);
+        } catch (final NoSuchFileException | NotDirectoryException _) {
+            // The file's directory does not exist, so neither does the file
+            return null;
+        }
+        if (handle != null) {
+            try {
+                // The POSIX view, since the basic view of a SecureDirectoryStream wraps the attributes it reads in
+                // an object that does not give the POSIX permissions
+                return handle.getFileAttributeView(path.getFileName(), PosixFileAttributeView.class)
+                        .readAttributes();
+            } catch (final IOException | ClosedDirectoryStreamException _) {
+                // The file is not in the directory the handle is open on, which may have been replaced since the
+                // handle was opened, or the handle was closed, so look the file up by its whole path
+            }
+        }
+        final BasicFileAttributes attributes;
+        try {
+            attributes = Files.readAttributes(path, BasicFileAttributes.class);
+        } catch (final IOException _) {
+            // The file is missing, or its metadata cannot be read. FileUtils#readAttributes is not used here, since
+            // on this failure it falls back to File#isFile, a second metadata read that fails the same way
+            return null;
+        }
+        if (handle != null && dirHandles.remove(dirName, handle)) {
+            // The file was found by its whole path but not through the handle, so the handle is open on a
+            // directory that is no longer there, and is replaced by the next lookup in the directory
+            closeDirHandle(handle);
+        }
+        return attributes;
+    }
+
+    /**
+     * Open a file of this root for reading, relative to the handle on its directory if there is one.
+     *
+     * @param name
+     *            the root-relative path of the file.
+     * @param path
+     *            the path of the file.
+     * @return the channel, which the caller must close.
+     * @throws IOException
+     *             if the file could not be opened.
+     */
+    FileChannel openFile(final String name, final Path path) throws IOException {
+        final var lastSlashIdx = name.lastIndexOf('/');
+        final var handle = dirHandle(lastSlashIdx < 0 ? "" : name.substring(0, lastSlashIdx));
+        if (handle != null) {
+            try {
+                final var channel = handle.newByteChannel(path.getFileName(), Set.of(StandardOpenOption.READ));
+                if (channel instanceof final FileChannel fileChannel) {
+                    return fileChannel;
+                }
+                channel.close();
+            } catch (final IOException | ClosedDirectoryStreamException _) {
+                // Open the file by its whole path, which throws the exception to report if it fails again
+            }
+        }
+        return FileChannel.open(path, StandardOpenOption.READ);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -589,16 +767,10 @@ public final class DirRoot extends VfsRoot {
     private @Nullable DirEntry fileEntry(final String name, final Path path) throws IOException {
         // The metadata is read before the case of the name is checked, since a missing file then costs only this
         // one read, and a file that is found need not be checked for existence again before its real path is read
-        final BasicFileAttributes attributes;
-        try {
-            attributes = Files.readAttributes(path, BasicFileAttributes.class);
-        } catch (final IOException _) {
-            // The file is missing, or its metadata cannot be read. FileUtils#readAttributes is not used here, since
-            // on this failure it falls back to File#isFile, a second metadata read that fails the same way
-            return null;
-        }
-        return attributes.isRegularFile() && !isCaseFoldedLookup(name, path, /* knownToExist = */ true)
-                ? new DirEntry(this, path, name, attributes)
-                : null;
+        final var attributes = readAttributes(name, path);
+        return attributes != null && attributes.isRegularFile()
+                && !isCaseFoldedLookup(name, path, /* knownToExist = */ true)
+                        ? new DirEntry(this, path, name, attributes)
+                        : null;
     }
 }

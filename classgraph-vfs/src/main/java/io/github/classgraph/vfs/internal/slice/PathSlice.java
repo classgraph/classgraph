@@ -73,8 +73,9 @@ public final class PathSlice extends Slice {
      * mapping at about 16 KB (4 threads) to 64 KB (1 thread) on Linux x86-64, 32 KB to 128 KB on Linux aarch64, 32
      * KB to 64 KB on macOS aarch64, and at 16 KB or less on macOS x86-64, where it is 1.2 to 2.8 times as fast from
      * 16 KB up. On Windows, reading through a channel for each thread (see {@code CHANNEL_PER_READ}), it overtakes
-     * the mapping at about 32 KB on 1 and 2 threads and 64 KB on 4. One channel shared by 4 threads overtakes it
-     * only at about 256 KB, since Windows serializes the positional reads of a file channel.
+     * the mapping at about 32 KB on 1 and 2 threads and 64 KB on 4 on x86-64, and at 32 KB to 64 KB on 1 to 4
+     * threads on aarch64. One channel shared by 4 threads overtakes it only at about 256 KB, since Windows
+     * serializes the positional reads of a file channel.
      */
     static final int MIN_CHANNEL_READ_SIZE = switch (VersionFinder.OS) {
     case Linux -> 32 * 1024;
@@ -352,16 +353,19 @@ public final class PathSlice extends Slice {
      *            if true, delete {@code file} when this slice is closed
      * @param log
      *            the log node, or null to skip logging
+     * @param channel
+     *            a channel that the caller has already opened on the file, which this slice takes ownership of, or
+     *            null for this slice to open one
      * @throws IOException
      *             if the file cannot be opened
      */
     private PathSlice(final @Nullable Path path, final @Nullable File file, final String pathStr, final Vfs vfs,
             final boolean checkAccess, final boolean memoryMapWholeFile, final boolean isTempFile,
-            final @Nullable LogNode log) throws IOException {
+            final @Nullable LogNode log, final @Nullable FileChannel channel) throws IOException {
         // The slice's length is the file's length, so the file is opened before super() is called. If super()
         // throws, the channel leaks, but super() only throws for a negative length, which FileChannel#size never
         // returns
-        final var openedChannel = openChannel(path, file, checkAccess);
+        final var openedChannel = channel != null ? withFileLength(channel) : openChannel(path, file, checkAccess);
         super(openedChannel.fileLength(), vfs);
 
         this.path = path;
@@ -450,6 +454,19 @@ public final class PathSlice extends Slice {
             }
             channel = new RandomAccessFile(fileToOpen, "r").getChannel();
         }
+        return withFileLength(channel);
+    }
+
+    /**
+     * Read the length of the file that a channel has just been opened on, closing the channel if it cannot be read.
+     *
+     * @param channel
+     *            the channel.
+     * @return the channel and its file length
+     * @throws IOException
+     *             if the length of the file cannot be read.
+     */
+    private static OpenedChannel withFileLength(final FileChannel channel) throws IOException {
         try {
             return new OpenedChannel(channel, channel.size());
         } catch (final IOException | RuntimeException | Error e) {
@@ -475,7 +492,29 @@ public final class PathSlice extends Slice {
      */
     public static PathSlice forDirEntry(final Path path, final Vfs vfs) throws IOException {
         return new PathSlice(path, /* file = */ null, path.toString(), vfs, /* checkAccess = */ false,
-                /* memoryMapWholeFile = */ false, /* isTempFile = */ false, /* log = */ null);
+                /* memoryMapWholeFile = */ false, /* isTempFile = */ false, /* log = */ null, /* channel = */ null);
+    }
+
+    /**
+     * Open a non-memory-mapped toplevel slice for a directory entry, over a channel that the caller has already
+     * opened on its file.
+     *
+     * @param path
+     *            the path of the file, which the slice opens again if a read on an interrupted thread closes the
+     *            channel
+     * @param channel
+     *            the channel, which the slice takes ownership of, and closes when it is closed (or when this
+     *            throws)
+     * @param vfs
+     *            the {@link Vfs} that opened this slice
+     * @return the slice over the file, which the caller owns and must close
+     * @throws IOException
+     *             if the length of the file could not be read
+     */
+    public static PathSlice forDirEntry(final Path path, final FileChannel channel, final Vfs vfs)
+            throws IOException {
+        return new PathSlice(path, /* file = */ null, path.toString(), vfs, /* checkAccess = */ false,
+                /* memoryMapWholeFile = */ false, /* isTempFile = */ false, /* log = */ null, channel);
     }
 
     /**
@@ -508,7 +547,7 @@ public final class PathSlice extends Slice {
      */
     public PathSlice(final File file, final Vfs vfs, final @Nullable LogNode log) throws IOException {
         this(pathOrNull(file), file, file.toString(), vfs, /* checkAccess = */ true,
-                /* memoryMapWholeFile = */ true, /* isTempFile = */ false, log);
+                /* memoryMapWholeFile = */ true, /* isTempFile = */ false, log, /* channel = */ null);
     }
 
     /**
@@ -528,7 +567,7 @@ public final class PathSlice extends Slice {
     public static PathSlice forTempFile(final File tempFile, final Vfs vfs, final @Nullable LogNode log)
             throws IOException {
         return new PathSlice(pathOrNull(tempFile), tempFile, tempFile.toString(), vfs, /* checkAccess = */ true,
-                /* memoryMapWholeFile = */ true, /* isTempFile = */ true, log);
+                /* memoryMapWholeFile = */ true, /* isTempFile = */ true, log, /* channel = */ null);
     }
 
     /**
@@ -545,7 +584,7 @@ public final class PathSlice extends Slice {
      */
     public PathSlice(final Path path, final Vfs vfs, final @Nullable LogNode log) throws IOException {
         this(path, /* file = */ null, path.toString(), vfs, /* checkAccess = */ true,
-                /* memoryMapWholeFile = */ true, /* isTempFile = */ false, log);
+                /* memoryMapWholeFile = */ true, /* isTempFile = */ false, log, /* channel = */ null);
     }
 
     /**

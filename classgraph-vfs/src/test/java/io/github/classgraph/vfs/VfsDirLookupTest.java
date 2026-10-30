@@ -144,4 +144,62 @@ public class VfsDirLookupTest {
             assertThat(root.getEntry("pkg/dirlink")).isNull();
         }
     }
+
+    /**
+     * A file that grows or shrinks after it was looked up is read whole, at the length it has when it is read.
+     *
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws IOException
+     *             if the directory could not be built or read.
+     */
+    @Test
+    public void aFileThatChangesLengthAfterItWasLookedUpIsReadWhole(@TempDir final Path tempDir)
+            throws IOException {
+        Files.createDirectories(tempDir.resolve("pkg"));
+        final var file = tempDir.resolve("pkg/A.txt");
+        Files.writeString(file, "");
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(tempDir.toString());
+            final var entry = Objects.requireNonNull(root.getEntry("pkg/A.txt"));
+            assertThat(entry.load()).isEmpty();
+            Files.writeString(file, "AAA");
+            assertThat(entry.loadAsString()).isEqualTo("AAA");
+            try (var buffer = entry.read()) {
+                assertThat(Objects.requireNonNull(buffer.getByteBuffer()).remaining()).isEqualTo(3);
+            }
+            Files.writeString(file, "AAAAA");
+            assertThat(Objects.requireNonNull(root.getEntry("pkg/A.txt")).loadAsString()).isEqualTo("AAAAA");
+            Files.writeString(file, "A");
+            assertThat(Objects.requireNonNull(root.getEntry("pkg/A.txt")).loadAsString()).isEqualTo("A");
+        }
+    }
+
+    /**
+     * A file is read from the directory that is at its path when it is read, even when the directory was deleted
+     * and made again after the file was looked up.
+     *
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws IOException
+     *             if the directory could not be built or read.
+     */
+    @Test
+    public void aFileInADirectoryMadeAgainIsReadFromTheNewDirectory(@TempDir final Path tempDir)
+            throws IOException {
+        final var dir = tempDir.resolve("pkg");
+        Files.createDirectories(dir);
+        Files.writeString(dir.resolve("A.txt"), "old");
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(tempDir.toString());
+            assertThat(Objects.requireNonNull(root.getEntry("pkg/A.txt")).loadAsString()).isEqualTo("old");
+            Files.delete(dir.resolve("A.txt"));
+            Files.delete(dir);
+            Files.createDirectories(dir);
+            Files.writeString(dir.resolve("A.txt"), "newer");
+            assertThat(Objects.requireNonNull(root.getEntry("pkg/A.txt")).loadAsString()).isEqualTo("newer");
+            Files.writeString(dir.resolve("B.txt"), "B");
+            assertThat(Objects.requireNonNull(root.getEntry("pkg/B.txt")).loadAsString()).isEqualTo("B");
+        }
+    }
 }
