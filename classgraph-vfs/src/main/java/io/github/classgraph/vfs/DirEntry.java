@@ -30,6 +30,8 @@ package io.github.classgraph.vfs;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -44,6 +46,7 @@ import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.vfs.internal.slice.PathSlice;
+import io.github.classgraph.vfs.internal.slice.Slice;
 
 /** A file entry in a directory root. */
 final class DirEntry extends VfsEntry {
@@ -186,9 +189,24 @@ final class DirEntry extends VfsEntry {
      *             if the file cannot be opened, or if the root or {@link Vfs} has been closed.
      */
     private PathSlice openSlice() throws IOException {
-        final var root = getRoot();
-        root.checkNotClosed(getPath());
-        return PathSlice.forDirEntry(path, root.getVfs());
+        final var root = checkRootNotClosed();
+        return PathSlice.forDirEntry(path, root.openFile(name, path), root.getVfs());
+    }
+
+    /**
+     * Throw {@link IOException} if the root or its {@link Vfs} has been closed.
+     *
+     * @return the root.
+     * @throws IOException
+     *             if the root or its {@link Vfs} has been closed.
+     */
+    private DirRoot checkRootNotClosed() throws IOException {
+        final var root = (DirRoot) getRoot();
+        if (root.isClosed()) {
+            // The path is only needed for the message, so it is only built when the check fails
+            root.checkNotClosed(getPath());
+        }
+        return root;
     }
 
     @Override
@@ -201,17 +219,10 @@ final class DirEntry extends VfsEntry {
     @Override
     public CloseableByteBuffer read() throws IOException {
         final var root = getRoot();
-        final var slice = openSlice();
-        final CloseableByteBuffer buffer;
-        try {
-            buffer = new CloseableByteBuffer(slice.read(), slice::close, root);
-        } catch (final IOException | RuntimeException | Error e) {
-            // The caller never sees the slice if this throws, so nothing else can close its file channel
-            slice.close();
-            throw e;
-        }
-        // From here the wrapper owns the slice, so a failure to track it is reported by closing the wrapper rather
-        // than by closing the slice directly
+        // A file in a directory is not memory-mapped, so its content is copied into an array whichever way it is
+        // read, and the file can be closed as soon as it has been copied
+        final var buffer = new CloseableByteBuffer(ByteBuffer.wrap(load()).asReadOnlyBuffer(), () -> {
+        }, root);
         if (!root.trackOpenHandle(buffer)) {
             buffer.close();
             throw new IOException("Cannot read " + getPath() + " after the root has been closed");
@@ -235,6 +246,36 @@ final class DirEntry extends VfsEntry {
 
     @Override
     public byte[] load() throws IOException {
+        final var root = checkRootNotClosed();
+        final var lengthAtLookup = attributes == null ? -1L : getLength();
+        if (lengthAtLookup >= 0L && lengthAtLookup <= Slice.MAX_BUFFER_SIZE) {
+            // The length read when the file was looked up is the length of the array, which saves reading the length
+            // again after opening the file. One more byte is read into a buffer of its own, so that a file that has
+            // grown since it was looked up is noticed in the same read: then, and if it has shrunk, the file is read
+            // again below, at the length it has now
+            final var content = new byte[(int) lengthAtLookup];
+            final var buffers = new ByteBuffer[] { ByteBuffer.wrap(content), ByteBuffer.allocate(1) };
+            var numBytesRead = 0L;
+            try (var channel = root.openFile(name, path)) {
+                if (Thread.currentThread().isInterrupted()) {
+                    throw new InterruptedIOException("Interrupted while reading " + path);
+                }
+                // A read from a network filesystem can be short, so reading goes on until the array is full or the
+                // end of the file is reached. When a read that asked for the whole array and the extra byte fills
+                // only the array, the end of the file was reached (POSIX lets a read of a regular file be short only
+                // at the end of the file), so the file has the length it was looked up with
+                do {
+                    final var numBytesReadThisCall = channel.read(buffers);
+                    if (numBytesReadThisCall < 0L) {
+                        break;
+                    }
+                    numBytesRead += numBytesReadThisCall;
+                } while (numBytesRead < lengthAtLookup);
+            }
+            if (numBytesRead == lengthAtLookup) {
+                return content;
+            }
+        }
         try (var slice = openSlice()) {
             return slice.load();
         }

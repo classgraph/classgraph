@@ -73,8 +73,9 @@ public final class PathSlice extends Slice {
      * mapping at about 16 KB (4 threads) to 64 KB (1 thread) on Linux x86-64, 32 KB to 128 KB on Linux aarch64, 32
      * KB to 64 KB on macOS aarch64, and at 16 KB or less on macOS x86-64, where it is 1.2 to 2.8 times as fast from
      * 16 KB up. On Windows, reading through a channel for each thread (see {@code CHANNEL_PER_READ}), it overtakes
-     * the mapping at about 32 KB on 1 and 2 threads and 64 KB on 4. One channel shared by 4 threads overtakes it
-     * only at about 256 KB, since Windows serializes the positional reads of a file channel.
+     * the mapping at about 32 KB on 1 and 2 threads and 64 KB on 4 on x86-64, and at 32 KB to 64 KB on 1 to 4
+     * threads on aarch64. One channel shared by 4 threads overtakes it only at about 256 KB, since Windows
+     * serializes the positional reads of a file channel.
      */
     static final int MIN_CHANNEL_READ_SIZE = switch (VersionFinder.OS) {
     case Linux -> 32 * 1024;
@@ -419,6 +420,19 @@ public final class PathSlice extends Slice {
             }
             channel = new RandomAccessFile(fileToOpen, "r").getChannel();
         }
+        return withFileLength(channel);
+    }
+
+    /**
+     * Read the length of the file that a channel has just been opened on, closing the channel if it cannot be read.
+     *
+     * @param channel
+     *            the channel.
+     * @return the channel and its file length
+     * @throws IOException
+     *             if the length of the file cannot be read.
+     */
+    private static OpenedChannel withFileLength(final FileChannel channel) throws IOException {
         try {
             return new OpenedChannel(channel, channel.size());
         } catch (final IOException | RuntimeException | Error e) {
@@ -509,6 +523,28 @@ public final class PathSlice extends Slice {
      */
     public static PathSlice forDirEntry(final Path path, final Vfs vfs) throws IOException {
         return new PathSlice(path, /* file = */ null, path.toString(), vfs, /* checkAccess = */ false,
+                /* memoryMapWholeFile = */ false, /* isTempFile = */ false, /* log = */ null);
+    }
+
+    /**
+     * Open a non-memory-mapped toplevel slice for a directory entry, over a channel that the caller has already
+     * opened on its file.
+     *
+     * @param path
+     *            the path of the file, which the slice opens again if a read on an interrupted thread closes the
+     *            channel
+     * @param channel
+     *            the channel, which the slice takes ownership of, and closes when it is closed (or when this
+     *            throws)
+     * @param vfs
+     *            the {@link Vfs} that opened this slice
+     * @return the slice over the file, which the caller owns and must close
+     * @throws IOException
+     *             if the length of the file could not be read
+     */
+    public static PathSlice forDirEntry(final Path path, final FileChannel channel, final Vfs vfs)
+            throws IOException {
+        return new PathSlice(withFileLength(channel), path, /* file = */ null, path.toString(), vfs,
                 /* memoryMapWholeFile = */ false, /* isTempFile = */ false, /* log = */ null);
     }
 
