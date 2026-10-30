@@ -320,10 +320,11 @@ public class VfsEntryLookupCaseTest {
     }
 
     /**
-     * A directory that a SecurityManager will not let be listed is treated as any other directory that cannot be
-     * listed: a name whose real name differs from it only in case is taken to be a folded one, and is not found,
-     * rather than the lookup failing with a {@link SecurityException}. A SecurityManager can only be installed on
-     * JDK 17, so this test is skipped on later JDKs.
+     * A directory that a SecurityManager will not let be listed does not make a lookup fail with a
+     * {@link SecurityException}. A case-only symbolic link can be made only in a case-sensitive directory, where no
+     * listing is needed to tell a link's own name from a folded one, so the link is found by its own name, just as
+     * {@link #aSymbolicLinkWhoseNameDiffersFromItsTargetOnlyInCaseIsFound} finds it where the directory can be
+     * listed. A SecurityManager can only be installed on JDK 17, so this test is skipped on later JDKs.
      *
      * @param tempDir
      *            a temporary directory to build in.
@@ -332,7 +333,7 @@ public class VfsEntryLookupCaseTest {
      */
     @Test
     @SuppressWarnings("removal")
-    public void aDirectoryThatASecurityManagerWillNotListIsTreatedAsUnlisted(@TempDir final Path tempDir)
+    public void aCaseOnlySymbolicLinkInADirectoryThatASecurityManagerWillNotListIsFound(@TempDir final Path tempDir)
             throws IOException {
         final var dir = makeDir(tempDir.resolve("dir"), "Alias.txt");
         try {
@@ -364,7 +365,7 @@ public class VfsEntryLookupCaseTest {
                 assumeTrue(false, "Cannot install a SecurityManager");
             }
             try {
-                assertThat(root.getEntry("alias.txt")).isNull();
+                assertThat(root.getEntry("alias.txt")).isNotNull();
                 assertThat(root.getEntry("Alias.txt")).isNotNull();
             } finally {
                 System.setSecurityManager(null);

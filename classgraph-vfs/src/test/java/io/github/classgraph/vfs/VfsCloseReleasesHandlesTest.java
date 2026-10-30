@@ -244,8 +244,10 @@ public class VfsCloseReleasesHandlesTest {
         final var moduleDir = tempDir.resolve("module");
         final var compiler = ToolProvider.getSystemJavaCompiler();
         assertThat(compiler).as("the tests must be run on a JDK, not a JRE").isNotNull();
-        assertThat(compiler.run(/* in = */ null, /* out = */ null, /* err = */ null, "-d", moduleDir.toString(),
-                moduleInfoSrc.toString())).as("javac exit code").isZero();
+        // -proc:none, since javac would otherwise run every annotation processor on the test classpath, and the
+        // benchmarks' NetBeans jar has one that is compiled for a later JDK than this branch is tested on
+        assertThat(compiler.run(/* in = */ null, /* out = */ null, /* err = */ null, "-proc:none", "-d",
+                moduleDir.toString(), moduleInfoSrc.toString())).as("javac exit code").isZero();
         final var moduleFile = moduleDir.resolve("com/xyz/widget.txt");
         Files.createDirectories(moduleFile.getParent());
         Files.writeString(moduleFile, "widget");

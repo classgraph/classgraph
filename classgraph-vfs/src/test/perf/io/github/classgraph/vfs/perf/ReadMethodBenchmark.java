@@ -83,20 +83,19 @@ public class ReadMethodBenchmark {
     /** A way of reading a file. */
     public enum Method {
         // Mapping through a shared Arena, as classgraph-vfs does on JDK 22 and later, is not compared here, since
-        // this branch compiles for JDK 17. Its timing differs from MMAP_BUFFER only in the cost of the unmap.
+        // this branch compiles for JDK 17. Its timing differs from a mapping released by the GC only in the cost of
+        // the unmap.
 
         /**
-         * Map the whole file through a shared {@link Arena}, and copy out of it through the
-         * {@link RandomAccessByteBufferReader} that classgraph-vfs reads a mapping with, which copies so that a
-         * read of a file truncated after it was mapped throws inside the read.
+         * Map the whole file, and copy out of it through the {@link RandomAccessByteBufferReader} that
+         * classgraph-vfs reads a mapping with, which copies so that a read of a file truncated after it was mapped
+         * throws inside the read.
          */
         MMAP_READER {
             @Override
             FileReader open(final Path path) throws IOException {
                 final var channel = FileChannel.open(path, StandardOpenOption.READ);
-                final var arena = Arena.ofShared();
-                final var buffer = channel.map(FileChannel.MapMode.READ_ONLY, 0L, channel.size(), arena)
-                        .asByteBuffer();
+                final var buffer = channel.map(FileChannel.MapMode.READ_ONLY, 0L, channel.size());
                 final var mappingReader = new RandomAccessByteBufferReader(buffer, 0L, buffer.capacity());
                 return new FileReader() {
                     @Override
@@ -108,7 +107,6 @@ public class ReadMethodBenchmark {
 
                     @Override
                     public void close() throws IOException {
-                        arena.close();
                         channel.close();
                     }
                 };
