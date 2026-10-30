@@ -37,12 +37,16 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Objects;
+import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import io.github.classgraph.vfs.internal.slice.PathSlice;
 
 /**
  * Looks files up in a directory root without walking it first. On Windows a lookup answers from the listing of the
@@ -176,6 +180,33 @@ public class VfsDirLookupTest {
             assertThat(Objects.requireNonNull(root.getEntry("pkg/A.txt")).loadAsString()).isEqualTo("AAAAA");
             Files.writeString(file, "A");
             assertThat(Objects.requireNonNull(root.getEntry("pkg/A.txt")).loadAsString()).isEqualTo("A");
+        }
+    }
+
+    /**
+     * A file larger than one read into an array (see {@link PathSlice#MAX_ARRAY_READ_SIZE}) is read whole, and is
+     * read at the length it has when it is read after it grows or shrinks by more than one read.
+     *
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws IOException
+     *             if the directory could not be built or read.
+     */
+    @Test
+    public void aFileOfSeveralReadsIsReadWholeAfterItChangesLength(@TempDir final Path tempDir) throws IOException {
+        final var file = tempDir.resolve("A.bin");
+        final var content = new byte[3 * PathSlice.MAX_ARRAY_READ_SIZE + 5];
+        new Random(5).nextBytes(content);
+        Files.write(file, content);
+        try (var vfs = new Vfs()) {
+            final var entry = Objects.requireNonNull(vfs.open(tempDir.toString()).getEntry("A.bin"));
+            assertThat(entry.load()).isEqualTo(content);
+            final var longer = Arrays.copyOf(content, content.length + PathSlice.MAX_ARRAY_READ_SIZE + 1);
+            Files.write(file, longer);
+            assertThat(entry.load()).isEqualTo(longer);
+            final var shorter = Arrays.copyOf(content, PathSlice.MAX_ARRAY_READ_SIZE + 1);
+            Files.write(file, shorter);
+            assertThat(entry.load()).isEqualTo(shorter);
         }
     }
 
