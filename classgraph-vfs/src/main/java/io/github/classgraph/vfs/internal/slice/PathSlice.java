@@ -91,9 +91,16 @@ public final class PathSlice extends Slice {
     /**
      * Whether large reads from a memory-mapped file each take a file channel of their own from
      * {@link #idleChannels}, rather than all sharing {@link #fileChannel}. On Windows, a {@link FileChannel} lets
-     * only one positional read run at a time, since a read there moves the file pointer, so threads sharing a
-     * channel wait for each other. On Linux and macOS positional reads of the same channel run in parallel, so the
-     * one channel is shared, and no more file descriptors are used than one per file.
+     * only one positional read run at a time: the JDK reads through a handle opened for synchronous I/O, where a
+     * positional read moves the file pointer, so it holds the channel's position lock while it saves the pointer,
+     * reads and restores the pointer. Threads sharing a channel therefore wait for each other. On Linux and macOS
+     * positional reads of the same channel run in parallel, so the one channel is shared, and no more file
+     * descriptors are used than one per file.
+     *
+     * <p>
+     * TODO: this works around the JDK's Windows implementation of positional reads (in
+     * {@code sun.nio.ch.FileDispatcherImpl}, {@code needsPositionLock()} returns true). When a JDK lets positional
+     * reads of one channel run in parallel on Windows, share the one channel there too on that JDK and later.
      */
     private static final boolean CHANNEL_PER_READ = VersionFinder.OS == OperatingSystem.Windows;
 
