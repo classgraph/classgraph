@@ -32,10 +32,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.abort;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.SecureDirectoryStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Objects;
@@ -260,8 +260,12 @@ public class VfsDirLookupTest {
                 Files.writeString(dir.resolve("A.txt"), rootName + i);
             }
         }
-        // The JDK has no directory handles on Windows, so no root holds one there
-        final var handlesAreUsed = File.separatorChar == '/';
+        // A root holds directory handles only where the JDK opens a directory as a SecureDirectoryStream, which it
+        // does not on Windows, nor on macOS below JDK 24
+        final boolean handlesAreUsed;
+        try (var stream = Files.newDirectoryStream(tempDir)) {
+            handlesAreUsed = stream instanceof SecureDirectoryStream;
+        }
         final var numOpenBefore = DirRoot.numOpenDirHandles();
         try (var vfs = new Vfs()) {
             final var roots = new DirRoot[rootNames.length];
