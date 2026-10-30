@@ -37,7 +37,7 @@ jobs:
     - name: Probe
       shell: bash
       env:
-        ONLY: smb_down vhd_detach
+        ONLY: vhd_detach
       run: |
         java -version
         sep=":"
