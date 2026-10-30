@@ -32,10 +32,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.abort;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Objects;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -201,5 +205,100 @@ public class VfsDirLookupTest {
             Files.writeString(dir.resolve("B.txt"), "B");
             assertThat(Objects.requireNonNull(root.getEntry("pkg/B.txt")).loadAsString()).isEqualTo("B");
         }
+    }
+
+    /**
+     * The directory roots of the process together hold no more than 256 directory handles open. Once they hold that
+     * many, the handle opened first is closed to open a new one, in whichever root it is, and every file is still
+     * read, including those of a directory whose handle was closed. Closing the roots closes their handles.
+     *
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws IOException
+     *             if the directory could not be built or read.
+     */
+    @Test
+    public void directoryRootsTogetherHoldAtMost256DirectoryHandles(@TempDir final Path tempDir)
+            throws IOException {
+        final var numDirsPerRoot = 160;
+        final var rootNames = new String[] { "r1", "r2" };
+        for (final var rootName : rootNames) {
+            for (var i = 0; i < numDirsPerRoot; i++) {
+                final var dir = tempDir.resolve(rootName + "/d" + i);
+                Files.createDirectories(dir);
+                Files.writeString(dir.resolve("A.txt"), rootName + i);
+            }
+        }
+        // The JDK has no directory handles on Windows, so no root holds one there
+        final var handlesAreUsed = File.separatorChar == '/';
+        final var numOpenBefore = DirRoot.numOpenDirHandles();
+        try (var vfs = new Vfs()) {
+            final var roots = new DirRoot[rootNames.length];
+            for (var r = 0; r < rootNames.length; r++) {
+                roots[r] = (DirRoot) vfs.open(tempDir.resolve(rootNames[r]).toString());
+                for (var i = 0; i < numDirsPerRoot; i++) {
+                    assertThat(Objects.requireNonNull(roots[r].getEntry("d" + i + "/A.txt")).loadAsString())
+                            .isEqualTo(rootNames[r] + i);
+                }
+            }
+            assertThat(DirRoot.numOpenDirHandles()).isEqualTo(handlesAreUsed ? 256 : numOpenBefore);
+            // The second root closed the handles that the first opened first, to open its own
+            assertThat(roots[1].numDirHandles()).isEqualTo(handlesAreUsed ? numDirsPerRoot : 0);
+            assertThat(roots[0].numDirHandles()).isEqualTo(handlesAreUsed ? 256 - numDirsPerRoot : 0);
+            // A directory whose handle was closed is read through a new one
+            assertThat(Objects.requireNonNull(roots[0].getEntry("d0/A.txt")).loadAsString()).isEqualTo("r10");
+            assertThat(DirRoot.numOpenDirHandles()).isEqualTo(handlesAreUsed ? 256 : numOpenBefore);
+        }
+        assertThat(DirRoot.numOpenDirHandles()).isEqualTo(numOpenBefore);
+    }
+
+    /**
+     * Threads that read the files of more directories than there are directory handles, at once, so that handles
+     * other threads are reading through are closed under them, read every file, and leave no handle open once the
+     * roots are closed.
+     *
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws Exception
+     *             if the directory could not be built or read.
+     */
+    @Test
+    public void threadsReadingMoreDirectoriesThanThereAreHandlesReadEveryFile(@TempDir final Path tempDir)
+            throws Exception {
+        final var numDirs = 600;
+        for (var i = 0; i < numDirs; i++) {
+            final var dir = tempDir.resolve("d" + i);
+            Files.createDirectories(dir);
+            Files.writeString(dir.resolve("A.txt"), "A" + i);
+        }
+        final var numOpenBefore = DirRoot.numOpenDirHandles();
+        final var numThreads = 8;
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(tempDir.toString());
+            final var executor = Executors.newFixedThreadPool(numThreads);
+            try {
+                final var futures = new ArrayList<Future<?>>();
+                for (var t = 0; t < numThreads; t++) {
+                    final var start = t * 75;
+                    futures.add(executor.submit(() -> {
+                        for (var round = 0; round < 5; round++) {
+                            for (var j = 0; j < numDirs; j++) {
+                                final var i = (start + j) % numDirs;
+                                assertThat(Objects.requireNonNull(root.getEntry("d" + i + "/A.txt")).loadAsString())
+                                        .isEqualTo("A" + i);
+                            }
+                        }
+                        return null;
+                    }));
+                }
+                for (final var future : futures) {
+                    future.get();
+                }
+            } finally {
+                executor.shutdownNow();
+            }
+            assertThat(DirRoot.numOpenDirHandles()).isLessThanOrEqualTo(256);
+        }
+        assertThat(DirRoot.numOpenDirHandles()).isEqualTo(numOpenBefore);
     }
 }

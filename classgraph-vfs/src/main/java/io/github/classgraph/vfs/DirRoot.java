@@ -56,7 +56,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.jspecify.annotations.Nullable;
 
@@ -112,8 +115,38 @@ public final class DirRoot extends VfsRoot {
      */
     private final Map<String, DirEntry> entriesByName = new ConcurrentHashMap<>();
 
-    /** The most directory handles a root keeps open (see {@link #dirHandles}). */
+    /**
+     * The most directory handles (see {@link #dirHandles}) that the directory roots of this process keep open
+     * together. Each handle holds a file descriptor, and a program may open many directory roots, so the limit is
+     * on all of them together, to keep well inside the process's limit on open files. A handle is held on a
+     * directory, not on a file, so the limit is on the number of directories, however many files each holds. When a
+     * handle is needed and this many are open, the one that was opened first is closed (see
+     * {@link #openDirHandles}).
+     */
     private static final int MAX_DIR_HANDLES = 256;
+
+    /** The number of directory handles that the directory roots of this process hold open. */
+    private static final AtomicInteger numOpenDirHandles = new AtomicInteger();
+
+    /**
+     * The directory handles that the directory roots of this process hold open, in the order they were opened. When
+     * {@link #MAX_DIR_HANDLES} are open, the first is closed to make room for a new one, since a walk from the top
+     * down, which is how a scan reads a directory tree, is done with the directory it opened first.
+     */
+    private static final Queue<DirHandle> openDirHandles = new ConcurrentLinkedQueue<>();
+
+    /**
+     * An open handle on a directory of a root.
+     *
+     * @param root
+     *            the root.
+     * @param dirName
+     *            the root-relative path of the directory, or {@code ""} for the root itself.
+     * @param stream
+     *            the handle.
+     */
+    private record DirHandle(DirRoot root, String dirName, SecureDirectoryStream<Path> stream) {
+    }
 
     /**
      * Whether files are looked up and opened relative to a handle on their directory (see {@link #dirHandles}),
@@ -129,7 +162,7 @@ public final class DirRoot extends VfsRoot {
      * calls cheaper. A name that is not found through a handle is looked up again by its whole path, so that a
      * directory that has been deleted and recreated since its handle was opened is still read.
      */
-    private final Map<String, SecureDirectoryStream<Path>> dirHandles = new ConcurrentHashMap<>();
+    private final Map<String, DirHandle> dirHandles = new ConcurrentHashMap<>();
 
     /**
      * Constructor.
@@ -181,18 +214,66 @@ public final class DirRoot extends VfsRoot {
     }
 
     /**
-     * Close a directory handle. A thread that is using the handle when it is closed gets
-     * {@link ClosedDirectoryStreamException}, and reads the file by its whole path instead.
+     * Close a directory handle that has been taken out of {@link #dirHandles}, or was never put in it. A thread
+     * that is using the handle when it is closed gets {@link ClosedDirectoryStreamException}, and reads the file by
+     * its whole path instead.
      *
      * @param handle
      *            the handle.
      */
-    private static void closeDirHandle(final SecureDirectoryStream<Path> handle) {
+    private static void closeDirHandle(final DirHandle handle) {
         try {
-            handle.close();
+            handle.stream().close();
         } catch (final IOException e) {
             // Nothing was written through the handle, so there is nothing to lose
         }
+        openDirHandles.remove(handle);
+        numOpenDirHandles.decrementAndGet();
+    }
+
+    /**
+     * Take a place under {@link #MAX_DIR_HANDLES} for a handle about to be opened, closing the handle that was
+     * opened first if there is no place free. The place is taken before the handle is opened, so that threads
+     * opening handles at once cannot go over the limit together, and every handle opened gives its place back when
+     * {@link #closeDirHandle(DirHandle)} closes it.
+     *
+     * @return true if a place was taken, or false if none could be freed, when another thread is closing the handle
+     *         that was opened first, or this process's directory roots hold no handle to close.
+     */
+    private static boolean takeDirHandlePlace() {
+        if (numOpenDirHandles.incrementAndGet() <= MAX_DIR_HANDLES) {
+            return true;
+        }
+        numOpenDirHandles.decrementAndGet();
+        final var first = openDirHandles.poll();
+        if (first == null || !first.root().dirHandles.remove(first.dirName(), first)) {
+            return false;
+        }
+        closeDirHandle(first);
+        if (numOpenDirHandles.incrementAndGet() <= MAX_DIR_HANDLES) {
+            return true;
+        }
+        // Another thread took the place first
+        numOpenDirHandles.decrementAndGet();
+        return false;
+    }
+
+    /**
+     * Return the number of directory handles that the directory roots of this process hold open.
+     *
+     * @return the number of handles.
+     */
+    static int numOpenDirHandles() {
+        return numOpenDirHandles.get();
+    }
+
+    /**
+     * Return the number of directory handles that this root holds open.
+     *
+     * @return the number of handles.
+     */
+    int numDirHandles() {
+        return dirHandles.size();
     }
 
     /**
@@ -201,37 +282,48 @@ public final class DirRoot extends VfsRoot {
      * @param dirName
      *            the root-relative path of the directory, or {@code ""} for the root itself.
      * @return the handle, or null if files are not read through directory handles, or the handle could not be
-     *         opened, or {@link #MAX_DIR_HANDLES} handles are already open.
+     *         opened, or no place could be freed under {@link #MAX_DIR_HANDLES} for it.
      * @throws NoSuchFileException
      *             if the directory does not exist, so that no file can be found in it.
      * @throws NotDirectoryException
      *             if the path of the directory names something that is not a directory.
      */
-    private @Nullable SecureDirectoryStream<Path> dirHandle(final String dirName)
-            throws NoSuchFileException, NotDirectoryException {
+    private @Nullable DirHandle dirHandle(final String dirName) throws NoSuchFileException, NotDirectoryException {
         if (!useDirHandles) {
             return null;
         }
         final var known = dirHandles.get(dirName);
-        if (known != null || dirHandles.size() >= MAX_DIR_HANDLES) {
+        if (known != null) {
             return known;
         }
-        final DirectoryStream<Path> stream;
+        if (!takeDirHandlePlace()) {
+            return null;
+        }
+        DirectoryStream<Path> stream = null;
         try {
             stream = Files.newDirectoryStream(dirName.isEmpty() ? dir : dir.resolve(dirName));
         } catch (final NoSuchFileException | NotDirectoryException e) {
             throw e;
         } catch (final IOException | SecurityException e) {
             return null;
+        } finally {
+            if (stream == null) {
+                numOpenDirHandles.decrementAndGet();
+            }
         }
-        if (!(stream instanceof final SecureDirectoryStream<Path> handle)) {
+        if (!(stream instanceof final SecureDirectoryStream<Path> secureStream)) {
             try {
                 stream.close();
             } catch (final IOException e) {
                 // Nothing was read through the stream
             }
+            numOpenDirHandles.decrementAndGet();
             return null;
         }
+        final var handle = new DirHandle(this, dirName, secureStream);
+        // Queued before it is added to this root, so that a close of this root, which takes the handle out of the
+        // queue, cannot run between the two and leave the handle queued
+        openDirHandles.add(handle);
         final var raced = dirHandles.putIfAbsent(dirName, handle);
         if (raced != null) {
             closeDirHandle(handle);
@@ -258,7 +350,7 @@ public final class DirRoot extends VfsRoot {
     private @Nullable BasicFileAttributes readAttributes(final String name, final Path path) {
         final var lastSlashIdx = name.lastIndexOf('/');
         final var dirName = lastSlashIdx < 0 ? "" : name.substring(0, lastSlashIdx);
-        final SecureDirectoryStream<Path> handle;
+        final DirHandle handle;
         try {
             handle = dirHandle(dirName);
         } catch (final NoSuchFileException | NotDirectoryException e) {
@@ -269,7 +361,7 @@ public final class DirRoot extends VfsRoot {
             try {
                 // The POSIX view, since the basic view of a SecureDirectoryStream wraps the attributes it reads in
                 // an object that does not give the POSIX permissions
-                return handle.getFileAttributeView(path.getFileName(), PosixFileAttributeView.class)
+                return handle.stream().getFileAttributeView(path.getFileName(), PosixFileAttributeView.class)
                         .readAttributes();
             } catch (final IOException | ClosedDirectoryStreamException e) {
                 // The file is not in the directory the handle is open on, which may have been replaced since the
@@ -308,7 +400,8 @@ public final class DirRoot extends VfsRoot {
         final var handle = dirHandle(lastSlashIdx < 0 ? "" : name.substring(0, lastSlashIdx));
         if (handle != null) {
             try {
-                final var channel = handle.newByteChannel(path.getFileName(), Set.of(StandardOpenOption.READ));
+                final var channel = handle.stream().newByteChannel(path.getFileName(),
+                        Set.of(StandardOpenOption.READ));
                 if (channel instanceof final FileChannel fileChannel) {
                     return fileChannel;
                 }
