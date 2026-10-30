@@ -4,13 +4,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.lang.foreign.Arena;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Tests {@link RandomAccessByteBufferReader}, which is the reader used for memory-mapped files, against
@@ -170,5 +179,76 @@ public class RandomAccessByteBufferReaderTest {
         assertThatThrownBy(() -> reader.read(0, ByteBuffer.allocate(4), 0, 4)).isInstanceOf(IOException.class)
                 .hasMessageContaining("unmapped");
         assertThat(reader.read(0, new byte[4], 0, 0)).isZero();
+    }
+
+    /** The read lengths of the truncation tests: each side of the 64- and 80-byte aarch64 limits, and of 256. */
+    private static final int[] TRUNCATED_READ_LENGTHS = { 1, 8, 30, 64, 65, 80, 81, 100, 255, 256, 257, 8192,
+            1 << 20 };
+
+    /**
+     * Every read of a page of a mapped file that was truncated away throws {@link IOException} from inside the
+     * read, in interpreted code, and the JVM goes on running. Windows refuses to truncate a file that is mapped.
+     */
+    @Test
+    @DisabledOnOs(OS.WINDOWS)
+    public void readOfTruncatedMappingThrowsInsideTheRead(@TempDir final Path tempDir) throws IOException {
+        readTruncatedMapping(tempDir, false);
+    }
+
+    /**
+     * As {@link #readOfTruncatedMappingThrowsInsideTheRead}, after every read method has been called enough times
+     * to be compiled. A compiled copy can deliver the error after the read returns, or, on aarch64, crash the JVM.
+     */
+    @Test
+    @DisabledOnOs(OS.WINDOWS)
+    public void compiledReadOfTruncatedMappingThrowsInsideTheRead(@TempDir final Path tempDir) throws IOException {
+        readTruncatedMapping(tempDir, true);
+    }
+
+    private static void readTruncatedMapping(final Path tempDir, final boolean warm) throws IOException {
+        final var file = tempDir.resolve("mapped.bin");
+        final int fileSize = 8 << 20;
+        Files.write(file, new byte[fileSize]);
+        try (var arena = Arena.ofShared(); var ch = FileChannel.open(file, StandardOpenOption.READ)) {
+            final var reader = new RandomAccessByteBufferReader(
+                    ch.map(FileChannel.MapMode.READ_ONLY, 0, fileSize, arena).asByteBuffer(), 0L, fileSize);
+            final var arr = new byte[1 << 20];
+            final var heapBuf = ByteBuffer.allocate(1 << 20);
+            final var directBuf = ByteBuffer.allocateDirect(1 << 20);
+            if (warm) {
+                // Every length but the last, 1 MB, which would make this slow
+                for (int i = 0; i < 200_000; i++) {
+                    final int len = TRUNCATED_READ_LENGTHS[i % (TRUNCATED_READ_LENGTHS.length - 1)];
+                    final int off = (i * 4099) & 0x7FFF;
+                    reader.read(off, arr, 0, len);
+                    reader.read(off, heapBuf, 0, len);
+                    reader.read(off, directBuf, 0, len);
+                    reader.readByte(off);
+                    reader.readShort(off);
+                    reader.readInt(off);
+                    reader.readLong(off);
+                }
+            }
+            try (var raf = new RandomAccessFile(file.toFile(), "rw")) {
+                raf.setLength(4096);
+            }
+            final long off = fileSize / 2;
+            for (final int len : TRUNCATED_READ_LENGTHS) {
+                assertPageFault(() -> reader.read(off, arr, 0, len));
+                assertPageFault(() -> reader.read(off, heapBuf, 0, len));
+                assertPageFault(() -> reader.read(off, directBuf, 0, len));
+            }
+            assertPageFault(() -> reader.readByte(off));
+            assertPageFault(() -> reader.readShort(off));
+            assertPageFault(() -> reader.readInt(off));
+            assertPageFault(() -> reader.readLong(off));
+            // The page that is still in the file can still be read
+            assertThat(reader.read(0, arr, 0, 4096)).isEqualTo(4096);
+        }
+    }
+
+    private static void assertPageFault(final ThrowingCallable read) {
+        assertThatThrownBy(read).isInstanceOf(IOException.class).hasMessageContaining("truncated")
+                .hasCauseInstanceOf(InternalError.class);
     }
 }
