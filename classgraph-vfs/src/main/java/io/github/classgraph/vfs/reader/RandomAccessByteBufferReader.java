@@ -50,13 +50,11 @@ import io.github.classgraph.base.internal.utils.VersionFinder;
  */
 public final class RandomAccessByteBufferReader implements RandomAccessReader {
     /**
-     * The smallest bulk read that is copied in bulk and then fenced, rather than one {@code long} at a time, on
-     * x86-64 (see {@link #canFault}). The fence costs about 40 ns, which a smaller read does not win
-     * back: on JDK 26, a 64-byte read takes 62 ns one {@code long} at a time and 112 ns in bulk with the fence, a
-     * 256-byte read takes about 120 ns either way, and a 1 MB read takes 74 us one {@code long} at a time and 47 us
-     * in bulk. Elsewhere, no read is copied in bulk.
+     * The smallest bulk read of a buffer that can fault that is copied in bulk, rather than one {@code long} at a
+     * time, on x86-64 (see {@link #canFault}). On JDK 26, a 1 MB read takes 74 us one {@code long} at a time and 47
+     * us in bulk. Elsewhere, no read of a buffer that can fault is copied in bulk.
      */
-    private static final int MIN_FENCED_BULK_COPY_SIZE = VersionFinder.IS_X86_64 ? 256 : Integer.MAX_VALUE;
+    private static final int MIN_BULK_COPY_SIZE = VersionFinder.IS_X86_64 ? 256 : Integer.MAX_VALUE;
 
     /** A lock that no thread ever holds, which {@link #awaitFault()} asks about. */
     private static final Object FAULT_FENCE = new Object();
@@ -77,17 +75,18 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
      * Whether a read can fault, so that it has to be made so that the fault is thrown inside the read. A heap
      * buffer cannot fault. A read of a memory mapping faults when the page it touches cannot be read: the page is
      * past the end of a file that was truncated after it was mapped (Linux and macOS; Windows refuses to truncate a
-     * mapped file), or the disk failed or was detached, or a network server stopped (every OS). The JVM turns the
-     * fault into an {@link InternalError}. Once the read has been JIT-compiled, the JVM throws that error only at
-     * the next point where the thread checks for pending work, which can be after the read has returned, past the
-     * catch below that turns it into an {@link IOException} (seen for single-value reads and for bulk copies, on
-     * JDK 25 and 26, on Linux, macOS and Windows). A return from a native method is such a point, so each
-     * single-value read is followed by a call of one (see {@link #awaitFault()}), and so is each bulk copy on
-     * x86-64. On aarch64 a compiled bulk copy of more than 64 bytes is done by a routine that the JVM does not
-     * guard, so the fault kills the JVM (seen on Linux, macOS and Windows), and a bulk read copies one {@code long}
-     * at a time instead (see {@link #copyOneLongAtATime}), which was seen to throw inside the read, cold and hot,
-     * for every length tested, on every platform. That is also done on any other processor, where the bulk copy has
-     * not been tested.
+     * file mapped on the same machine), or the disk failed or was detached, or a network server stopped (every OS).
+     * (When a file on an NFS mount on macOS, or on an SMB share on Windows, is truncated by the server, the pages
+     * past the new end of the file read as zeros, with no fault, so no read can detect it.) The JVM turns the fault
+     * into an {@link InternalError}. Once the read has been JIT-compiled, the JVM throws that error only at the
+     * next point where the thread checks for pending work, which can be after the read has returned, past the catch
+     * below that turns it into an {@link IOException} (seen for single-value reads and for bulk copies, on JDK 25
+     * and 26, on Linux, macOS and Windows, and for a read of 7 bytes one {@code long} at a time, on Linux x86-64).
+     * A return from a native method is such a point, so every read is followed by a call of one (see
+     * {@link #awaitFault()}). On aarch64 a compiled bulk copy of more than 64 bytes is done by a routine that the
+     * JVM does not guard, so the fault kills the JVM (seen on Linux, macOS and Windows), and a bulk read copies one
+     * {@code long} at a time instead (see {@link #copyOneLongAtATime}). That is also done on any other processor,
+     * where the bulk copy has not been tested.
      */
     private final boolean canFault;
 
@@ -175,8 +174,8 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
 
     /**
      * Copy bytes of the buffer into another buffer by single-value reads, rather than by a bulk copy, which kills
-     * the JVM if it faults on aarch64 (see {@link #canFault}). The loop is unrolled by hand, which
-     * makes a large copy about twice as fast.
+     * the JVM if it faults on aarch64 (see {@link #canFault}). The loop is unrolled by hand, which makes a large
+     * copy about twice as fast.
      *
      * @param srcStart
      *            the index in the buffer to copy from.
@@ -314,13 +313,13 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
             final var numBytesToRead = Math.min(numBytesInSlice, dstRoom);
             final var srcStart = (int) srcOffset;
             // An absolute get, so this reader's own position and limit stay where the constructor put them
-            if (canFault && numBytesToRead < MIN_FENCED_BULK_COPY_SIZE) {
+            if (canFault && numBytesToRead < MIN_BULK_COPY_SIZE) {
                 copyOneLongAtATime(sliceStartPos + srcStart, ByteBuffer.wrap(dstArr).order(byteBuffer.order()),
                         dstArrStart, numBytesToRead);
             } else {
                 byteBuffer.get(sliceStartPos + srcStart, dstArr, dstArrStart, numBytesToRead);
-                awaitFault();
             }
+            awaitFault();
             return numBytesToRead;
         } catch (final IndexOutOfBoundsException e) {
             // The bounds were checked above, so reaching here means a bounds check is wrong rather than that
@@ -349,14 +348,14 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
             final var srcStart = (int) (sliceStartPos + srcOffset);
             // An absolute put, so neither buffer's position or limit is read or changed. Both ends of the copy are
             // named by index, so nothing has to be windowed first and nothing has to be put back afterwards.
-            if (canFault && numBytesToRead < MIN_FENCED_BULK_COPY_SIZE) {
+            if (canFault && numBytesToRead < MIN_BULK_COPY_SIZE) {
                 // A duplicate, so the caller's byte order is left alone
                 copyOneLongAtATime(srcStart, dstBuf.duplicate().order(byteBuffer.order()), dstBufStart,
                         numBytesToRead);
             } else {
                 dstBuf.put(dstBufStart, byteBuffer, srcStart, numBytesToRead);
-                awaitFault();
             }
+            awaitFault();
             return numBytesToRead;
         } catch (final IndexOutOfBoundsException e) {
             // The bounds were checked above, so reaching here means a bounds check is wrong rather than that
