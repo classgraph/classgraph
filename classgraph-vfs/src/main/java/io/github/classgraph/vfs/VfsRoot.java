@@ -429,6 +429,13 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      * {@code "."} / {@code ".."} segments. Case-folded matches on case-insensitive filesystems (such as on Windows
      * and macOS) are rejected; use {@link #getEntryCaseInsensitive(String)} for case-insensitive lookup.
      *
+     * <p>
+     * To read a file whose name you know, without needing its entry, {@link #load(String)} gives the same result as
+     * {@code getEntry(name)} followed by {@link VfsEntry#load()}, and returns {@code null} where {@code getEntry}
+     * would. It is faster for a directory root, which opens the file without first reading its metadata. For the
+     * same reason, it opens a named pipe, and so waits for a writer, as
+     * {@link java.nio.file.Files#readAllBytes(Path)} does, rather than returning {@code null}.
+     *
      * @param name
      *            the path of the entry relative to the package root (e.g. {@code "com/xyz/Widget.class"}).
      * @return the entry, or null if no entry with that exact name exists.
@@ -451,6 +458,44 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      *             if the root could not be searched.
      */
     abstract @Nullable VfsEntry getEntryImpl(String name) throws IOException;
+
+    /**
+     * Read the entire uncompressed content of the entry with the given exact, case-sensitive canonical path
+     * relative to the package root into a new byte array, or return {@code null} if no such file entry exists.
+     *
+     * <p>
+     * To read a file whose name you know, without needing its entry, this method gives the same result as
+     * {@link #getEntry(String) getEntry(name)} followed by {@link VfsEntry#load()}, and returns {@code null} where
+     * {@code getEntry} would. It is faster for a directory root, which opens the file without first reading its
+     * metadata. For the same reason, it opens a named pipe, and so waits for a writer, as
+     * {@link java.nio.file.Files#readAllBytes(Path)} does, rather than returning {@code null}.
+     *
+     * @param name
+     *            the path of the entry relative to the package root (e.g. {@code "com/xyz/Widget.class"}).
+     * @return the content of the entry, or null if no entry with that exact name exists.
+     * @throws IOException
+     *             if the root could not be searched, the entry could not be read or exceeds the maximum array size,
+     *             or if this root or its {@link Vfs} has been closed.
+     */
+    public final byte @Nullable [] load(final String name) throws IOException {
+        Assert.notNull(name, "name");
+        checkNotClosed(name);
+        return loadImpl(name);
+    }
+
+    /**
+     * Read the entry with the given name (called after verifying that this root is open).
+     *
+     * @param name
+     *            the path of the entry relative to the package root.
+     * @return the content of the entry, or null if no entry with that name exists.
+     * @throws IOException
+     *             if the root could not be searched, or the entry could not be read.
+     */
+    byte @Nullable [] loadImpl(final String name) throws IOException {
+        final var entry = getEntryImpl(name);
+        return entry == null ? null : entry.load();
+    }
 
     /**
      * Returns whether {@code path} resolved within canonical directory {@code dir} matched a file whose stored name

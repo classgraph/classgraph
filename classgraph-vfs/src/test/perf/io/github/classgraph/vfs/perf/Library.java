@@ -68,7 +68,7 @@ import net.java.truevfs.access.TVFS;
  * library supports only some of the {@link Layout}s; see {@link #supports(Layout)}.
  */
 public enum Library {
-    /** ClassGraph's virtual filesystem, through {@code VfsRoot.getEntry(name).load()}. */
+    /** ClassGraph's virtual filesystem, through {@code VfsRoot.load(name)}. */
     CGVFS("classgraph-vfs", EnumSet.allOf(Layout.class)) {
         @Override
         public Reader open(final Path archive, final Layout layout) throws IOException {
@@ -78,11 +78,11 @@ public enum Library {
             return new Reader() {
                 @Override
                 public byte[] read(final String name) throws IOException {
-                    final var entry = root.getEntry(name);
-                    if (entry == null) {
+                    final var content = root.load(name);
+                    if (content == null) {
                         throw new FileNotFoundException(name);
                     }
-                    return entry.load();
+                    return content;
                 }
 
                 @Override

@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -296,40 +297,58 @@ final class DirEntry extends VfsEntry {
             // again after opening the file. One more byte is read into a buffer of its own, so that a file that has
             // grown since it was looked up is noticed in the same read: then, and if it has shrunk, the file is read
             // again below, at the length it has now
-            final var content = new byte[(int) lengthAtLookup];
-            final var contentBuffer = ByteBuffer.wrap(content);
-            final var buffers = new ByteBuffer[] { contentBuffer, ByteBuffer.allocate(1) };
-            var numBytesRead = 0L;
+            final byte @Nullable [] content;
             try (var channel = root.openFile(name, path, dirHandle, fileName)) {
                 if (Thread.currentThread().isInterrupted()) {
                     throw new InterruptedIOException("Interrupted while reading " + getNioPath());
                 }
-                // A read from a network filesystem can be short, so reading goes on until the array is full or the
-                // end of the file is reached. When a read that asked for the rest of the array and the extra byte
-                // fills only the array, the end of the file was reached (POSIX lets a read of a regular file be
-                // short only at the end of the file), so the file has the length it was looked up with. A large
-                // file is read in chunks (see PathSlice#MAX_ARRAY_READ_SIZE), and the last chunk with the extra byte
-                do {
-                    final long numBytesReadThisCall;
-                    if (lengthAtLookup - numBytesRead > PathSlice.MAX_ARRAY_READ_SIZE) {
-                        contentBuffer.limit((int) numBytesRead + PathSlice.MAX_ARRAY_READ_SIZE);
-                        numBytesReadThisCall = channel.read(contentBuffer);
-                    } else {
-                        contentBuffer.limit(content.length);
-                        numBytesReadThisCall = channel.read(buffers);
-                    }
-                    if (numBytesReadThisCall < 0L) {
-                        break;
-                    }
-                    numBytesRead += numBytesReadThisCall;
-                } while (numBytesRead < lengthAtLookup);
+                content = read(channel, (int) lengthAtLookup);
             }
-            if (numBytesRead == lengthAtLookup) {
+            if (content != null) {
                 return content;
             }
         }
         try (var slice = openSlice()) {
             return slice.load();
         }
+    }
+
+    /**
+     * Read a file that is expected to have a given length into a new array, from the start of the file. One more
+     * byte is read into a buffer of its own, so that a file longer than expected is noticed in the same read.
+     *
+     * @param channel
+     *            the file, positioned at its start.
+     * @param length
+     *            the expected length of the file.
+     * @return the content of the file, or null if the file is not {@code length} bytes long.
+     * @throws IOException
+     *             if the file could not be read.
+     */
+    static byte @Nullable [] read(final FileChannel channel, final int length) throws IOException {
+        final var content = new byte[length];
+        final var contentBuffer = ByteBuffer.wrap(content);
+        final var buffers = new ByteBuffer[] { contentBuffer, ByteBuffer.allocate(1) };
+        var numBytesRead = 0L;
+        // A read from a network filesystem can be short, so reading goes on until the array is full or the end of
+        // the file is reached. When a read that asked for the rest of the array and the extra byte fills only the
+        // array, the end of the file was reached (POSIX lets a read of a regular file be short only at the end of
+        // the file), so the file has the expected length. A large file is read in chunks (see
+        // PathSlice#MAX_ARRAY_READ_SIZE), and the last chunk with the extra byte
+        do {
+            final long numBytesReadThisCall;
+            if (length - numBytesRead > PathSlice.MAX_ARRAY_READ_SIZE) {
+                contentBuffer.limit((int) numBytesRead + PathSlice.MAX_ARRAY_READ_SIZE);
+                numBytesReadThisCall = channel.read(contentBuffer);
+            } else {
+                contentBuffer.limit(length);
+                numBytesReadThisCall = channel.read(buffers);
+            }
+            if (numBytesReadThisCall < 0L) {
+                break;
+            }
+            numBytesRead += numBytesReadThisCall;
+        } while (numBytesRead < length);
+        return numBytesRead == length ? content : null;
     }
 }

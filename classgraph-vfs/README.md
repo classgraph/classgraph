@@ -67,7 +67,7 @@ way in produces the same `VfsRoot`, and every `VfsEntry` reads out in every way.
 | `java.io.InputStream` | `entry.open()` |
 | `java.nio.channels.ReadableByteChannel` | `entry.openChannel()` |
 | `java.nio.ByteBuffer` (a memory mapping where possible), wrapped in a `CloseableByteBuffer` | `entry.read()` |
-| `byte[]` | `entry.load()` |
+| `byte[]` | `entry.load()`, or `root.load(name)` |
 | `String`, decoded as UTF-8 | `entry.loadAsString()` |
 | `java.nio.file.Path`, in the filesystem view below | `entry.asPath()` |
 | `java.nio.file.FileSystem`, over a whole root | `root.asFileSystem()` |
@@ -586,7 +586,7 @@ Two benchmarks:
   result is the time per archive, in milliseconds, which includes opening it.
 
 Each library reads an entry the way it is normally used to. cgvfs is measured twice: through
-`VfsRoot.getEntry(name).load()`, and through `Files.readAllBytes` on `VfsRoot.asFileSystem()`, the
+`VfsRoot.load(name)`, and through `Files.readAllBytes` on `VfsRoot.asFileSystem()`, the
 same call zipfs is read with. "JDK Files / ZipFile" is `Files.readAllBytes` for a directory and one
 `java.util.zip.ZipFile` shared by every thread for a jarfile; `URL` is `URL.openStream()` on a
 `file:` or `jar:` URL.
@@ -980,6 +980,16 @@ are closed:
 ```java
 byte[] classfile = entry.load();
 String manifest = entry.loadAsString();
+```
+
+To read a file whose name you know, without needing its entry, `root.load(name)` gives the same
+result as `getEntry(name)` followed by `load()`, and returns null where `getEntry` would. It is
+faster for a directory root, which opens the file without first reading its metadata. For the same
+reason, it opens a named pipe, and so waits for a writer, as `Files.readAllBytes` does, rather than
+returning null:
+
+```java
+byte[] classfile = root.load("com/xyz/Widget.class");
 ```
 
 All four throw `IOException` if the entry cannot be read, or if the root, or the `Vfs`, has been
