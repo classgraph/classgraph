@@ -38,6 +38,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.jspecify.annotations.Nullable;
 
@@ -68,6 +69,12 @@ final class ExactNameListings {
      * the separator, or {@code ""} for {@link #dir} itself.
      */
     private final Map<String, Set<String>> listings = new ConcurrentHashMap<>();
+
+    /**
+     * A lock for each directory, held while it is listed for the first time, so that threads that look up names in
+     * a directory that has not been listed yet list it once, rather than once each.
+     */
+    private final Map<String, ReentrantLock> firstListingLocks = new ConcurrentHashMap<>();
 
     /**
      * Whether listing a directory also reads the attributes of its children at no extra cost, which is the case on
@@ -118,7 +125,7 @@ final class ExactNameListings {
             final var parent = segmentStart == 0 ? "" : name.substring(0, segmentStart - 1);
             var listing = listings.get(parent);
             if (listing == null) {
-                listing = list(parent);
+                listing = listFirstTime(parent);
             }
             // A name missing from a listing is not listed again here, unlike in isCaseFolded, since a lookup of a
             // missing file would then list its whole directory -- the caller reads the filesystem instead
@@ -149,8 +156,12 @@ final class ExactNameListings {
             final var parent = segmentStart == 0 ? "" : name.substring(0, segmentStart - 1);
             final var segment = name.substring(segmentStart, segmentEnd);
             var listing = listings.get(parent);
+            if (listing == null) {
+                listing = listFirstTime(parent);
+            }
             if (listing == null || !listing.contains(segment)) {
-                // List the directory, or list it again, in case the file was created after it was last listed
+                // List the directory again, in case the file was created after it was last listed. (A listing that
+                // another thread made in listFirstTime may have started before the file was created.)
                 listing = list(parent);
                 if (listing == null) {
                     return null;
@@ -162,6 +173,25 @@ final class ExactNameListings {
             segmentStart = segmentEnd + 1;
         }
         return Boolean.FALSE;
+    }
+
+    /**
+     * List a directory that has not been listed yet, and keep the listing, or wait for another thread that is
+     * listing it, and return its listing.
+     *
+     * @param relativeDir
+     *            the path of the directory relative to the base directory, or {@code ""} for the base directory.
+     * @return the names the directory lists, or null if it could not be listed.
+     */
+    private @Nullable Set<String> listFirstTime(final String relativeDir) {
+        final var lock = firstListingLocks.computeIfAbsent(relativeDir, _ -> new ReentrantLock());
+        lock.lock();
+        try {
+            final var listing = listings.get(relativeDir);
+            return listing != null ? listing : list(relativeDir);
+        } finally {
+            lock.unlock();
+        }
     }
 
     /**
