@@ -68,10 +68,17 @@ public final class PathSlice extends Slice {
      * Reads from a memory-mapped file of at least this many bytes go through a {@link FileChannel} instead of the
      * mapping. A read through the mapping costs a page fault for each page it touches the first time, and a read
      * through a file channel costs a system call, so the mapping is faster for small reads and the file channel for
-     * large ones. Measured by reading 32 MB of entries of a single size, on 1, 4 and 16 threads, the file channel
-     * overtakes the mapping above about 16 KB on Linux and above about 32 to 64 KB on macOS and Windows.
+     * large ones. Measured by mapping a jarfile and reading each of its 32 MB of entries of a single size once, on
+     * 1 and 4 threads, the file channel overtakes the mapping at about 32 KB (4 threads) to 128 KB (1 thread) on
+     * Linux x86-64 and aarch64, at about 64 KB on macOS aarch64, and at 16 KB or less on macOS x86-64, where it is
+     * 1.2 to 2.6 times as fast from 16 KB up. On Windows it overtakes the mapping at about 32 KB on 1 thread, but
+     * only at about 1 MB on 4 threads, since Windows serializes the positional reads of a file channel.
      */
-    static final int MIN_CHANNEL_READ_SIZE = VersionFinder.OS == OperatingSystem.Linux ? 32 * 1024 : 64 * 1024;
+    static final int MIN_CHANNEL_READ_SIZE = switch (VersionFinder.OS) {
+    case Linux -> 32 * 1024;
+    case MacOSX -> VersionFinder.IS_X86_64 ? 16 * 1024 : 64 * 1024;
+    default -> 64 * 1024;
+    };
 
     /**
      * Whether {@link #read()} returns a view of the memory mapping rather than a copy. A file that is mapped cannot
