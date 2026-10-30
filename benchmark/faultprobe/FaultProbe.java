@@ -9,11 +9,11 @@ import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 
 /**
- * Maps a file, optionally runs one kind of copy often enough for it to be JIT-compiled, makes the pages beyond 32 MB
- * unreadable in one of several ways (the "inducer"), then copies from 32 MB. Prints one RESULT line saying whether
- * the copy threw at the copy ("at-read"), threw after the method that did the copy had returned ("late"), did not
- * throw ("no-error"), or whether the inducer itself failed ("induce-failed", e.g. a refused truncation). A JVM crash
- * prints no RESULT line.
+ * Maps a file, optionally runs one kind of copy often enough for it to be JIT-compiled, makes the pages beyond 32
+ * MB unreadable in one of several ways (the "inducer"), then copies from 32 MB. Prints one RESULT line saying
+ * whether the copy threw at the copy ("at-read"), threw after the method that did the copy had returned ("late"),
+ * did not throw ("no-error"), or whether the inducer itself failed ("induce-failed", e.g. a refused truncation). A
+ * JVM crash prints no RESULT line.
  *
  * <p>
  * Args: file map(legacy|arena) kind size(bytes) hot(true|false) inducer...
@@ -62,6 +62,15 @@ public class FaultProbe {
             }
         }
         return "dst: " + content + " file bytes, " + zero + " zero, " + filler + " unwritten, of " + dst.length;
+    }
+
+    /** What a fresh look at the file shows after the inducer ran: its size, or why it could not be read. */
+    static String after(final Path file) {
+        try (FileChannel ch = FileChannel.open(file, StandardOpenOption.READ)) {
+            return " [after: size " + ch.size() + "]";
+        } catch (final Throwable t) {
+            return " [after: " + t + "]";
+        }
     }
 
     /** Returns null if the pages were made unreadable, else why not. */
@@ -116,14 +125,14 @@ public class FaultProbe {
         if (map.equals("none")) {
             // The control: whether the inducer works on a file that is not mapped
             final String failed = induce(file, Arrays.copyOfRange(args, 5, args.length));
-            System.out.println("RESULT " + (failed == null ? "induced" : "induce-failed " + failed));
+            System.out.println("RESULT " + (failed == null ? "induced" : "induce-failed " + failed) + after(file));
             return;
         }
 
         final Common.Ctx ctx = new Common.Ctx(file, map);
         final Common.Copy copy = kind.startsWith("reader")
-                ? (Common.Copy) Class.forName("ReaderOps").getMethod("make", String.class, java.nio.ByteBuffer.class)
-                        .invoke(null, kind, ctx.buf)
+                ? (Common.Copy) Class.forName("ReaderOps")
+                        .getMethod("make", String.class, java.nio.ByteBuffer.class).invoke(null, kind, ctx.buf)
                 : Common.make(kind, ctx);
         final byte[] dst = new byte[Math.max(len, 8)];
         if (hot) {
@@ -146,7 +155,7 @@ public class FaultProbe {
             for (int i = 0; i < 10_000; i++) {
                 sink += System.identityHashCode(new Object());
             }
-            System.out.println("RESULT no-error " + describe(dst));
+            System.out.println("RESULT no-error " + describe(dst) + after(file));
         } catch (final Throwable t) {
             System.out.println(
                     "RESULT late " + t + " (thrown at " + t.getStackTrace()[0] + "; " + describe(dst) + ")");

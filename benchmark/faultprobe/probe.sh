@@ -121,7 +121,7 @@ after_local_fsutil() { :; }
 
 prepare_local_dotnet() {
     mkdir -p "$WORK/local" && FILE=$WORK/local/f.bin && INDUCE=(cmd powershell -NoProfile -Command
-        "\$f = [IO.File]::Open('$(jp "$FILE")', 'Open', 'Write', 'ReadWrite, Delete'); \$f.SetLength(4096); \$f.Close()")
+        "try { \$f = [IO.File]::Open('$(jp "$FILE")', 'Open', 'Write', 'ReadWrite, Delete'); \$f.SetLength(4096); \$f.Close() } catch { Write-Output \$_.Exception.ToString(); exit 1 }")
 }
 before_local_dotnet() { create "$FILE"; }
 after_local_dotnet() { :; }
@@ -231,14 +231,16 @@ prepare_vhd_detach() {
         "$vhd" "$vhd" > "$WORK/create.txt"
     printf 'select vdisk file="%s"\nattach vdisk readonly\n' "$vhd" > "$WORK/attach.txt"
     printf 'select vdisk file="%s"\ndetach vdisk\n' "$vhd" > "$WORK/detach.txt"
-    diskpart /s "$(jp "$WORK/create.txt")" &&
+    dp "$WORK/create.txt" &&
         create /q/f.bin &&
-        diskpart /s "$(jp "$WORK/detach.txt")" || return 1
+        dp "$WORK/detach.txt" || return 1
     FILE=/q/f.bin
     INDUCE=(cmd diskpart /s "$(jp "$WORK/detach.txt")")
 }
-before_vhd_detach() { diskpart /s "$(jp "$WORK/attach.txt")"; ls -l /q/f.bin; }
-after_vhd_detach() { diskpart /s "$(jp "$WORK/detach.txt")" || true; }
+# Git Bash would otherwise rewrite "/s" as a path
+dp() { MSYS_NO_PATHCONV=1 diskpart /s "$(jp "$1")"; }
+before_vhd_detach() { dp "$WORK/attach.txt"; ls -l /q/f.bin; }
+after_vhd_detach() { dp "$WORK/detach.txt" || true; }
 
 # ---- Windows: SMB over loopback, truncated on the server, or with the server stopped
 
@@ -249,14 +251,15 @@ prepare_smb() {
     FILE='\\localhost\cgsmb\f.bin'
 }
 smb_server_start() {
-    powershell -NoProfile -Command "Start-Service LanmanServer; for (\$i = 0; \$i -lt 30 -and -not (Test-Path '\\\\localhost\\cgsmb')) { Start-Sleep 1 }"
+    powershell -NoProfile -Command "sc.exe start srv2 | Out-Null; Start-Service LanmanServer; for (\$i = 0; \$i -lt 30 -and -not (Test-Path '\\\\localhost\\cgsmb')) { Start-Sleep 1 }"
 }
 prepare_smb_truncate() { prepare_smb && INDUCE=(setLength 'C:\cgsmb\f.bin'); }
 before_smb_truncate() { create /c/cgsmb/f.bin; }
 after_smb_truncate() { :; }
 
 prepare_smb_down() {
-    prepare_smb && INDUCE=(cmd powershell -NoProfile -Command "Stop-Service LanmanServer -Force")
+    # Stopping LanmanServer alone leaves the srv2 driver serving open sessions; fail if the share is still reachable
+    prepare_smb && INDUCE=(cmd powershell -NoProfile -Command "Stop-Service LanmanServer -Force; sc.exe stop srv2 | Out-Null; Start-Sleep 2; if (Test-Path '\\\\localhost\\cgsmb\\f.bin') { Write-Output 'share still reachable'; exit 1 }")
 }
 before_smb_down() { smb_server_start; create /c/cgsmb/f.bin; }
 after_smb_down() { smb_server_start; }
