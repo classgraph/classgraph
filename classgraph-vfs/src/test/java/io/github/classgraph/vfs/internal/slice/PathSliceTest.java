@@ -383,7 +383,7 @@ public class PathSliceTest {
             assertThat(reader.readByte(200_000)).isEqualTo(content[200_000]);
             // Make each kind of read often enough that it is JIT-compiled, since a fault in a compiled single-value
             // read or bulk copy is thrown after the read returns, and a fault in a compiled bulk copy of more than
-            // 64 bytes kills the JVM on aarch64
+            // 80 bytes kills the JVM on aarch64
             final var buf = new byte[8192];
             final var smallBuf = new byte[100];
             final var heapBuf = ByteBuffer.allocate(100);

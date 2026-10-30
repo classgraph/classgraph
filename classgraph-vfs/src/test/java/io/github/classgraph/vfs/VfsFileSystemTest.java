@@ -105,6 +105,55 @@ public class VfsFileSystemTest {
     }
 
     /**
+     * A stored entry of a jarfile that is truncated while it is open is reported as truncated by an
+     * {@link IOException}, both for an entry that the new end of the file cuts short and for one that now starts
+     * past it, rather than being returned short or empty as if the entry had ended. (Windows does not allow a
+     * mapped file to be truncated, so the test is skipped there if the file is mapped.)
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the fixture cannot be written.
+     */
+    @Test
+    public void storedEntryOfATruncatedJarfileThrows(@TempDir final Path tempDir) throws IOException {
+        final var jar = tempDir.resolve("stored.jar");
+        final var content = new byte[1024 * 1024];
+        Arrays.fill(content, (byte) 0x5A);
+        final var crc = new CRC32();
+        crc.update(content);
+        try (var out = new ZipOutputStream(Files.newOutputStream(jar))) {
+            for (final var name : List.of("first", "second")) {
+                final var entry = new ZipEntry(name);
+                entry.setMethod(ZipEntry.STORED);
+                entry.setSize(content.length);
+                entry.setCrc(crc.getValue());
+                out.putNextEntry(entry);
+                out.write(content);
+                out.closeEntry();
+            }
+        }
+        try (var vfs = new Vfs()) {
+            final var fs = vfs.open(jar).asFileSystem();
+            assertThat(Files.readAllBytes(fs.getPath("/first"))).isEqualTo(content);
+            try (var channel = FileChannel.open(jar, StandardOpenOption.WRITE)) {
+                channel.truncate(4096);
+            } catch (final IOException e) {
+                assumeTrue(false, "The file cannot be truncated while it is mapped: " + e);
+            }
+            for (final var name : List.of("/first", "/second")) {
+                assertThatThrownBy(() -> Files.readAllBytes(fs.getPath(name))).isInstanceOf(IOException.class)
+                        .hasMessageContaining("truncated");
+                assertThatThrownBy(() -> {
+                    try (var in = Files.newInputStream(fs.getPath(name))) {
+                        in.readAllBytes();
+                    }
+                }).isInstanceOf(IOException.class).hasMessageContaining("truncated");
+            }
+        }
+    }
+
+    /**
      * Relative paths cannot navigate between distinct filesystem views, including empty paths.
      *
      * @param tempDir
