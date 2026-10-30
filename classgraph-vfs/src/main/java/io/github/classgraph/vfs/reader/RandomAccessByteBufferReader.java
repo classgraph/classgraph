@@ -269,17 +269,18 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
     }
 
     /**
-     * Wrap the {@link InternalError} thrown when a read of a memory-mapped file touches a page that is no longer in
-     * the file, because the file was truncated after it was mapped, in an {@link IOException}. (The operating
-     * system signals the fault, and the JVM turns it into this error, which a read has to be made to throw inside
-     * its own catch -- see {@link #MAPPED_FILE_CAN_SHRINK}.)
+     * Wrap the {@link InternalError} thrown when a read of a memory-mapped file touches a page that cannot be read,
+     * in an {@link IOException}. The page is no longer in the file if the file was truncated after it was mapped,
+     * and cannot be read if the disk fails or is detached, or the server of a network filesystem stops. (The
+     * operating system signals the fault, and the JVM turns it into this error, which a read has to be made to
+     * throw inside its own catch -- see {@link #MAPPED_FILE_CAN_SHRINK}.)
      *
      * @param e
      *            the error thrown by the buffer access.
      * @return the wrapping {@link IOException}.
      */
-    private static IOException truncated(final InternalError e) {
-        return new IOException("File is truncated", e);
+    private static IOException pageFault(final InternalError e) {
+        return new IOException("Cannot read the mapped file: it was truncated, or its storage failed", e);
     }
 
     /**
@@ -333,7 +334,7 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
         } catch (final IllegalStateException e) {
             throw unmapped(e);
         } catch (final InternalError e) {
-            throw truncated(e);
+            throw pageFault(e);
         }
     }
 
@@ -371,7 +372,7 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
             throw new IOException("Cannot read a file that has been unmapped by closing what it was read through,"
                     + " or write into a destination buffer whose memory has been freed", e);
         } catch (final InternalError e) {
-            throw truncated(e);
+            throw pageFault(e);
         }
     }
 
@@ -386,7 +387,7 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
         } catch (final IllegalStateException e) {
             throw unmapped(e);
         } catch (final InternalError e) {
-            throw truncated(e);
+            throw pageFault(e);
         }
     }
 
@@ -412,7 +413,7 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
         } catch (final IllegalStateException e) {
             throw unmapped(e);
         } catch (final InternalError e) {
-            throw truncated(e);
+            throw pageFault(e);
         }
     }
 
@@ -427,7 +428,7 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
         } catch (final IllegalStateException e) {
             throw unmapped(e);
         } catch (final InternalError e) {
-            throw truncated(e);
+            throw pageFault(e);
         }
     }
 
@@ -447,7 +448,7 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
         } catch (final IllegalStateException e) {
             throw unmapped(e);
         } catch (final InternalError e) {
-            throw truncated(e);
+            throw pageFault(e);
         }
     }
 
