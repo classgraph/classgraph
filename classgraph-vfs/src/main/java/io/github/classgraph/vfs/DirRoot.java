@@ -385,7 +385,7 @@ public final class DirRoot extends VfsRoot {
             // file need not be read again. (A file deleted since the listing is still found, and fails to load.)
             entry = listedAttributes.isRegularFile() ? new DirEntry(this, path, name, listedAttributes) : null;
         } else {
-            entry = fileEntryForNio(name);
+            entry = fileEntry(name, path);
         }
         if (entry != null) {
             entriesByName.put(name, entry);
@@ -572,9 +572,21 @@ public final class DirRoot extends VfsRoot {
     @Nullable
     DirEntry fileEntryForNio(final String name) throws IOException {
         final var path = resolveExactName(name);
-        if (path == null) {
-            return null;
-        }
+        return path == null ? null : fileEntry(name, path);
+    }
+
+    /**
+     * Look up a regular file entry whose name has already been resolved, with one metadata read.
+     *
+     * @param name
+     *            the root-relative path.
+     * @param path
+     *            the path that {@link #resolveExactName(String)} resolved {@code name} to.
+     * @return the file entry, or {@code null} if not a regular file.
+     * @throws IOException
+     *             if checking case-sensitive path matching fails.
+     */
+    private @Nullable DirEntry fileEntry(final String name, final Path path) throws IOException {
         // The metadata is read before the case of the name is checked, since a missing file then costs only this
         // one read, and a file that is found need not be checked for existence again before its real path is read
         final BasicFileAttributes attributes;
