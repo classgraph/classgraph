@@ -55,10 +55,9 @@ import org.junit.jupiter.api.io.TempDir;
  * Looks entries up by names whose case does not match the case of the names they are stored under.
  *
  * <p>
- * Every assertion in here holds on every operating system, whether or not its filesystem is case-insensitive: a
- * lookup by exact name is not answered by a differently-cased name anywhere, and a lookup that ignores case is
- * answered by one everywhere. The one filesystem these tests do not hold on is a case-insensitive one mounted on
- * Linux, which {@link VfsRoot#getEntry(String)} documents as the exception; no test runs on one.
+ * A jarfile matches names exactly on every operating system. A directory finds a file the way its filesystem does,
+ * so on a filesystem that ignores case, such as those of Windows and macOS, a differently-cased name finds the
+ * file, and the tests ask the filesystem which kind it is rather than assuming one from the operating system.
  */
 public class VfsEntryLookupCaseTest {
     /** The name a file is stored under, in the case it is stored in. */
@@ -71,7 +70,9 @@ public class VfsEntryLookupCaseTest {
     private static final String CONTENT = "widget";
 
     /**
-     * A lookup by exact name is not answered by a file whose name differs only in case, on any operating system.
+     * A directory root finds a file under a name whose case differs from the name the file is stored under exactly
+     * when the filesystem does, and names the entry by the name that was asked for. A walk still reports the name
+     * the file is stored under.
      *
      * @param tempDir
      *            a temporary directory to build in.
@@ -79,19 +80,30 @@ public class VfsEntryLookupCaseTest {
      *             if the directory could not be built or read.
      */
     @Test
-    public void aDirectoryEntryIsNotFoundUnderADifferentlyCasedName(@TempDir final Path tempDir)
-            throws IOException {
+    public void aDirectoryEntryIsFoundUnderADifferentlyCasedNameWhenTheFilesystemFindsIt(
+            @TempDir final Path tempDir) throws IOException {
         final var dir = makeDir(tempDir, STORED_NAME);
+        final var filesystemIgnoresCase = Files.exists(dir.resolve(DIFFERENTLY_CASED_NAME));
         try (var vfs = new Vfs()) {
             final var root = vfs.open(dir.toString());
-            assertThat(root.getEntry(DIFFERENTLY_CASED_NAME)).isNull();
+            final var entry = root.getEntry(DIFFERENTLY_CASED_NAME);
+            final var content = root.load(DIFFERENTLY_CASED_NAME);
+            if (filesystemIgnoresCase) {
+                assertThat(Objects.requireNonNull(entry).getPathFromRoot()).isEqualTo(DIFFERENTLY_CASED_NAME);
+                assertThat(new String(entry.load(), StandardCharsets.UTF_8)).isEqualTo(CONTENT);
+                assertThat(new String(Objects.requireNonNull(content), StandardCharsets.UTF_8)).isEqualTo(CONTENT);
+            } else {
+                assertThat(entry).isNull();
+                assertThat(content).isNull();
+            }
             assertThat(Objects.requireNonNull(root.getEntry(STORED_NAME)).getPathFromRoot()).isEqualTo(STORED_NAME);
+            assertThat(root.getEntries()).extracting(VfsEntry::getPathFromRoot).containsExactly(STORED_NAME);
         }
     }
 
     /**
-     * The same holds for a jarfile, which carries its own namespace and so answers the same question the same way
-     * wherever it is read.
+     * A jarfile carries its own namespace, and so does not find an entry under a name whose case differs from the
+     * name the entry is stored under, wherever it is read.
      *
      * @param tempDir
      *            a temporary directory to build in.
@@ -142,8 +154,9 @@ public class VfsEntryLookupCaseTest {
     }
 
     /**
-     * A lookup that ignores case finds the file, and the entry it returns is named the way the file is stored,
-     * rather than the way it was asked for.
+     * A lookup that ignores case finds the file in every kind of root. A jarfile root names the entry the way it is
+     * stored. A directory root on a filesystem that ignores case finds the file by the exact lookup, which names
+     * the entry the way it was asked for, and otherwise names it the way it is stored.
      *
      * @param tempDir
      *            a temporary directory to build in.
@@ -159,7 +172,9 @@ public class VfsEntryLookupCaseTest {
                 final var root = vfs.open(rootPath);
                 final var entry = Objects.requireNonNull(root.getEntryCaseInsensitive(DIFFERENTLY_CASED_NAME),
                         rootPath);
-                assertThat(entry.getPathFromRoot()).as(rootPath).isEqualTo(STORED_NAME);
+                final var expectedName = rootPath.equals(dir.toString())
+                        && Files.exists(dir.resolve(DIFFERENTLY_CASED_NAME)) ? DIFFERENTLY_CASED_NAME : STORED_NAME;
+                assertThat(entry.getPathFromRoot()).as(rootPath).isEqualTo(expectedName);
                 assertThat(new String(entry.load(), StandardCharsets.UTF_8)).as(rootPath).isEqualTo(CONTENT);
                 // The exact name still matches when case is ignored
                 assertThat(Objects.requireNonNull(root.getEntryCaseInsensitive(STORED_NAME), rootPath)
@@ -282,10 +297,8 @@ public class VfsEntryLookupCaseTest {
 
     /**
      * A symbolic link whose name differs from the name of the file or directory it points at only in case is found
-     * by its own name, as a walk reports it and as a classloader finds it. Its real path differs from the name it
-     * was reached through only in case, which is also what a case-insensitive filesystem reports for a
-     * differently-cased name, so the case check has to tell the two apart. A case-insensitive filesystem cannot
-     * hold both names, so there this test is skipped.
+     * by its own name, as a walk reports it and as a classloader finds it, and a name that neither is stored under
+     * is not found. A case-insensitive filesystem cannot hold both names, so there this test is skipped.
      *
      * @param tempDir
      *            a temporary directory to build in.
@@ -426,14 +439,9 @@ public class VfsEntryLookupCaseTest {
 
     /**
      * A module exploded into a directory that is reached through a symbolic link answers a lookup the same way a
-     * directory root over the same directory does. The case check compares the real path of the file with the
-     * directory, so it has to be given the real path of the directory too.
-     *
-     * <p>
-     * Only a case-insensitive filesystem tells a module root that does that from one that does not, through
-     * {@link #DIFFERENTLY_CASED_NAME}. On a case-sensitive filesystem, the case-only symbolic link {@code alias.txt
-     * -> Alias.txt} still takes the case check down the path that tells a link from a folded name, and has to be
-     * found by both roots.
+     * directory root over the same directory does, including for {@link #DIFFERENTLY_CASED_NAME}, which both find
+     * on a filesystem that ignores case and neither finds on one that does not. On a case-sensitive filesystem, the
+     * case-only symbolic link {@code alias.txt -> Alias.txt} has to be found by both roots.
      *
      * @param tempDir
      *            a temporary directory to build in.

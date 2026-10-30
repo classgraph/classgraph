@@ -44,7 +44,6 @@ import java.util.List;
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.base.LogNode;
-import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
 import io.github.classgraph.vfs.internal.recycler.Recycler;
@@ -56,15 +55,6 @@ public final class ModuleRoot extends VfsRoot {
 
     /** Cached list of entries in the module, initialized on first call to {@link #getEntries()}. */
     private volatile @Nullable List<VfsEntry> entries;
-
-    /** Cached canonical directory path for an exploded module, or {@code null} if not yet resolved. */
-    private volatile @Nullable Path canonicalModuleDir;
-
-    /**
-     * The listings of the directories of an exploded module, which a name found in it is checked against, or
-     * {@code null} if not yet created.
-     */
-    private volatile @Nullable ExactNameListings moduleDirListings;
 
     /** Pool of {@link ModuleReader} instances for this module, guarded by {@link #moduleReaderRecyclerLock}. */
     private @Nullable Recycler<ModuleReader, IOException> moduleReaderRecycler;
@@ -400,54 +390,9 @@ public final class ModuleRoot extends VfsRoot {
         } finally {
             recycler.recycle(moduleReader);
         }
-        // An exploded module is a directory, and a module reader reads one through the filesystem, so on Windows
-        // and macOS it answers a lookup for a name whose case does not match the name the file is stored under.
-        // This method matches names exactly, so such a match is not one. A module packaged as a modular jarfile
-        // carries its own exact namespace, whatever filesystem it is read from, as does a module of the running JDK
-        final var moduleDir = canonicalModuleDir();
-        if (moduleDir != null) {
-            var listings = moduleDirListings;
-            if (listings == null) {
-                // Two threads racing here each create listings of the same directory, which is harmless
-                listings = new ExactNameListings(moduleDir);
-                moduleDirListings = listings;
-            }
-            final var caseFolded = listings.isCaseFolded(name);
-            // A directory that cannot be listed is checked by reading the real path of the file instead
-            if (caseFolded != null ? caseFolded : isCaseFoldedMatch(moduleDir, moduleDir.resolve(name))) {
-                return null;
-            }
-        }
+        // An exploded module is a directory, and a module reader reads one through the filesystem, so on a
+        // filesystem that ignores case, such as those of Windows and macOS, it finds the file under a name whose
+        // case differs from the name the file is stored under, as a directory root does
         return new ModuleEntry(this, name);
-    }
-
-    /**
-     * Return the canonical directory path if this module is an exploded directory on the filesystem.
-     *
-     * @return the canonical directory path, or {@code null} if the module is not an exploded directory.
-     */
-    private @Nullable Path canonicalModuleDir() {
-        var dir = canonicalModuleDir;
-        if (dir == null) {
-            final var moduleDir = getNioPath();
-            if (moduleDir == null) {
-                return null;
-            }
-            try {
-                if (!Files.isDirectory(moduleDir)) {
-                    return null;
-                }
-            } catch (final SecurityException e) {
-                // A directory that a SecurityManager will not let be read cannot be checked for a case-folded
-                // match, so the module reader's answer is taken as it is, as for a module that is not a directory.
-                // (Once the directory is known, FileUtils#canonicalize falls back to an ancestor or to the path
-                // itself rather than throwing.)
-                return null;
-            }
-            dir = FileUtils.canonicalize(moduleDir);
-            // Two threads racing here each compute the same path, which is harmless
-            canonicalModuleDir = dir;
-        }
-        return dir;
     }
 }
