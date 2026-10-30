@@ -1,0 +1,49 @@
+name: Fault probe
+
+permissions:
+  contents: read
+
+# Temporary: what each way of copying out of a mapped file does when the file is truncated, its disk is detached,
+# or its network server stops, on every OS and processor (benchmark/faultprobe).
+on:
+  push:
+    branches: [ fault-probe ]
+
+jobs:
+  probe:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-15-intel, windows-2022, windows-2025, windows-11-arm ]
+        jdk: [ 17, 25, 26 ]
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+    - name: Set up JDK 26 to build ClassGraph
+      uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+      with:
+        # Zulu has no JDK 26 for Windows on aarch64
+        distribution: ${{ matrix.os == 'windows-11-arm' && 'liberica' || 'zulu' }}
+        java-version: '26'
+    - name: Build ClassGraph
+      shell: bash
+      run: ./mvnw --no-transfer-progress -B -q -pl classgraph-vfs -am compile
+    - name: Set up the JDK to probe
+      uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+      with:
+        distribution: ${{ matrix.os == 'windows-11-arm' && 'liberica' || 'zulu' }}
+        java-version: ${{ matrix.jdk }}
+    - name: Probe
+      shell: bash
+      run: |
+        java -version
+        sep=":"
+        if [ "$RUNNER_OS" = "Windows" ]; then sep=";"; fi
+        bash benchmark/faultprobe/probe.sh fault-out "classgraph-base/target/classes${sep}classgraph-vfs/target/classes"
+        cat fault-out/faults.md >> "$GITHUB_STEP_SUMMARY"
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      if: always()
+      with:
+        name: fault-${{ matrix.os }}-${{ matrix.jdk }}
+        path: fault-out
