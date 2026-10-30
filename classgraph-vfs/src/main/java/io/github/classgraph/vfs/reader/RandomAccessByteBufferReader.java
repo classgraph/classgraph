@@ -54,7 +54,8 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
      * time, on x86-64 (see {@link #canFault}). On JDK 26, a 1 MB read takes 74 us one {@code long} at a time and 47
      * us in bulk. Elsewhere, no read of a buffer that can fault is copied in bulk.
      */
-    private static final int MIN_BULK_COPY_SIZE = VersionFinder.IS_X86_64 ? 256 : Integer.MAX_VALUE;
+    private static final int MIN_BULK_COPY_SIZE = Integer.getInteger("minBulk",
+            VersionFinder.IS_X86_64 ? 256 : Integer.MAX_VALUE);
 
     /** A lock that no thread ever holds, which {@link #awaitFault()} asks about. */
     private static final Object FAULT_FENCE = new Object();

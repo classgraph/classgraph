@@ -23,8 +23,11 @@ public class ReadBench {
     public static void main(final String[] args) throws Exception {
         final Path dir = Path.of(args[0]);
         final String map = args[1], kind = args[2];
-        final int[] sizes = Arrays.stream(System.getProperty("sizes",
-                "8,16,32,48,64,80,100,128,192,256,384,512,1024,4096,16384,65536,262144,1048576").split(","))
+        final int[] sizes = Arrays
+                .stream(System
+                        .getProperty("sizes",
+                                "8,16,32,48,64,80,100,128,192,256,384,512,1024,4096,16384,65536,262144,1048576")
+                        .split(","))
                 .mapToInt(Integer::parseInt).toArray();
         final Path file = dir.resolve("bench.bin");
         if (!Files.exists(file) || Files.size(file) != FILE_SIZE) {
