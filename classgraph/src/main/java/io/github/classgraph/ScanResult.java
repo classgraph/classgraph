@@ -743,8 +743,10 @@ public final class ScanResult implements AutoCloseable {
      * <p>
      * Each call returns new {@link Resource} objects that are independent of those returned by
      * {@link #getAllResources()} and {@link #getResourcesWithPath(String)}. Close each returned resource when
-     * finished with it. After normalization, the path is matched with exact letter case across all platforms and
-     * classpath element types.
+     * finished with it. After normalization, the path is matched exactly, including letter case, in a jarfile or a
+     * module. In a directory it is matched the way the filesystem matches it, so on a filesystem that ignores case,
+     * such as those of Windows and macOS, a path whose case differs from the name the file is stored under finds
+     * the file, and the {@link Resource#getPath()} of the resource returned is the path that was asked for.
      *
      * @param resourcePath
      *            A complete resource path, relative to the classpath entry package root. The path is normalized
