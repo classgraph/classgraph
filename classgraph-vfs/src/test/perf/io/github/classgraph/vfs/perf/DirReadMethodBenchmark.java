@@ -30,18 +30,27 @@ package io.github.classgraph.vfs.perf;
 
 import java.io.EOFException;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.SecureDirectoryStream;
+import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -101,6 +110,61 @@ public class DirReadMethodBenchmark {
             @Override
             StatelessReader open(final Path dir) {
                 return name -> readChannel(dir.resolve(name));
+            }
+        },
+
+        /**
+         * Read the file's metadata, then open it, read its size, read it, and close it, all relative to a
+         * {@link SecureDirectoryStream} kept open on its directory, so that neither the metadata read nor the open
+         * walks the whole path. Where there is no {@link SecureDirectoryStream} (Windows), this is
+         * {@link #STAT_THEN_CHANNEL}.
+         */
+        SDS_STAT_THEN_CHANNEL {
+            @Override
+            Library.Reader open(final Path dir) throws IOException {
+                return new SecureDirReader(dir, /* stat = */ true);
+            }
+        },
+
+        /**
+         * Open the file, read its size, read it, and close it, relative to a {@link SecureDirectoryStream} kept
+         * open on its directory. Where there is no {@link SecureDirectoryStream} (Windows), this is
+         * {@link #CHANNEL}.
+         */
+        SDS_CHANNEL {
+            @Override
+            Library.Reader open(final Path dir) throws IOException {
+                return new SecureDirReader(dir, /* stat = */ false);
+            }
+        },
+
+        /**
+         * List each directory once, to find whether a name is in it, then open the file, read its size, read it,
+         * and close it, without reading its metadata by name.
+         */
+        LISTING_THEN_CHANNEL {
+            @Override
+            Library.Reader open(final Path dir) {
+                final Map<String, Set<String>> listings = new ConcurrentHashMap<>();
+                return (StatelessReader) name -> {
+                    final var slashIdx = name.lastIndexOf('/');
+                    final var parent = slashIdx < 0 ? "" : name.substring(0, slashIdx);
+                    final var listing = listings.computeIfAbsent(parent, p -> {
+                        final var names = new HashSet<String>();
+                        try (var stream = Files.newDirectoryStream(p.isEmpty() ? dir : dir.resolve(p))) {
+                            for (final var child : stream) {
+                                names.add(child.getFileName().toString());
+                            }
+                        } catch (final IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
+                        return names;
+                    });
+                    if (!listing.contains(name.substring(slashIdx + 1))) {
+                        throw new FileNotFoundException(name);
+                    }
+                    return readChannel(dir.resolve(name));
+                };
             }
         },
 
@@ -168,6 +232,95 @@ public class DirReadMethodBenchmark {
                     }
                 }
                 return bytes;
+            }
+        }
+    }
+
+    /**
+     * Reads each file relative to a {@link SecureDirectoryStream} opened once on its directory, or by its whole
+     * path where there is no {@link SecureDirectoryStream}.
+     */
+    private static final class SecureDirReader implements Library.Reader {
+        /** The directory. */
+        private final Path dir;
+
+        /** Whether to read a file's metadata before opening it. */
+        private final boolean stat;
+
+        /** The stream on the directory, or null where there is no {@link SecureDirectoryStream}. */
+        private final SecureDirectoryStream<Path> rootStream;
+
+        /** The streams on the directories under the directory, by their path relative to it. */
+        private final Map<String, SecureDirectoryStream<Path>> subdirStreams = new ConcurrentHashMap<>();
+
+        /**
+         * Open the directory.
+         *
+         * @param dir
+         *            the directory.
+         * @param stat
+         *            whether to read a file's metadata before opening it.
+         * @throws IOException
+         *             if the directory could not be opened.
+         */
+        SecureDirReader(final Path dir, final boolean stat) throws IOException {
+            this.dir = dir;
+            this.stat = stat;
+            final var stream = Files.newDirectoryStream(dir);
+            if (stream instanceof final SecureDirectoryStream<Path> secureStream) {
+                rootStream = secureStream;
+            } else {
+                stream.close();
+                rootStream = null;
+            }
+        }
+
+        @Override
+        public byte[] read(final String name) throws IOException {
+            if (rootStream == null) {
+                final var path = dir.resolve(name);
+                if (stat && !Files.readAttributes(path, BasicFileAttributes.class).isRegularFile()) {
+                    throw new IOException("Not a file: " + path);
+                }
+                return Method.readChannel(path);
+            }
+            final var slashIdx = name.lastIndexOf('/');
+            final SecureDirectoryStream<Path> stream;
+            if (slashIdx < 0) {
+                stream = rootStream;
+            } else {
+                stream = subdirStreams.computeIfAbsent(name.substring(0, slashIdx), p -> {
+                    try {
+                        return rootStream.newDirectoryStream(dir.getFileSystem().getPath(p));
+                    } catch (final IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                });
+            }
+            final var fileName = dir.getFileSystem().getPath(name.substring(slashIdx + 1));
+            if (stat && !stream.getFileAttributeView(fileName, BasicFileAttributeView.class).readAttributes()
+                    .isRegularFile()) {
+                throw new IOException("Not a file: " + name);
+            }
+            try (var channel = stream.newByteChannel(fileName, Set.of(StandardOpenOption.READ))) {
+                final var bytes = new byte[(int) channel.size()];
+                final var buffer = ByteBuffer.wrap(bytes);
+                while (buffer.hasRemaining()) {
+                    if (channel.read(buffer) < 0) {
+                        throw new EOFException();
+                    }
+                }
+                return bytes;
+            }
+        }
+
+        @Override
+        public void close() throws IOException {
+            for (final var stream : subdirStreams.values()) {
+                stream.close();
+            }
+            if (rootStream != null) {
+                rootStream.close();
             }
         }
     }
