@@ -83,7 +83,7 @@ import io.github.classgraph.vfs.perf.BenchmarkFixtures.Layout;
 public class DirReadMethodBenchmark {
     /** A way of reading a file by name. */
     public enum Method {
-        /** {@code VfsRoot.getEntry(name).load()}, on a root opened for each pass over the files. */
+        /** {@code VfsRoot.load(name)}, on a root opened for each pass over the files. */
         CGVFS {
             @Override
             Library.Reader open(final Path dir) throws IOException {

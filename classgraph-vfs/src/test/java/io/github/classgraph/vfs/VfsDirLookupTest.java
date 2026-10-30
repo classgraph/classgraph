@@ -33,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.abort;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SecureDirectoryStream;
@@ -42,6 +43,8 @@ import java.util.Objects;
 import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -75,6 +78,146 @@ public class VfsDirLookupTest {
             assertThat(root.getEntry("pkg")).isNull();
             assertThat(root.getEntry("pkg/B.txt")).isNull();
             assertThat(root.getEntry("pkg/sub/A.txt")).isNull();
+        }
+    }
+
+    /**
+     * Reading a file by name gives the same result as looking up its entry and reading that, both for the first
+     * name read in a directory and for the names read after it, which are opened without being looked up first.
+     *
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws IOException
+     *             if the directory could not be built or read.
+     */
+    @Test
+    public void readingByNameMatchesLookingUpAndReading(@TempDir final Path tempDir) throws IOException {
+        Files.createDirectories(tempDir.resolve("pkg/sub"));
+        Files.writeString(tempDir.resolve("pkg/A.txt"), "AAA");
+        Files.writeString(tempDir.resolve("pkg/B.txt"), "");
+        Files.writeString(tempDir.resolve("C.txt"), "C");
+        final var names = new String[] { "pkg/A.txt", "pkg/B.txt", "pkg/sub", "pkg", "pkg/D.txt", "pkg/sub/A.txt",
+                "nodir/A.txt", "pkg/A.txt/x", "C.txt", "", "/C.txt", "pkg//A.txt", "pkg/./A.txt", "pkg/../C.txt",
+                "pkg/a.txt" };
+        try (var vfs = new Vfs(); var vfs2 = new Vfs()) {
+            final var root = vfs.open(tempDir.toString());
+            final var lookupRoot = vfs2.open(tempDir.toString());
+            // Twice, since the first read in a directory looks the file up, and later reads open the file directly
+            for (var pass = 0; pass < 2; pass++) {
+                for (final var name : names) {
+                    final var entry = lookupRoot.getEntry(name);
+                    assertThat(root.load(name)).as(name).isEqualTo(entry == null ? null : entry.load());
+                }
+            }
+            assertThat(root.load("pkg/A.txt")).isEqualTo("AAA".getBytes(StandardCharsets.UTF_8));
+            assertThat(root.load("pkg/sub")).isNull();
+        }
+    }
+
+    /**
+     * A file read by name is read whole at the length it has when it is read, including a file larger than one read
+     * into an array (see {@link PathSlice#MAX_ARRAY_READ_SIZE}).
+     *
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws IOException
+     *             if the directory could not be built or read.
+     */
+    @Test
+    public void aFileReadByNameIsReadWholeAfterItChangesLength(@TempDir final Path tempDir) throws IOException {
+        final var file = tempDir.resolve("A.bin");
+        final var content = new byte[3 * PathSlice.MAX_ARRAY_READ_SIZE + 5];
+        new Random(5).nextBytes(content);
+        Files.write(file, content);
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(tempDir.toString());
+            assertThat(root.load("A.bin")).isEqualTo(content);
+            final var longer = Arrays.copyOf(content, content.length + PathSlice.MAX_ARRAY_READ_SIZE + 1);
+            Files.write(file, longer);
+            assertThat(root.load("A.bin")).isEqualTo(longer);
+            final var shorter = Arrays.copyOf(content, 7);
+            Files.write(file, shorter);
+            assertThat(root.load("A.bin")).isEqualTo(shorter);
+            Files.delete(file);
+            assertThat(root.load("A.bin")).isNull();
+        }
+    }
+
+    /**
+     * A file read by name is read from the directory that is at its path when it is read, even when the directory
+     * was deleted and made again after a file in it was read, and a file missing from the new directory is not
+     * found.
+     *
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws IOException
+     *             if the directory could not be built or read.
+     */
+    @Test
+    public void aFileReadByNameInADirectoryMadeAgainIsReadFromTheNewDirectory(@TempDir final Path tempDir)
+            throws IOException {
+        final var dir = tempDir.resolve("pkg");
+        Files.createDirectories(dir);
+        Files.writeString(dir.resolve("A.txt"), "old");
+        Files.writeString(dir.resolve("B.txt"), "B");
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(tempDir.toString());
+            assertThat(root.load("pkg/A.txt")).isEqualTo("old".getBytes(StandardCharsets.UTF_8));
+            assertThat(root.load("pkg/B.txt")).isEqualTo("B".getBytes(StandardCharsets.UTF_8));
+            Files.delete(dir.resolve("A.txt"));
+            Files.delete(dir.resolve("B.txt"));
+            Files.delete(dir);
+            Files.createDirectories(dir);
+            Files.writeString(dir.resolve("A.txt"), "newer");
+            assertThat(root.load("pkg/A.txt")).isEqualTo("newer".getBytes(StandardCharsets.UTF_8));
+            assertThat(root.load("pkg/B.txt")).isNull();
+            Files.writeString(dir.resolve("C.txt"), "C");
+            assertThat(root.load("pkg/C.txt")).isEqualTo("C".getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
+    /**
+     * Reading a file by name from a closed root, or from a root of a closed {@link Vfs}, throws.
+     *
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws IOException
+     *             if the directory could not be built or read.
+     */
+    @Test
+    public void readingByNameFromAClosedRootThrows(@TempDir final Path tempDir) throws IOException {
+        Files.writeString(tempDir.resolve("A.txt"), "A");
+        final VfsRoot root;
+        try (var vfs = new Vfs()) {
+            root = vfs.open(tempDir.toString());
+            assertThat(root.load("A.txt")).isEqualTo("A".getBytes(StandardCharsets.UTF_8));
+        }
+        assertThatThrownBy(() -> root.load("A.txt")).isInstanceOf(IOException.class);
+    }
+
+    /**
+     * Reading an entry of a jarfile by name gives its content, or null if there is no such file entry.
+     *
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws IOException
+     *             if the jarfile could not be built or read.
+     */
+    @Test
+    public void anEntryOfAJarfileIsReadByName(@TempDir final Path tempDir) throws IOException {
+        final var jar = tempDir.resolve("a.jar");
+        try (var out = new ZipOutputStream(Files.newOutputStream(jar))) {
+            out.putNextEntry(new ZipEntry("pkg/"));
+            out.closeEntry();
+            out.putNextEntry(new ZipEntry("pkg/A.txt"));
+            out.write("AAA".getBytes(StandardCharsets.UTF_8));
+            out.closeEntry();
+        }
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(jar.toString());
+            assertThat(root.load("pkg/A.txt")).isEqualTo("AAA".getBytes(StandardCharsets.UTF_8));
+            assertThat(root.load("pkg")).isNull();
+            assertThat(root.load("pkg/B.txt")).isNull();
         }
     }
 

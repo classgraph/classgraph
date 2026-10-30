@@ -31,7 +31,9 @@ package io.github.classgraph.vfs;
 import java.io.File;
 import java.io.IOError;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.net.URI;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.nio.file.ClosedDirectoryStreamException;
 import java.nio.file.DirectoryIteratorException;
@@ -67,6 +69,7 @@ import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
+import io.github.classgraph.vfs.internal.slice.Slice;
 
 /** A filesystem directory root. */
 public final class DirRoot extends VfsRoot {
@@ -758,6 +761,95 @@ public final class DirRoot extends VfsRoot {
             entriesByName.put(name, entry);
         }
         return entry;
+    }
+
+    @Override
+    byte @Nullable [] loadImpl(final String name) throws IOException {
+        final var lastSlashIdx = dirPrefix == null || name.isEmpty() ? NOT_CANONICAL
+                : lastSlashIdxIfCanonical(name);
+        if (lastSlashIdx != NOT_CANONICAL) {
+            final var dirName = lastSlashIdx < 0 ? "" : name.substring(0, lastSlashIdx);
+            final DirHandle handle;
+            try {
+                handle = dirHandle(dirName);
+            } catch (final NoSuchFileException | NotDirectoryException _) {
+                // The file's directory does not exist, so neither does the file
+                return null;
+            }
+            // A file can only be opened before its name is checked for case in a directory that is known to look
+            // names up case-sensitively. Until a lookup in the directory has found that out, the file is looked up
+            // first, below
+            if (handle != null && handle.inCaseSensitiveDirs) {
+                final var content = loadThroughHandle(name, lastSlashIdx, dirName, handle);
+                if (content != NOT_LOADED) {
+                    return content;
+                }
+            }
+        }
+        return super.loadImpl(name);
+    }
+
+    /** The value of {@link #loadThroughHandle} when the file has to be read by looking up its entry instead. */
+    private static final byte[] NOT_LOADED = new byte[0];
+
+    /**
+     * Read a file through the handle on its directory without first reading its metadata, so that the open finds
+     * out whether the file exists, and the length of the array is read from the open file.
+     *
+     * @param name
+     *            the root-relative path of the file, in canonical form.
+     * @param lastSlashIdx
+     *            the index of the last {@code '/'} in {@code name}, or -1 if it has none.
+     * @param dirName
+     *            the root-relative path of the file's directory, or {@code ""} for the root itself.
+     * @param handle
+     *            the handle on the file's directory, in a directory known to look names up case-sensitively.
+     * @return the content of the file, null if the file does not exist or is a directory, or {@link #NOT_LOADED} if
+     *         the file has to be read by looking up its entry instead.
+     * @throws IOException
+     *             if the file could not be read.
+     */
+    private byte @Nullable [] loadThroughHandle(final String name, final int lastSlashIdx, final String dirName,
+            final DirHandle handle) throws IOException {
+        final var channel = openFile(handle, dir.getFileSystem().getPath(name.substring(lastSlashIdx + 1)));
+        if (channel == null) {
+            // The file is not in the directory, or the handle was closed, or the directory was replaced since the
+            // handle was opened on it, so the file is opened by its whole path to tell these apart
+            try (var _ = FileChannel.open(resolveCanonicalName(name), StandardOpenOption.READ)) {
+                // The file is there, so it was not found through the handle because the handle is open on a
+                // directory that is no longer there, and is replaced by the next lookup in the directory
+                if (dirHandles.remove(dirName, handle)) {
+                    closeDirHandle(handle);
+                }
+            } catch (final NoSuchFileException _) {
+                return null;
+            } catch (final IOException _) {
+                // Reported by the lookup of the entry
+            }
+            return NOT_LOADED;
+        }
+        try (channel) {
+            if (Thread.currentThread().isInterrupted()) {
+                throw new InterruptedIOException("Interrupted while reading " + resolveCanonicalName(name));
+            }
+            final var length = channel.size();
+            if (length > Slice.MAX_BUFFER_SIZE) {
+                // Too large for an array, which the lookup of the entry reports
+                return NOT_LOADED;
+            }
+            final var content = DirEntry.read(channel, (int) length);
+            // A file whose length changed while it was read is read again by looking up its entry
+            return content != null ? content : NOT_LOADED;
+        } catch (final ClosedChannelException e) {
+            // Closed by an interrupt
+            throw e;
+        } catch (final IOException e) {
+            // A directory is opened as if it were a file, and fails only when it is read. It is not a file entry
+            if (Files.isDirectory(resolveCanonicalName(name))) {
+                return null;
+            }
+            throw e;
+        }
     }
 
     /**

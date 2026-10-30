@@ -418,6 +418,13 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
     /**
      * Read this entry's entire uncompressed content into a new byte array.
      *
+     * <p>
+     * To read a file whose name you know, without needing its entry, {@link VfsRoot#load(String) root.load(name)}
+     * gives the same result as {@link VfsRoot#getEntry(String) getEntry(name)} followed by {@code load()}, and
+     * returns {@code null} where {@code getEntry} would. It is faster for a directory root, which opens the file
+     * without first reading its metadata. For the same reason, it opens a named pipe, and so waits for a writer, as
+     * {@link java.nio.file.Files#readAllBytes(java.nio.file.Path)} does, rather than returning {@code null}.
+     *
      * @return a byte array containing the entry's content.
      * @throws IOException
      *             if the entry cannot be read, exceeds the maximum array size, or if the root or {@link Vfs} has
