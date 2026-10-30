@@ -46,6 +46,8 @@ import java.nio.file.StandardOpenOption;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.github.classgraph.vfs.internal.slice.PathSlice;
+
 /** Tests for {@link RandomAccessFileChannelReader}. */
 class RandomAccessFileChannelReaderTest {
     /**
@@ -179,6 +181,54 @@ class RandomAccessFileChannelReaderTest {
                 throw byInterruption ? new ClosedByInterruptException() : new AsynchronousCloseException();
             }
             return super.read(dst, position);
+        }
+    }
+
+    /** A {@link ShortReadFileChannel} that reads all it is asked for, and records the largest read asked for. */
+    private static final class LargestReadFileChannel extends ShortReadFileChannel {
+        /** The largest number of bytes that one read has asked for. */
+        private int largestRead;
+
+        LargestReadFileChannel(final FileChannel wrapped) {
+            super(wrapped);
+        }
+
+        @Override
+        public int read(final ByteBuffer dst, final long position) throws IOException {
+            largestRead = Math.max(largestRead, dst.remaining());
+            return super.wrapped.read(dst, position);
+        }
+    }
+
+    /**
+     * A read into a heap buffer is made in chunks of at most {@link PathSlice#MAX_ARRAY_READ_SIZE} bytes, and still
+     * fills the whole of the range asked for, and puts the buffer's position and limit back. A read into a direct
+     * buffer is made in one read.
+     */
+    @Test
+    void aLargeReadIntoAHeapBufferIsMadeInChunks(@TempDir final Path tmpDir) throws IOException {
+        final var fileLength = 3 * PathSlice.MAX_ARRAY_READ_SIZE + 5;
+        final var file = writeTestFile(tmpDir, fileLength);
+        try (var fileChannel = FileChannel.open(file, StandardOpenOption.READ);
+                var largestReadChannel = new LargestReadFileChannel(fileChannel)) {
+            final var reader = new RandomAccessFileChannelReader(largestReadChannel, 0L, fileLength);
+            final var arr = new byte[fileLength + 1];
+            assertThat(reader.read(2, arr, 3, fileLength - 2)).isEqualTo(fileLength - 2);
+            for (var i = 2; i < fileLength; i++) {
+                assertThat(arr[i + 1]).isEqualTo((byte) i);
+            }
+            assertThat(largestReadChannel.largestRead).isEqualTo(PathSlice.MAX_ARRAY_READ_SIZE);
+
+            final var heapBuf = ByteBuffer.allocate(fileLength).position(7);
+            assertThat(reader.read(0, heapBuf, 0, fileLength)).isEqualTo(fileLength);
+            assertThat(heapBuf.position()).isEqualTo(7);
+            assertThat(heapBuf.limit()).isEqualTo(fileLength);
+            assertThat(heapBuf.get(fileLength - 1)).isEqualTo((byte) (fileLength - 1));
+
+            final var directBuf = ByteBuffer.allocateDirect(fileLength);
+            assertThat(reader.read(0, directBuf, 0, fileLength)).isEqualTo(fileLength);
+            assertThat(largestReadChannel.largestRead).isEqualTo(fileLength);
+            assertThat(directBuf.get(fileLength - 1)).isEqualTo((byte) (fileLength - 1));
         }
     }
 

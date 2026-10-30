@@ -40,6 +40,7 @@ import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.base.internal.utils.StringUtils;
+import io.github.classgraph.vfs.internal.slice.PathSlice;
 
 /**
  * {@link RandomAccessReader} backed by a slice of a {@link FileChannel}. Defaults to
@@ -216,6 +217,11 @@ public final class RandomAccessFileChannelReader implements RandomAccessReader {
                 // bytes has been read. (A caller that streams the content, such as VfsFileChannel or an InputStream,
                 // takes a short read to mean the content has ended, so a short read has to be completed here.)
                 while (numBytesRead < numBytesToRead) {
+                    // A read into a heap buffer is made in chunks (see PathSlice#MAX_ARRAY_READ_SIZE)
+                    if (!dstBuf.isDirect()) {
+                        dstBuf.limit(dstBufStart + numBytesRead
+                                + Math.min(numBytesToRead - numBytesRead, PathSlice.MAX_ARRAY_READ_SIZE));
+                    }
                     final int numBytesReadThisCall;
                     try {
                         numBytesReadThisCall = fileChannel.read(dstBuf, srcStart + numBytesRead);
