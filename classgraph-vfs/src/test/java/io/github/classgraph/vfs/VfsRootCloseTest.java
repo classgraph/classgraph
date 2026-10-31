@@ -30,6 +30,7 @@ package io.github.classgraph.vfs;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -167,6 +168,34 @@ class VfsRootCloseTest {
 
             assertThat(secondRoot.getEntry("second.txt")).isNotNull();
             assertThat(vfs).doesNotContain(firstRoot).contains(secondRoot);
+        }
+    }
+
+    /**
+     * Closing a root opened through a symlink to its directory takes it out of the {@link Vfs} under both the
+     * symlink's path and the directory's own path, so opening either path again builds a fresh root.
+     */
+    @Test
+    void closingARootOpenedThroughASymlinkTakesItOutOfTheVfs(@TempDir final Path tempDir) throws Exception {
+        final var realDir = Files.createDirectory(tempDir.resolve("real"));
+        Files.writeString(realDir.resolve("widget.txt"), "widget");
+        final var linkedDir = tempDir.resolve("link");
+        try {
+            Files.createSymbolicLink(linkedDir, realDir);
+        } catch (final IOException | UnsupportedOperationException e) {
+            assumeTrue(false, "Symbolic links unavailable: " + e);
+        }
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(linkedDir.toString());
+            assertThat(vfs.open(realDir.toRealPath().toString())).isSameAs(root);
+
+            root.close();
+
+            assertThat(vfs).doesNotContain(root);
+            final var reopenedByLink = vfs.open(linkedDir.toString());
+            assertThat(reopenedByLink).isNotSameAs(root);
+            assertThat(vfs.open(realDir.toRealPath().toString())).isSameAs(reopenedByLink);
+            assertThat(reopenedByLink.load("widget.txt")).isNotNull();
         }
     }
 
