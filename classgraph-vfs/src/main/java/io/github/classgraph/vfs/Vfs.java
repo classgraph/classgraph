@@ -525,14 +525,27 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
                     // A directory root names itself by the canonical path of the directory that backs it, which is
                     // what the path it was reached through has to be reconciled with when the two differ -- when
                     // the directory was reached through a symlink, or, on Windows, by an 8.3 short name. The root
-                    // that was just built is not the one to keep in that case: the root belongs under the
-                    // canonical path, where another thread may already have opened it. Nothing but the directory's
-                    // own name is read to build one, so building one to find that name out costs a stat.
+                    // belongs under the canonical path in that case, where another thread may already have opened
+                    // one. Nothing but the directory's own name is read to build a root, but finding that name out
+                    // is half the cost of opening one on Windows, so the root just built is the one kept under the
+                    // canonical path unless one is already there, rather than being built again.
                     final var dirRoot = new DirRoot(this, dir);
                     final var canonicalKey = dirRoot.reportedPath();
                     if (!canonicalKey.equals(resolvedPath)) {
-                        dirRoot.close();
-                        return recordPathKey(resolvedPath, openReentrant(canonicalKey, outerLog));
+                        // The factory is called again only if the root it returned was closed before it was handed
+                        // out, and then builds a new one
+                        final var dirRootUsed = new AtomicBoolean();
+                        final VfsRoot root;
+                        try {
+                            root = openThroughCache(canonicalKey, /* aliasReportedPath = */ true,
+                                    () -> dirRootUsed.getAndSet(true) ? openRootUncached(canonicalKey, outerLog)
+                                            : adopt(dirRoot));
+                        } finally {
+                            if (!dirRootUsed.get()) {
+                                dirRoot.close();
+                            }
+                        }
+                        return recordPathKey(resolvedPath, root);
                     }
                     return recordPathKey(resolvedPath, adopt(dirRoot));
                 }
