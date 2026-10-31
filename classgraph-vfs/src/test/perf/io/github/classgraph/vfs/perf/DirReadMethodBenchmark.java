@@ -168,6 +168,110 @@ public class DirReadMethodBenchmark {
             }
         },
 
+        /**
+         * Open the file, read its size, and read it as classgraph-vfs reads a file of a directory root: in chunks
+         * of {@link #CHUNK_SIZE}, with the last chunk read together with one extra byte, to find the end of the
+         * file.
+         */
+        CHANNEL_CGVFS_LOOP {
+            @Override
+            StatelessReader open(final Path dir) {
+                return name -> {
+                    try (var channel = FileChannel.open(dir.resolve(name))) {
+                        final var length = (int) channel.size();
+                        final var bytes = new byte[length];
+                        final var buffer = ByteBuffer.wrap(bytes);
+                        final var buffers = new ByteBuffer[] { buffer, ByteBuffer.allocate(1) };
+                        var numBytesRead = 0L;
+                        do {
+                            final long n;
+                            if (length - numBytesRead > CHUNK_SIZE) {
+                                buffer.limit((int) numBytesRead + CHUNK_SIZE);
+                                n = channel.read(buffer);
+                            } else {
+                                buffer.limit(length);
+                                n = channel.read(buffers);
+                            }
+                            if (n < 0L) {
+                                throw new EOFException();
+                            }
+                            numBytesRead += n;
+                        } while (numBytesRead < length);
+                        return bytes;
+                    }
+                };
+            }
+        },
+
+        /**
+         * Open the file, read its size, read it in chunks of {@link #CHUNK_SIZE}, and then read one more byte, to
+         * find the end of the file, as {@link Files#readAllBytes(Path)} does.
+         */
+        CHANNEL_CHUNKED_EOF_READ {
+            @Override
+            StatelessReader open(final Path dir) {
+                return name -> {
+                    try (var channel = FileChannel.open(dir.resolve(name))) {
+                        final var bytes = new byte[(int) channel.size()];
+                        final var buffer = ByteBuffer.wrap(bytes);
+                        while (buffer.position() < bytes.length) {
+                            buffer.limit(Math.min(bytes.length, buffer.position() + CHUNK_SIZE));
+                            if (channel.read(buffer) < 0) {
+                                throw new EOFException();
+                            }
+                        }
+                        if (channel.read(ByteBuffer.allocate(1)) >= 0) {
+                            throw new IOException("Longer than its size: " + name);
+                        }
+                        return bytes;
+                    }
+                };
+            }
+        },
+
+        /** Open the file, read its size, and read it in chunks of {@link #CHUNK_SIZE}. */
+        CHANNEL_CHUNKED {
+            @Override
+            StatelessReader open(final Path dir) {
+                return name -> {
+                    try (var channel = FileChannel.open(dir.resolve(name))) {
+                        final var bytes = new byte[(int) channel.size()];
+                        final var buffer = ByteBuffer.wrap(bytes);
+                        while (buffer.position() < bytes.length) {
+                            buffer.limit(Math.min(bytes.length, buffer.position() + CHUNK_SIZE));
+                            if (channel.read(buffer) < 0) {
+                                throw new EOFException();
+                            }
+                        }
+                        return bytes;
+                    }
+                };
+            }
+        },
+
+        /**
+         * Open the file, read its size, and read it in one scattering read into the array and one extra byte, to
+         * find the end of the file.
+         */
+        CHANNEL_SCATTER {
+            @Override
+            StatelessReader open(final Path dir) {
+                return name -> {
+                    try (var channel = FileChannel.open(dir.resolve(name))) {
+                        final var bytes = new byte[(int) channel.size()];
+                        final var buffer = ByteBuffer.wrap(bytes);
+                        final var buffers = new ByteBuffer[] { buffer, ByteBuffer.allocate(1) };
+                        while (buffer.hasRemaining()) {
+                            if (channel.read(buffers) < 0) {
+                                throw new EOFException();
+                            }
+                        }
+                        return bytes;
+                    }
+                };
+            }
+        },
+
         /** {@link Files#readAllBytes(Path)}. */
         READ_ALL_BYTES {
             @Override
@@ -212,6 +316,9 @@ public class DirReadMethodBenchmark {
          *             if the directory could not be opened.
          */
         abstract Library.Reader open(Path dir) throws IOException;
+
+        /** The size of the chunks that classgraph-vfs reads a file of a directory root in. */
+        static final int CHUNK_SIZE = 256 * 1024;
 
         /**
          * Open a file, read its size, read it, and close it.
