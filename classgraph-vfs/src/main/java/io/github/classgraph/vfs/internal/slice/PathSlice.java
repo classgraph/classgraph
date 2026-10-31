@@ -104,7 +104,12 @@ public final class PathSlice extends Slice {
      * thread). Of chunks of 16 KB to 1 MB, measured with ChunkedReadBenchmark on Linux, Windows and macOS on x86-64
      * and aarch64, 256 KB was the closest to the fastest size for each file size and thread count: 6-8% slower on
      * average, against 6-11% for 512 KB and 1 MB, 10% for 128 KB, 17-21% for 64 KB and 24% for one read. It also
-     * keeps the native buffer each thread holds on to at 256 KB.
+     * keeps the native buffer each thread holds on to at 256 KB. The size is the same on every OS and architecture,
+     * since none gains clearly from another size when reading a whole directory of files: on aarch64, where 512 KB
+     * won by 2-26% in ChunkedReadBenchmark, it changed the time to read a directory of 1 MB files with
+     * FirstReadBenchmark by less than 3% on Linux, and on Windows made it 10% shorter on 4 threads but 13-18%
+     * longer on 16 and 32; and on Windows, reading each file of 64 KB to 4 MB in one read (DirReadMethodBenchmark)
+     * was 4-9% faster on 1 thread, but 8% slower on 4 threads on x86-64, while on Linux it was 2.8 times as slow.
      */
     public static final int MAX_ARRAY_READ_SIZE = 256 * 1024;
 
