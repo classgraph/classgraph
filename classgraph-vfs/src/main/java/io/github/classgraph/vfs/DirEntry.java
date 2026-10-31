@@ -334,7 +334,7 @@ final class DirEntry extends VfsEntry {
         // the file is reached. When a read that asked for the rest of the array and the extra byte fills only the
         // array, the end of the file was reached (POSIX lets a read of a regular file be short only at the end of
         // the file), so the file has the expected length. A large file is read in chunks (see
-        // PathSlice#MAX_ARRAY_READ_SIZE), and the last chunk with the extra byte
+        // PathSlice#MAX_ARRAY_READ_SIZE), and the extra byte is read with the last chunk.
         do {
             final long numBytesReadThisCall;
             if (length - numBytesRead > PathSlice.MAX_ARRAY_READ_SIZE) {
