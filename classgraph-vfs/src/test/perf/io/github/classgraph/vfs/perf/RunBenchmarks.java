@@ -62,6 +62,13 @@ import io.github.classgraph.vfs.perf.BenchmarkFixtures.Layout;
  * of all three content types takes about an hour per content type on four CPUs.
  *
  * <p>
+ * How far the two rounds of a cell differ shows how small a difference between libraries the run can resolve. On
+ * GitHub's runners (run 41189422120), the median difference was 0.7-1.5% on Linux, 1.1-3.9% on Windows, and 13-22%
+ * on macOS. On macOS the ratio of a library's time to cgvfs's in the same round varied as much as the times did, so
+ * the speed of those runners changes within seconds, faster than running the libraries side by side can cancel out,
+ * and a difference of less than about 30% between libraries cannot be resolved there.
+ *
+ * <p>
  * Run it with {@code cgvfs.bench.dir} on a disk-backed filesystem, not a RAM-backed one such as {@code /tmp} on
  * many Linux systems, since that is where jarfiles are read from in practice. The archives are in the page cache
  * after they are generated, so they are read from RAM either way, but a RAM-backed filesystem serves reads and

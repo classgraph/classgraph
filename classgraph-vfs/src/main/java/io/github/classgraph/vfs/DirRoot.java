@@ -224,13 +224,20 @@ public final class DirRoot extends VfsRoot {
             throw new IOException("Could not resolve directory " + dir + " : " + e, e);
         }
         // Whether it is a directory is not read again: the caller has just read it, and each read of a file's
-        // metadata is a system call, which is a measurable part of the cost of opening a root
+        // metadata is a system call, which is a measurable part of the cost of opening a root. Whether it can be
+        // read is checked, so that a directory that cannot be read fails to open, rather than at its first read
         if (!FileUtils.canRead(absoluteDir)) {
             throw new IOException("Not a readable directory: " + absoluteDir);
         }
         // A root is named by the canonical path of the directory that backs it, the same way a jarfile root is
         // named by the canonical path of its jarfile, so that a directory reached through a symlink or -- on
-        // Windows -- through an 8.3 short name is recognized as the directory it really is, and read once
+        // Windows -- through an 8.3 short name is recognized as the directory it really is, and read once. This
+        // costs a fixed amount for each root: creating a Vfs and opening a directory root in it took 100-125 us,
+        // closing it 40-50 us, and each thread's first read from it 25-46 us more than its later reads, measured
+        // in FirstReadBenchmark on GitHub's Linux runners (x86-64 and aarch64). That is why reading every file
+        // of a directory once through a new root takes 0.2-0.6 ms longer than reading them with
+        // Files.readAllBytes, which opens nothing first. A canonical path is not kept for the next root of the same
+        // directory, since a symlink on the path can be changed in between
         this.dir = FileUtils.canonicalize(absoluteDir);
         try {
             this.pathStr = FileUtils.pathStr(this.dir);
