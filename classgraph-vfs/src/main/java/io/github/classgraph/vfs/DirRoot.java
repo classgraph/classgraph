@@ -241,7 +241,7 @@ public final class DirRoot extends VfsRoot {
         try {
             this.pathStr = FileUtils.pathStr(this.dir);
         } catch (final IOError | SecurityException e) {
-            throw new IOException("Could not form URI for" + this.dir + " : " + e, e);
+            throw new IOException("Could not form URI for " + this.dir + " : " + e, e);
         }
         final var dirStr = this.dir.toString();
         this.dirPrefix = this.dir.getFileSystem() == FileSystems.getDefault()
