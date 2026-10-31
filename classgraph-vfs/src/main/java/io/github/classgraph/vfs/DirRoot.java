@@ -211,9 +211,9 @@ public final class DirRoot extends VfsRoot {
      * @param vfs
      *            the owning {@link Vfs}.
      * @param dir
-     *            the directory path.
+     *            the directory path, which the caller has found to be a directory.
      * @throws IOException
-     *             if the directory does not exist or cannot be read.
+     *             if the directory cannot be read.
      */
     DirRoot(final Vfs vfs, final Path dir) throws IOException {
         super(vfs);
@@ -223,7 +223,9 @@ public final class DirRoot extends VfsRoot {
         } catch (final IOError e) {
             throw new IOException("Could not resolve directory " + dir + " : " + e, e);
         }
-        if (!FileUtils.canReadAndIsDir(absoluteDir)) {
+        // Whether it is a directory is not read again: the caller has just read it, and each read of a file's
+        // metadata is a system call, which is a measurable part of the cost of opening a root
+        if (!FileUtils.canRead(absoluteDir)) {
             throw new IOException("Not a readable directory: " + absoluteDir);
         }
         // A root is named by the canonical path of the directory that backs it, the same way a jarfile root is
