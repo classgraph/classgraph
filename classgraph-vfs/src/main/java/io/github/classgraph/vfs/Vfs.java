@@ -539,7 +539,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
                         try {
                             root = openThroughCache(canonicalKey, /* aliasReportedPath = */ true,
                                     () -> dirRootUsed.getAndSet(true) ? openRootUncached(canonicalKey, outerLog)
-                                            : adopt(dirRoot));
+                                            : recordPathKey(canonicalKey, adopt(dirRoot)));
                         } finally {
                             if (!dirRootUsed.get()) {
                                 dirRoot.close();
