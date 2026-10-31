@@ -117,8 +117,13 @@ public final class PathSlice extends Slice {
      * only one positional read run at a time: the JDK reads through a handle opened for synchronous I/O, where a
      * positional read moves the file pointer, so it holds the channel's position lock while it saves the pointer,
      * reads and restores the pointer. Threads sharing a channel therefore wait for each other. On Linux and macOS
-     * positional reads of the same channel run in parallel, so the one channel is shared, and no more file
-     * descriptors are used than one per file.
+     * the positional reads of one channel run in parallel, but on every OS each read enters the monitor of the
+     * channel's {@code NativeThreadSet} before and after the read, so threads that share a channel still wait for
+     * each other there. Measured on JDK 26 on Linux x86-64 by reading a jarfile in the page cache at random
+     * positions on 16 threads, a channel for each thread read 3.5 times as many 32 KB blocks per second as one
+     * shared channel, 2.2 times as many 64 KB blocks, and as many 256 KB blocks. Off Windows the one channel is
+     * still shared, so that no more file descriptors are used than one per file; whether a channel for each read
+     * makes reading a whole jarfile faster there has not been measured.
      *
      * <p>
      * TODO: this works around the JDK's Windows implementation of positional reads (in
