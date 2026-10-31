@@ -43,6 +43,7 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -465,10 +466,11 @@ public class DirReadMethodBenchmark {
     private ExecutorService executor;
 
     /**
-     * Find, and if necessary generate, the directory, and start the worker threads.
+     * Find, and if necessary generate, the directory, check that the method reads every file's content, and start
+     * the worker threads.
      *
      * @throws IOException
-     *             if the directory could not be generated.
+     *             if the directory could not be generated, or the method read a file wrongly.
      * @throws InterruptedException
      *             if interrupted while starting the worker threads.
      */
@@ -477,6 +479,13 @@ public class DirReadMethodBenchmark {
         dir = BenchmarkFixtures.path(content, Layout.DIR);
         totalBytes = BenchmarkFixtures.totalBytes(content);
         final List<String> names = new ArrayList<>(BenchmarkFixtures.entryNames(content));
+        try (var reader = method.open(dir)) {
+            for (final var name : names) {
+                if (!Arrays.equals(reader.read(name), Files.readAllBytes(dir.resolve(name)))) {
+                    throw new IOException(method + " read " + name + " wrongly");
+                }
+            }
+        }
         Collections.shuffle(names, new Random(3));
         shares = new ArrayList<>();
         for (var i = 0; i < threads; i++) {
