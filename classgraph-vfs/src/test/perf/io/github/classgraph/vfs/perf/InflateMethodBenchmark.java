@@ -40,6 +40,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
@@ -97,8 +98,11 @@ public class InflateMethodBenchmark {
     /** The inner jarfile. */
     private byte[] jar;
 
-    /** The shuffled data offsets, deflated sizes and inflated sizes, split into one share per thread. */
-    private List<List<int[]>> shares;
+    /**
+     * The shuffled data offsets, deflated sizes and inflated sizes, which each thread takes the next of whenever it
+     * finishes one.
+     */
+    private List<int[]> shuffled;
 
     /** The total inflated size of the entries, to check that every byte was inflated. */
     private long totalBytes;
@@ -129,10 +133,7 @@ public class InflateMethodBenchmark {
             }
         }
         Collections.shuffle(entries, new Random(3));
-        shares = new ArrayList<>();
-        for (var i = 0; i < threads; i++) {
-            shares.add(entries.subList(entries.size() * i / threads, entries.size() * (i + 1) / threads));
-        }
+        shuffled = entries;
         executor = Executors.newFixedThreadPool(threads);
         final Callable<Object> noop = () -> null;
         executor.invokeAll(Collections.nCopies(threads, noop));
@@ -154,23 +155,22 @@ public class InflateMethodBenchmark {
     @Benchmark
     public long inflateEveryEntryOnce() throws Exception {
         var bytesInflated = 0L;
-        final List<Callable<Long>> tasks = new ArrayList<>(threads);
-        for (final var share : shares) {
-            tasks.add(() -> {
-                var shareBytes = 0L;
-                final var inflater = new Inflater(/* nowrap = */ true);
-                try {
-                    for (final var entry : share) {
-                        shareBytes += inflate(inflater, entry[0], entry[1], entry[2]).length;
-                        inflater.reset();
-                    }
-                } finally {
-                    inflater.end();
+        final var next = new AtomicInteger();
+        final Callable<Long> task = () -> {
+            var threadBytes = 0L;
+            final var inflater = new Inflater(/* nowrap = */ true);
+            try {
+                for (int i; (i = next.getAndIncrement()) < shuffled.size();) {
+                    final var entry = shuffled.get(i);
+                    threadBytes += inflate(inflater, entry[0], entry[1], entry[2]).length;
+                    inflater.reset();
                 }
-                return shareBytes;
-            });
-        }
-        for (final var future : executor.invokeAll(tasks)) {
+            } finally {
+                inflater.end();
+            }
+            return threadBytes;
+        };
+        for (final var future : executor.invokeAll(Collections.nCopies(threads, task))) {
             try {
                 bytesInflated += future.get();
             } catch (final ExecutionException e) {
