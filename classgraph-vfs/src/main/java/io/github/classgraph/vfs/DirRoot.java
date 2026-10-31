@@ -98,6 +98,12 @@ public final class DirRoot extends VfsRoot {
      */
     private final @Nullable String dirPrefix;
 
+    /**
+     * The string form of {@link #dir} followed by {@code '\'}, if {@link #dir} is in the default filesystem and
+     * that filesystem's separator is {@code '\'}, as it is on Windows, otherwise null. See {@link #isExactName}.
+     */
+    private final @Nullable String backslashDirPrefix;
+
     /** Cached list of entries under this directory, initialized on first call to {@link #getEntries()}. */
     private volatile @Nullable List<VfsEntry> entries;
 
@@ -233,6 +239,10 @@ public final class DirRoot extends VfsRoot {
         this.dirPrefix = this.dir.getFileSystem() == FileSystems.getDefault()
                 && "/".equals(this.dir.getFileSystem().getSeparator())
                         ? dirStr.endsWith("/") ? dirStr : dirStr + "/"
+                        : null;
+        this.backslashDirPrefix = this.dir.getFileSystem() == FileSystems.getDefault()
+                && "\\".equals(this.dir.getFileSystem().getSeparator())
+                        ? dirStr.endsWith("\\") ? dirStr : dirStr + "\\"
                         : null;
         this.useDirHandles = dirPrefix != null;
     }
@@ -678,7 +688,10 @@ public final class DirRoot extends VfsRoot {
      * parsing and normalizing a path removes repeated and trailing separators and {@code "."} and {@code ".."}
      * segments, so the name is exact if and only if the string form of {@code resolved} is {@link #dirPrefix}
      * followed by {@code name}. Comparing strings this way costs a fraction of {@link #relativeName}, which
-     * relativizes the path and joins its segments.
+     * relativizes the path and joins its segments. On Windows, parsing turns each {@code '/'} into {@code '\'}, so
+     * a name holding no {@code '\'} is exact if and only if the string form of {@code resolved} is
+     * {@link #backslashDirPrefix} followed by {@code name} with {@code '\'} in place of each {@code '/'}, and a
+     * name holding a {@code '\'} is never exact, since {@code '\'} is a separator there.
      *
      * @param name
      *            the root-relative path that was looked up.
@@ -688,7 +701,13 @@ public final class DirRoot extends VfsRoot {
      */
     private boolean isExactName(final String name, final Path resolved) {
         if (dirPrefix == null) {
-            return name.equals(relativeName(resolved));
+            if (backslashDirPrefix == null || name.isEmpty()) {
+                return name.equals(relativeName(resolved));
+            }
+            final var resolvedStr = resolved.toString();
+            return name.indexOf('\\') < 0 && resolvedStr.length() == backslashDirPrefix.length() + name.length()
+                    && resolvedStr.startsWith(backslashDirPrefix) && resolvedStr
+                            .regionMatches(backslashDirPrefix.length(), name.replace('/', '\\'), 0, name.length());
         }
         if (name.isEmpty()) {
             // The root itself

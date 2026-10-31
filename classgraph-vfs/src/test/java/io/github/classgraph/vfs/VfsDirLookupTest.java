@@ -115,6 +115,34 @@ public class VfsDirLookupTest {
     }
 
     /**
+     * A file is found by its root-relative path, and not by a name that reaches it by some other route: one with an
+     * empty, {@code "."} or {@code ".."} segment, or one written with the platform separator on Windows.
+     *
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws IOException
+     *             if the directory could not be built or read.
+     */
+    @Test
+    public void aFileIsFoundOnlyByItsRootRelativePath(@TempDir final Path tempDir) throws IOException {
+        Files.createDirectories(tempDir.resolve("pkg/sub"));
+        Files.writeString(tempDir.resolve("pkg/sub/A.txt"), "A");
+        Files.writeString(tempDir.resolve("C.txt"), "C");
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(tempDir.toString());
+            for (final var name : new String[] { "pkg/sub/A.txt", "C.txt" }) {
+                assertThat(root.getEntry(name)).as(name).isNotNull();
+                assertThat(root.load(name)).as(name).isNotNull();
+            }
+            for (final var name : new String[] { "pkg//sub/A.txt", "pkg/./sub/A.txt", "pkg/sub/../sub/A.txt",
+                    "./C.txt", "pkg/../C.txt", "pkg\\sub\\A.txt", "pkg/sub\\A.txt", "/C.txt" }) {
+                assertThat(root.getEntry(name)).as(name).isNull();
+                assertThat(root.load(name)).as(name).isNull();
+            }
+        }
+    }
+
+    /**
      * A file read by name is read whole at the length it has when it is read, including a file larger than one read
      * into an array (see {@link PathSlice#MAX_ARRAY_READ_SIZE}).
      *
