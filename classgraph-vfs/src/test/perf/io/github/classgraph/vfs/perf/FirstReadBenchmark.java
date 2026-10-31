@@ -39,6 +39,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -61,8 +62,9 @@ import io.github.classgraph.vfs.perf.BenchmarkFixtures.Layout;
  * that caches the content of entries gets no benefit from its cache.
  *
  * <p>
- * The entries are shuffled once, and each of the {@link #threads} worker threads reads an equal share of the
- * shuffled list. The worker threads are started before timing starts, so starting them is not timed.
+ * The entries are shuffled once, and the {@link #threads} worker threads take the next entry of the shuffled list
+ * whenever they finish one, as ClassGraph's work queue does, so that a thread that is given large entries does not
+ * hold up the others. The worker threads are started before timing starts, so starting them is not timed.
  *
  * <p>
  * Run it through {@link RunBenchmarks}, which only pairs each library with the layouts it supports.
@@ -91,8 +93,8 @@ public class FirstReadBenchmark {
     /** The directory or outer jarfile. */
     private Path archive;
 
-    /** The shuffled entry names, split into one share per thread. */
-    private List<List<String>> shares;
+    /** The shuffled entry names. */
+    private List<String> shuffled;
 
     /** The total size of the entries, to check that every byte was read. */
     private long totalBytes;
@@ -112,12 +114,8 @@ public class FirstReadBenchmark {
     public void setup() throws IOException, InterruptedException {
         archive = BenchmarkFixtures.path(content, layout);
         totalBytes = BenchmarkFixtures.totalBytes(content);
-        final List<String> shuffled = new ArrayList<>(BenchmarkFixtures.entryNames(content));
+        shuffled = new ArrayList<>(BenchmarkFixtures.entryNames(content));
         Collections.shuffle(shuffled, new Random(3));
-        shares = new ArrayList<>();
-        for (var i = 0; i < threads; i++) {
-            shares.add(shuffled.subList(shuffled.size() * i / threads, shuffled.size() * (i + 1) / threads));
-        }
         executor = Executors.newFixedThreadPool(threads);
         // Start every worker thread now, rather than during the first timed operation (a fixed thread pool starts
         // a new thread for each task submitted until it has its full number of threads)
@@ -142,17 +140,15 @@ public class FirstReadBenchmark {
     public long readEveryEntryOnce() throws Exception {
         var bytesRead = 0L;
         try (var reader = library.open(archive, layout)) {
-            final List<Callable<Long>> tasks = new ArrayList<>(threads);
-            for (final var share : shares) {
-                tasks.add(() -> {
-                    var shareBytesRead = 0L;
-                    for (final var name : share) {
-                        shareBytesRead += reader.read(name).length;
-                    }
-                    return shareBytesRead;
-                });
-            }
-            for (final var future : executor.invokeAll(tasks)) {
+            final var next = new AtomicInteger();
+            final Callable<Long> task = () -> {
+                var threadBytesRead = 0L;
+                for (int i; (i = next.getAndIncrement()) < shuffled.size();) {
+                    threadBytesRead += reader.read(shuffled.get(i)).length;
+                }
+                return threadBytesRead;
+            };
+            for (final var future : executor.invokeAll(Collections.nCopies(threads, task))) {
                 try {
                     bytesRead += future.get();
                 } catch (final ExecutionException e) {

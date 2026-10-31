@@ -439,14 +439,14 @@ public enum Library {
         /**
          * {@code JarFileSystem} up to at least RELEASE310 copies an entry over 100000 bytes to a temporary file
          * whose name depends only on the jarfile and entry, and each read copies it again, truncating the file
-         * while streams returned to other threads are still reading it, so concurrent reads of
-         * {@link Content#BINARY} come back short (apache/netbeans#9761). The fix (apache/netbeans#9762) removes
-         * {@code temporaryName}, so {@link Content#BINARY} is benchmarked only when a fixed {@code JarFileSystem}
-         * is ahead of the NetBeans jar on the classpath.
+         * while streams returned to other threads are still reading it, so concurrent reads of {@link Content#TEXT}
+         * and {@link Content#BINARY}, which both have entries over 100000 bytes, come back short
+         * (apache/netbeans#9761). The fix (apache/netbeans#9762) removes {@code temporaryName}, so they are
+         * benchmarked only when a fixed {@code JarFileSystem} is ahead of the NetBeans jar on the classpath.
          */
         @Override
         public boolean supports(final Content content) {
-            return content != Content.BINARY || Arrays.stream(JarFileSystem.class.getDeclaredMethods())
+            return content == Content.CLASSES || Arrays.stream(JarFileSystem.class.getDeclaredMethods())
                     .noneMatch(method -> method.getName().equals("temporaryName"));
         }
 

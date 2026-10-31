@@ -564,18 +564,21 @@ archives, runs everything, and writes the tables below; its Javadoc gives the co
 
 Three kinds of content, each in five layouts:
 
-* **Content.** *Classfiles*: the first 2000 classfiles of `java.base`, small entries that deflate
-  to about half their size, which is what a classpath scan reads. *Text*: 512 entries of 64KB of
-  pseudo-English text, which deflates to about a third. *Binary*: 32 entries of 1MB of
-  pseudo-random bytes, which do not compress.
+* **Content.** *Classfiles*: 2000 classfiles from across `java.base` (7MB), small entries that
+  deflate to about half their size, which is what a classpath scan reads. *Text*: 1424 entries of
+  pseudo-English text from 512 bytes to 128KB (34MB), which deflates to about a third. *Binary*: 34
+  entries of pseudo-random bytes from 64KB to 4MB (35MB), which do not compress. The sizes of the
+  text and binary entries are spread evenly on a log scale, so that half of the bytes are in
+  entries of under 66KB and 2.2MB respectively; in the jarfiles of a Maven repository, half of the
+  bytes of text resources are in entries of under 67KB, and of binary resources under 2.8MB.
 * **Layout.** A directory; a jarfile with its entries stored; a jarfile with its entries deflated;
   and that deflated jarfile nested inside an outer jarfile, either stored or deflated there.
 
 Two benchmarks:
 
 * **First reads.** The archive is opened, every entry is looked up by name and read in full exactly
-  once, in a shuffled order, split evenly between 1, 2, 4, 8 or 16 threads, and the archive is
-  closed. This is how a classloader or a scanner reads a jarfile, so a library that caches the
+  once, in a shuffled order, by 1, 2, 4 or more threads that each take the next entry whenever
+  they finish one, and the archive is closed. This is how a classloader or a scanner reads a jarfile, so a library that caches the
   content of entries gains nothing from its cache. The result is the total size of the entries
   divided by the time taken, including opening and closing the archive, in MB/s.
 * **Whole archive.** One thread opens the archive, reads every entry in turn, and closes it. The
@@ -591,13 +594,16 @@ A library is left out of a layout it cannot read (see the [features](#features) 
 `ZipInputStream` cannot read an entry by name, so it appears only in the whole-archive tables.
 NetBeans was run with `JarFileSystem` built from the fix in
 [apache/netbeans#9762](https://github.com/apache/netbeans/pull/9762), placed ahead of the NetBeans
-jarfiles on the classpath. Without that fix, NetBeans is left out of the binary content (see the
-notes above), since its reads of 1MB entries come back short when threads read concurrently. Each
+jarfiles on the classpath. Without that fix, NetBeans is left out of the text and binary content
+(see the notes above), since its reads of entries over 100000 bytes come back short when threads
+read concurrently. Each
 library was set up as described in those notes; Commons VFS in particular uses its own manager
 with `CacheStrategy.MANUAL`.
 
-Each cell is one JMH fork, with 2 warmup iterations and 3 measurement iterations of 2 seconds,
-and a heap of 8GB. Machine: AMD Ryzen 9 3950X, 16 physical
+All the libraries are run on one combination of content and layout one after another, and then
+again in reverse order, so that a change in the speed of the machine during the run does not favor
+some libraries over others. Each cell is the mean of those two JMH forks, each with 4 warmup and 4
+measurement iterations of 1 second, and a heap of 2GB. Machine: AMD Ryzen 9 3950X, 16 physical
 cores with two hardware threads each, 125GB RAM, Linux, JDK 26.0.2. The archives are in `/tmp`,
 which is `tmpfs` here, so every read comes out of memory.
 

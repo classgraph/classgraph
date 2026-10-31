@@ -49,6 +49,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.compress.archivers.zip.ZipFile;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -403,8 +404,11 @@ public class ReadMethodBenchmark {
     /** The length of the file. */
     private long fileLength;
 
-    /** The shuffled local header offsets and data lengths, split into one share per thread. */
-    private List<List<long[]>> shares;
+    /**
+     * The shuffled local header offsets and data lengths, which each thread takes the next of whenever it finishes
+     * one.
+     */
+    private List<long[]> shuffled;
 
     /** The total size of the entries, to check that every byte was read. */
     private long totalBytes;
@@ -434,10 +438,7 @@ public class ReadMethodBenchmark {
             }
         }
         Collections.shuffle(entries, new Random(3));
-        shares = new ArrayList<>();
-        for (var i = 0; i < threads; i++) {
-            shares.add(entries.subList(entries.size() * i / threads, entries.size() * (i + 1) / threads));
-        }
+        shuffled = entries;
         executor = Executors.newFixedThreadPool(threads);
         final Callable<Object> noop = () -> null;
         executor.invokeAll(Collections.nCopies(threads, noop));
@@ -462,23 +463,22 @@ public class ReadMethodBenchmark {
         try (var reader = method.open(archive)) {
             reader.read(centralDirOffset, new byte[(int) (fileLength - centralDirOffset)],
                     (int) (fileLength - centralDirOffset));
-            final List<Callable<Long>> tasks = new ArrayList<>(threads);
-            for (final var share : shares) {
-                tasks.add(() -> {
-                    var shareBytesRead = 0L;
-                    final var header = new byte[30];
-                    for (final var entry : share) {
-                        reader.read(entry[0], header, header.length);
-                        final var nameLen = (header[26] & 0xff) | (header[27] & 0xff) << 8;
-                        final var extraLen = (header[28] & 0xff) | (header[29] & 0xff) << 8;
-                        final var data = new byte[(int) entry[1]];
-                        reader.read(entry[0] + header.length + nameLen + extraLen, data, data.length);
-                        shareBytesRead += data.length;
-                    }
-                    return shareBytesRead;
-                });
-            }
-            for (final var future : executor.invokeAll(tasks)) {
+            final var next = new AtomicInteger();
+            final Callable<Long> task = () -> {
+                var threadBytesRead = 0L;
+                final var header = new byte[30];
+                for (int i; (i = next.getAndIncrement()) < shuffled.size();) {
+                    final var entry = shuffled.get(i);
+                    reader.read(entry[0], header, header.length);
+                    final var nameLen = (header[26] & 0xff) | (header[27] & 0xff) << 8;
+                    final var extraLen = (header[28] & 0xff) | (header[29] & 0xff) << 8;
+                    final var data = new byte[(int) entry[1]];
+                    reader.read(entry[0] + header.length + nameLen + extraLen, data, data.length);
+                    threadBytesRead += data.length;
+                }
+                return threadBytesRead;
+            };
+            for (final var future : executor.invokeAll(Collections.nCopies(threads, task))) {
                 try {
                     bytesRead += future.get();
                 } catch (final ExecutionException e) {

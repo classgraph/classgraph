@@ -56,6 +56,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -456,8 +457,8 @@ public class DirReadMethodBenchmark {
     /** The directory. */
     private Path dir;
 
-    /** The shuffled file names, split into one share per thread. */
-    private List<List<String>> shares;
+    /** The shuffled file names, which each thread takes the next of whenever it finishes one. */
+    private List<String> shuffled;
 
     /** The total size of the files, to check that every byte was read. */
     private long totalBytes;
@@ -487,10 +488,7 @@ public class DirReadMethodBenchmark {
             }
         }
         Collections.shuffle(names, new Random(3));
-        shares = new ArrayList<>();
-        for (var i = 0; i < threads; i++) {
-            shares.add(names.subList(names.size() * i / threads, names.size() * (i + 1) / threads));
-        }
+        shuffled = names;
         executor = Executors.newFixedThreadPool(threads);
         final Callable<Object> noop = () -> null;
         executor.invokeAll(Collections.nCopies(threads, noop));
@@ -513,17 +511,15 @@ public class DirReadMethodBenchmark {
     public long readEveryFileOnce() throws Exception {
         var bytesRead = 0L;
         try (var reader = method.open(dir)) {
-            final List<Callable<Long>> tasks = new ArrayList<>(threads);
-            for (final var share : shares) {
-                tasks.add(() -> {
-                    var shareBytesRead = 0L;
-                    for (final var name : share) {
-                        shareBytesRead += reader.read(name).length;
-                    }
-                    return shareBytesRead;
-                });
-            }
-            for (final var future : executor.invokeAll(tasks)) {
+            final var next = new AtomicInteger();
+            final Callable<Long> task = () -> {
+                var threadBytesRead = 0L;
+                for (int i; (i = next.getAndIncrement()) < shuffled.size();) {
+                    threadBytesRead += reader.read(shuffled.get(i)).length;
+                }
+                return threadBytesRead;
+            };
+            for (final var future : executor.invokeAll(Collections.nCopies(threads, task))) {
                 try {
                     bytesRead += future.get();
                 } catch (final ExecutionException e) {
