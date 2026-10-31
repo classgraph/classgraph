@@ -61,6 +61,7 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.jspecify.annotations.Nullable;
 
@@ -115,12 +116,11 @@ public final class DirRoot extends VfsRoot {
     private final Map<String, DirEntry> entriesByName = new ConcurrentHashMap<>();
 
     /**
-     * The most directory handles (see {@link #dirHandles}) that the directory roots of this process keep open
-     * together. Each handle holds a file descriptor, and a program may open many directory roots, so the limit is
-     * on all of them together, to keep well inside the process's limit on open files. A handle is held on a
-     * directory, not on a file, so the limit is on the number of directories, however many files each holds. When a
-     * handle is needed and this many are open, the one that was opened first is closed (see
-     * {@link #openDirHandles}).
+     * The most directory handles (see {@link #dirHandle}) that the directory roots of this process keep open
+     * together. Each handle holds a file descriptor, and a program may open many directory roots, a scan one for
+     * each directory on the classpath, so the limit is on all of them together, to keep well inside the process's
+     * limit on open files. When a handle is needed and this many are open, the one that was opened first is closed
+     * (see {@link #openDirHandles}).
      */
     private static final int MAX_DIR_HANDLES = 256;
 
@@ -129,18 +129,15 @@ public final class DirRoot extends VfsRoot {
 
     /**
      * The directory handles that the directory roots of this process hold open, in the order they were opened. When
-     * {@link #MAX_DIR_HANDLES} are open, the first is closed to make room for a new one, since a walk from the top
-     * down, which is how a scan reads a directory tree, is done with the directory it opened first.
+     * {@link #MAX_DIR_HANDLES} are open, the first is closed to make room for a new one, since a scan reads the
+     * roots of a classpath one after another, and is done with the root it read first.
      */
     private static final Queue<DirHandle> openDirHandles = new ConcurrentLinkedQueue<>();
 
-    /** An open handle on a directory of a root. */
+    /** An open handle on the directory of a root. */
     static final class DirHandle {
         /** The root. */
         private final DirRoot root;
-
-        /** The root-relative path of the directory, or {@code ""} for the root itself. */
-        private final String dirName;
 
         /** The handle. */
         private final SecureDirectoryStream<Path> stream;
@@ -150,14 +147,11 @@ public final class DirRoot extends VfsRoot {
          *
          * @param root
          *            the root.
-         * @param dirName
-         *            the root-relative path of the directory, or {@code ""} for the root itself.
          * @param stream
          *            the handle.
          */
-        DirHandle(final DirRoot root, final String dirName, final SecureDirectoryStream<Path> stream) {
+        DirHandle(final DirRoot root, final SecureDirectoryStream<Path> stream) {
             this.root = root;
-            this.dirName = dirName;
             this.stream = stream;
         }
 
@@ -171,15 +165,6 @@ public final class DirRoot extends VfsRoot {
         }
 
         /**
-         * Return the root-relative path of the directory.
-         *
-         * @return the root-relative path of the directory, or {@code ""} for the root itself.
-         */
-        String dirName() {
-            return dirName;
-        }
-
-        /**
          * Return the handle.
          *
          * @return the handle.
@@ -190,20 +175,34 @@ public final class DirRoot extends VfsRoot {
     }
 
     /**
-     * Whether files are looked up and opened relative to a handle on their directory (see {@link #dirHandles}),
+     * Whether files are looked up and opened relative to a handle on the root's directory (see {@link #dirHandle}),
      * which is only possible on the default filesystem, and not on Windows, whose JDK has no
      * {@link SecureDirectoryStream}.
      */
     private final boolean useDirHandles;
 
     /**
-     * Open handles on the directories that files have been looked up or opened in, by root-relative path
-     * ({@code ""} for the root). Reading a file's metadata or opening it relative to a handle on its directory
-     * resolves only the file's own name, rather than every segment of its path, which makes each of these system
-     * calls cheaper. A name that is not found through a handle is looked up again by its whole path, so that a
-     * directory that has been deleted and recreated since its handle was opened is still read.
+     * The open handle on the root's directory, or null if none is open. A file's metadata is read and the file is
+     * opened relative to it, by its root-relative path, so that each of these system calls resolves only the
+     * segments of that path, not those of the path of the root as well. A name that is not found through the handle
+     * is looked up again by its whole path, so that a root directory that has been deleted and recreated since its
+     * handle was opened is still read.
+     *
+     * <p>
+     * The handle is on the root's directory only, not on each directory a file is read from. A handle on each
+     * directory resolves only a file's own name, but costs an open, a dup and an fcntl to open, and two closes to
+     * close, each taking the lock on the process's table of file descriptors that every open and close of a file
+     * takes too. Reading the 2000 class files in 205 directories of FirstReadBenchmark's classes fixture once, from
+     * a new root, through a handle on each directory took 11.7 ms on 1 thread, 2.26 ms on 16 and 2.45 ms on 32, of
+     * which closing the root, and its 205 handles with it, took 0.29 ms while the threads that had read the files
+     * waited. Through one handle on the root's directory it took 10.9, 1.91 and 2.10 ms, and by whole path, with no
+     * handle, 12.3, 2.02 and 2.20 ms; Files.readAllBytes took 12.7 ms on 1 thread and 1.92-1.96 ms on 16 (on Linux,
+     * ext4 on an NVMe drive, x86-64). Opening a handle on a directory only once 8 or 16 files had been read from it
+     * was slower than one handle on the root at every thread count, since the handles still cost more to open and
+     * close than they saved. Closing the handles in another thread was not done, since then {@link Vfs#close()}
+     * would return before it had released them.
      */
-    private final Map<String, DirHandle> dirHandles = new ConcurrentHashMap<>();
+    private final AtomicReference<@Nullable DirHandle> dirHandle = new AtomicReference<>();
 
     /**
      * Constructor.
@@ -258,18 +257,16 @@ public final class DirRoot extends VfsRoot {
 
     @Override
     void releaseResources(final @Nullable LogNode log) {
-        for (final var dirName : new ArrayList<>(dirHandles.keySet())) {
-            final var handle = dirHandles.remove(dirName);
-            if (handle != null) {
-                closeDirHandle(handle);
-            }
+        final var handle = dirHandle.getAndSet(null);
+        if (handle != null) {
+            closeDirHandle(handle);
         }
     }
 
     /**
-     * Close a directory handle that has been taken out of {@link #dirHandles}, or was never put in it. A thread
-     * that is using the handle when it is closed gets {@link ClosedDirectoryStreamException}, and reads the file by
-     * its whole path instead.
+     * Close a directory handle that has been taken out of {@link #dirHandle}, or was never put in it. A thread that
+     * is using the handle when it is closed gets {@link ClosedDirectoryStreamException}, and reads the file by its
+     * whole path instead.
      *
      * @param handle
      *            the handle.
@@ -299,7 +296,7 @@ public final class DirRoot extends VfsRoot {
         }
         numOpenDirHandles.decrementAndGet();
         final var first = openDirHandles.poll();
-        if (first == null || !first.root().dirHandles.remove(first.dirName(), first)) {
+        if (first == null || !first.root().dirHandle.compareAndSet(first, null)) {
             return false;
         }
         closeDirHandle(first);
@@ -321,19 +318,17 @@ public final class DirRoot extends VfsRoot {
     }
 
     /**
-     * Return the number of directory handles that this root holds open.
+     * Return whether this root holds a directory handle open.
      *
-     * @return the number of handles.
+     * @return true if it does.
      */
-    int numDirHandles() {
-        return dirHandles.size();
+    boolean hasDirHandle() {
+        return dirHandle.get() != null;
     }
 
     /**
-     * Return the open handle on a directory of this root, opening it if it is not yet open.
+     * Return the open handle on the directory of this root, opening it if it is not yet open.
      *
-     * @param dirName
-     *            the root-relative path of the directory, or {@code ""} for the root itself.
      * @return the handle, or null if files are not read through directory handles, or the handle could not be
      *         opened, or no place could be freed under {@link #MAX_DIR_HANDLES} for it.
      * @throws NoSuchFileException
@@ -341,11 +336,11 @@ public final class DirRoot extends VfsRoot {
      * @throws NotDirectoryException
      *             if the path of the directory names something that is not a directory.
      */
-    private @Nullable DirHandle dirHandle(final String dirName) throws NoSuchFileException, NotDirectoryException {
+    private @Nullable DirHandle dirHandle() throws NoSuchFileException, NotDirectoryException {
         if (!useDirHandles) {
             return null;
         }
-        final var known = dirHandles.get(dirName);
+        final var known = dirHandle.get();
         if (known != null) {
             return known;
         }
@@ -354,7 +349,7 @@ public final class DirRoot extends VfsRoot {
         }
         DirectoryStream<Path> stream = null;
         try {
-            stream = Files.newDirectoryStream(dirName.isEmpty() ? dir : dir.resolve(dirName));
+            stream = Files.newDirectoryStream(dir);
         } catch (final NoSuchFileException | NotDirectoryException e) {
             throw e;
         } catch (final IOException | SecurityException _) {
@@ -373,18 +368,18 @@ public final class DirRoot extends VfsRoot {
             numOpenDirHandles.decrementAndGet();
             return null;
         }
-        final var handle = new DirHandle(this, dirName, secureStream);
+        final var handle = new DirHandle(this, secureStream);
         // Queued before it is added to this root, so that a close of this root, which takes the handle out of the
         // queue, cannot run between the two and leave the handle queued
         openDirHandles.add(handle);
-        final var raced = dirHandles.putIfAbsent(dirName, handle);
-        if (raced != null) {
+        if (!dirHandle.compareAndSet(null, handle)) {
+            // Another thread opened a handle first
             closeDirHandle(handle);
-            return raced;
+            return dirHandle.get();
         }
-        // A handle added after the close of this root released the handles would never be closed, so check for a
+        // A handle added after the close of this root released its handle would never be closed, so check for a
         // close only after adding it
-        if (isClosed() && dirHandles.remove(dirName, handle)) {
+        if (isClosed() && dirHandle.compareAndSet(handle, null)) {
             closeDirHandle(handle);
             return null;
         }
@@ -392,14 +387,26 @@ public final class DirRoot extends VfsRoot {
     }
 
     /**
-     * Read the metadata of a file, relative to the handle on its directory if there is one.
+     * Return a file's root-relative path as the path to open it by through {@link #dirHandle}.
      *
-     * @param dirName
-     *            the root-relative path of the file's directory, or {@code ""} for the root itself.
+     * @param name
+     *            the root-relative path of the file, which a handle is used for only when {@link #dirPrefix} is not
+     *            null, when every name that is looked up is one that resolves to {@link #dirPrefix} followed by the
+     *            name (see {@link #isExactName}).
+     * @return the path.
+     */
+    private Path relativePath(final String name) {
+        return dir.getFileSystem().getPath(name);
+    }
+
+    /**
+     * Read the metadata of a file, relative to the handle on the root's directory if there is one.
+     *
      * @param handle
-     *            the handle on the file's directory, or null if there is none.
-     * @param fileName
-     *            the name of the file within its directory, if {@code handle} is not null.
+     *            the handle on the root's directory, or null if there is none.
+     * @param relativePath
+     *            the root-relative path of the file, as a path to look it up by through {@code handle}, if
+     *            {@code handle} is not null.
      * @param name
      *            the root-relative path of the file.
      * @param path
@@ -407,16 +414,16 @@ public final class DirRoot extends VfsRoot {
      *            resolved (see {@link #resolveCanonicalName(String)}).
      * @return the metadata, or null if the file does not exist or its metadata could not be read.
      */
-    private @Nullable BasicFileAttributes readAttributes(final String dirName, final @Nullable DirHandle handle,
-            final @Nullable Path fileName, final String name, final @Nullable Path path) {
-        if (handle != null && fileName != null) {
+    private @Nullable BasicFileAttributes readAttributes(final @Nullable DirHandle handle,
+            final @Nullable Path relativePath, final String name, final @Nullable Path path) {
+        if (handle != null && relativePath != null) {
             try {
                 // The POSIX view, since the basic view of a SecureDirectoryStream wraps the attributes it reads in
                 // an object that does not give the POSIX permissions
-                return handle.stream().getFileAttributeView(fileName, PosixFileAttributeView.class)
+                return handle.stream().getFileAttributeView(relativePath, PosixFileAttributeView.class)
                         .readAttributes();
             } catch (final IOException | ClosedDirectoryStreamException _) {
-                // The file is not in the directory the handle is open on, which may have been replaced since the
+                // The file is not under the directory the handle is open on, which may have been replaced since the
                 // handle was opened, or the handle was closed, so look the file up by its whole path
             }
         }
@@ -429,16 +436,16 @@ public final class DirRoot extends VfsRoot {
             // on this failure it falls back to File#isFile, a second metadata read that fails the same way
             return null;
         }
-        if (handle != null && dirHandles.remove(dirName, handle)) {
+        if (handle != null && dirHandle.compareAndSet(handle, null)) {
             // The file was found by its whole path but not through the handle, so the handle is open on a
-            // directory that is no longer there, and is replaced by the next lookup in the directory
+            // directory that is no longer there, and is replaced by the next lookup
             closeDirHandle(handle);
         }
         return attributes;
     }
 
     /**
-     * Open a file of this root for reading, relative to the handle on its directory if there is one.
+     * Open a file of this root for reading, relative to the handle on the root's directory if there is one.
      *
      * @param name
      *            the root-relative path of the file.
@@ -446,27 +453,27 @@ public final class DirRoot extends VfsRoot {
      *            the path of the file, or null if it has not been built (see
      *            {@link #resolveCanonicalName(String)}).
      * @param entryHandle
-     *            the handle on the file's directory that the file's entry was found through, or null. It may have
-     *            been closed since, in which case the handle that is open on the directory now is used instead.
-     * @param fileName
-     *            the name of the file within its directory, if {@code entryHandle} is not null.
+     *            the handle that the file's entry was found through, or null. It may have been closed since, in
+     *            which case the handle that is open on the root's directory now is used instead.
+     * @param relativePath
+     *            the root-relative path of the file, as a path to open it by through {@code entryHandle}, if
+     *            {@code entryHandle} is not null.
      * @return the channel, which the caller must close.
      * @throws IOException
      *             if the file could not be opened.
      */
     FileChannel openFile(final String name, final @Nullable Path path, final @Nullable DirHandle entryHandle,
-            final @Nullable Path fileName) throws IOException {
-        if (entryHandle != null && fileName != null) {
-            final var channel = openFile(entryHandle, fileName);
+            final @Nullable Path relativePath) throws IOException {
+        if (entryHandle != null && relativePath != null) {
+            final var channel = openFile(entryHandle, relativePath);
             if (channel != null) {
                 return channel;
             }
         }
         final var resolvedPath = path != null ? path : resolveCanonicalName(name);
-        final var lastSlashIdx = name.lastIndexOf('/');
-        final var handle = dirHandle(lastSlashIdx < 0 ? "" : name.substring(0, lastSlashIdx));
+        final var handle = dirHandle();
         if (handle != null && handle != entryHandle) {
-            final var channel = openFile(handle, resolvedPath.getFileName());
+            final var channel = openFile(handle, relativePath != null ? relativePath : relativePath(name));
             if (channel != null) {
                 return channel;
             }
@@ -476,23 +483,23 @@ public final class DirRoot extends VfsRoot {
     }
 
     /**
-     * Open a file for reading relative to a handle on its directory.
+     * Open a file for reading relative to a handle on a root's directory.
      *
      * @param handle
      *            the handle.
-     * @param fileName
-     *            the name of the file within the directory.
+     * @param relativePath
+     *            the root-relative path of the file.
      * @return the channel, which the caller must close, or null if the file could not be opened through the handle.
      */
-    private static @Nullable FileChannel openFile(final DirHandle handle, final Path fileName) {
+    private static @Nullable FileChannel openFile(final DirHandle handle, final Path relativePath) {
         try {
-            final var channel = handle.stream().newByteChannel(fileName, Set.of(StandardOpenOption.READ));
+            final var channel = handle.stream().newByteChannel(relativePath, Set.of(StandardOpenOption.READ));
             if (channel instanceof final FileChannel fileChannel) {
                 return fileChannel;
             }
             channel.close();
         } catch (final IOException | ClosedDirectoryStreamException _) {
-            // The file is not in the directory the handle is open on, or the handle was closed
+            // The file is not under the directory the handle is open on, or the handle was closed
         }
         return null;
     }
@@ -743,11 +750,12 @@ public final class DirRoot extends VfsRoot {
         final var lastSlashIdx = dirPrefix == null ? NOT_CANONICAL : lastSlashIdxIfCanonical(name);
         if (lastSlashIdx != NOT_CANONICAL) {
             // The name resolves to dirPrefix followed by the name (see resolveExactName), so the file is looked up
-            // through the handle on its directory without building its path, which is only built if it is needed
-            entry = fileEntry(name, lastSlashIdx, null);
+            // through the handle on the root's directory without building its path, which is only built if it is
+            // needed
+            entry = fileEntry(name, null);
         } else {
             final var path = resolveExactName(name);
-            entry = path == null ? null : fileEntry(name, name.lastIndexOf('/'), path);
+            entry = path == null ? null : fileEntry(name, path);
         }
         if (entry != null) {
             entriesByName.put(name, entry);
@@ -760,18 +768,16 @@ public final class DirRoot extends VfsRoot {
         if (name.isEmpty()) {
             return null;
         }
-        final var lastSlashIdx = dirPrefix == null ? NOT_CANONICAL : lastSlashIdxIfCanonical(name);
         final byte[] content;
-        if (lastSlashIdx != NOT_CANONICAL) {
-            final var dirName = lastSlashIdx < 0 ? "" : name.substring(0, lastSlashIdx);
+        if (dirPrefix != null && lastSlashIdxIfCanonical(name) != NOT_CANONICAL) {
             final DirHandle handle;
             try {
-                handle = dirHandle(dirName);
+                handle = dirHandle();
             } catch (final NoSuchFileException | NotDirectoryException _) {
-                // The file's directory does not exist, so neither does the file
+                // The root's directory does not exist, so neither does the file
                 return null;
             }
-            content = handle != null ? loadThroughHandle(name, lastSlashIdx, dirName, handle)
+            content = handle != null ? loadThroughHandle(name, handle)
                     : loadByPath(name, resolveCanonicalName(name));
         } else {
             final var path = resolveExactName(name);
@@ -787,30 +793,25 @@ public final class DirRoot extends VfsRoot {
     private static final byte[] NOT_LOADED = new byte[0];
 
     /**
-     * Read a file through the handle on its directory without first reading its metadata, so that the open finds
-     * out whether the file exists, and the length of the array is read from the open file.
+     * Read a file through the handle on the root's directory without first reading its metadata, so that the open
+     * finds out whether the file exists, and the length of the array is read from the open file.
      *
      * @param name
      *            the root-relative path of the file, in canonical form.
-     * @param lastSlashIdx
-     *            the index of the last {@code '/'} in {@code name}, or -1 if it has none.
-     * @param dirName
-     *            the root-relative path of the file's directory, or {@code ""} for the root itself.
      * @param handle
-     *            the handle on the file's directory.
+     *            the handle on the root's directory.
      * @return the content of the file, null if the file does not exist or is a directory, or {@link #NOT_LOADED} if
      *         the file has to be read by looking up its entry instead.
      * @throws IOException
      *             if the file could not be read.
      */
-    private byte @Nullable [] loadThroughHandle(final String name, final int lastSlashIdx, final String dirName,
-            final DirHandle handle) throws IOException {
-        final var channel = openFile(handle, dir.getFileSystem().getPath(name.substring(lastSlashIdx + 1)));
+    private byte @Nullable [] loadThroughHandle(final String name, final DirHandle handle) throws IOException {
+        final var channel = openFile(handle, relativePath(name));
         if (channel != null) {
             return read(channel, name, null);
         }
-        // The file is not in the directory, or the handle was closed, or the directory was replaced since the handle
-        // was opened on it, so the file is opened by its whole path to tell these apart
+        // The file is not under the root's directory, or the handle was closed, or the directory was replaced since
+        // the handle was opened on it, so the file is opened by its whole path to tell these apart
         final var path = resolveCanonicalName(name);
         final FileChannel channelByPath;
         try {
@@ -822,8 +823,8 @@ public final class DirRoot extends VfsRoot {
             return NOT_LOADED;
         }
         // The file is there, so it was not found through the handle because the handle is open on a directory that
-        // is no longer there, and is replaced by the next lookup in the directory
-        if (dirHandles.remove(dirName, handle)) {
+        // is no longer there, and is replaced by the next lookup
+        if (dirHandle.compareAndSet(handle, null)) {
             closeDirHandle(handle);
         }
         return read(channelByPath, name, path);
@@ -1001,7 +1002,7 @@ public final class DirRoot extends VfsRoot {
     @Nullable
     DirEntry fileEntryForNio(final String name) {
         final var path = resolveExactName(name);
-        return path == null ? null : fileEntry(name, name.lastIndexOf('/'), path);
+        return path == null ? null : fileEntry(name, path);
     }
 
     /**
@@ -1009,31 +1010,28 @@ public final class DirRoot extends VfsRoot {
      *
      * @param name
      *            the root-relative path.
-     * @param lastSlashIdx
-     *            the index of the last {@code '/'} in {@code name}, or -1 if it has none.
      * @param path
      *            the path that {@link #resolveExactName(String)} resolved {@code name} to, or null if the name was
      *            not resolved, which is only done for a name that {@link #lastSlashIdxIfCanonical(String)} accepts.
      * @return the file entry, or {@code null} if not a regular file.
      */
-    private @Nullable DirEntry fileEntry(final String name, final int lastSlashIdx, final @Nullable Path path) {
-        final var dirName = lastSlashIdx < 0 ? "" : name.substring(0, lastSlashIdx);
+    private @Nullable DirEntry fileEntry(final String name, final @Nullable Path path) {
         final DirHandle handle;
         try {
-            handle = dirHandle(dirName);
+            // The root itself is not looked up through the handle on it, since it has no root-relative path to
+            // look it up by, and not finding it through the handle would close the handle
+            handle = name.isEmpty() ? null : dirHandle();
         } catch (final NoSuchFileException | NotDirectoryException _) {
-            // The file's directory does not exist, so neither does the file
+            // The root's directory does not exist, so neither does the file
             return null;
         }
-        // If the path was not built, the name of the file within its directory is made from the string, which costs
-        // less than building the path and taking the name from it
-        final var fileName = handle == null ? null
-                : path != null ? path.getFileName() : dir.getFileSystem().getPath(name.substring(lastSlashIdx + 1));
-        final var attributes = readAttributes(dirName, handle, fileName, name, path);
+        // The root-relative path is made from the string, which costs less than taking it from the path
+        final var relativePath = handle == null ? null : relativePath(name);
+        final var attributes = readAttributes(handle, relativePath, name, path);
         if (attributes == null || !attributes.isRegularFile()) {
             return null;
         }
         // The entry keeps the handle, so that the file is opened through it without looking it up again
-        return new DirEntry(this, path, name, attributes, handle, fileName);
+        return new DirEntry(this, path, name, attributes, handle, relativePath);
     }
 }

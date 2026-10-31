@@ -65,13 +65,15 @@ final class DirEntry extends VfsEntry {
     private final @Nullable BasicFileAttributes attributes;
 
     /**
-     * The handle on the file's directory that its attributes were read through, or {@code null} if they were not
-     * read through a handle. The file is opened through it, saving a second lookup of the handle.
+     * The handle on the root's directory that the file's attributes were read through, or {@code null} if they were
+     * not read through a handle. The file is opened through it, saving a second lookup of the handle.
      */
     private final DirRoot.@Nullable DirHandle dirHandle;
 
-    /** The name of the file within its directory, if {@link #dirHandle} is not {@code null}. */
-    private final @Nullable Path fileName;
+    /**
+     * The root-relative path of the file, to open it by through {@link #dirHandle}, if that is not {@code null}.
+     */
+    private final @Nullable Path relativePath;
 
     /** Cached file length in bytes, or {@code -1} if not yet read. */
     private volatile long length = -1L;
@@ -106,19 +108,20 @@ final class DirEntry extends VfsEntry {
      * @param attributes
      *            the file's attributes if already read, or {@code null}.
      * @param dirHandle
-     *            the handle on the file's directory that the attributes were read through, or {@code null}.
-     * @param fileName
-     *            the name of the file within its directory, if {@code dirHandle} is not {@code null}.
+     *            the handle on the root's directory that the attributes were read through, or {@code null}.
+     * @param relativePath
+     *            the root-relative path of the file, to open it by through {@code dirHandle}, if that is not
+     *            {@code null}.
      */
     DirEntry(final DirRoot root, final @Nullable Path path, final String name,
             final @Nullable BasicFileAttributes attributes, final DirRoot.@Nullable DirHandle dirHandle,
-            final @Nullable Path fileName) {
+            final @Nullable Path relativePath) {
         super(root);
         this.path = path;
         this.name = name;
         this.attributes = attributes;
         this.dirHandle = dirHandle;
-        this.fileName = fileName;
+        this.relativePath = relativePath;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -234,7 +237,8 @@ final class DirEntry extends VfsEntry {
      */
     private PathSlice openSlice() throws IOException {
         final var root = checkRootNotClosed();
-        return PathSlice.forDirEntry(getNioPath(), root.openFile(name, path, dirHandle, fileName), root.getVfs());
+        return PathSlice.forDirEntry(getNioPath(), root.openFile(name, path, dirHandle, relativePath),
+                root.getVfs());
     }
 
     /**
@@ -298,7 +302,7 @@ final class DirEntry extends VfsEntry {
             // grown since it was looked up is noticed in the same read: then, and if it has shrunk, the file is read
             // again below, at the length it has now
             final byte @Nullable [] content;
-            try (var channel = root.openFile(name, path, dirHandle, fileName)) {
+            try (var channel = root.openFile(name, path, dirHandle, relativePath)) {
                 if (Thread.currentThread().isInterrupted()) {
                     throw new InterruptedIOException("Interrupted while reading " + getNioPath());
                 }
