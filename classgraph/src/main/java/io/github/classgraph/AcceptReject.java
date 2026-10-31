@@ -779,7 +779,7 @@ abstract sealed class AcceptReject {
     }
 
     /**
-     * Append a list of strings to a buffer, each one quoted, with any {@code '"'} or {@code '\\'} in it escaped.
+     * Append a list of strings to a buffer, each one quoted, with any {@code '"'} or {@code '\'} in it escaped.
      *
      * @param coll
      *            The strings, which are appended in sorted order.
