@@ -398,7 +398,10 @@ class Classfile {
         if (className == null || "java.lang.Object".equals(className)
         // Don't schedule a class for scanning that was already found to be accepted
                 || acceptedClassNamesFound.contains(className)
-                // Only schedule each external class once for scanning, across all threads
+                // Only schedule each external class once for scanning, across all threads. The set is checked
+                // first, since most external classes, such as java.lang.String, have been scheduled already, and a
+                // lookup takes no lock, while an add locks the key's bin of the map even when the key is in it
+                || classNamesScheduledForExtendedScanning.contains(className)
                 || !classNamesScheduledForExtendedScanning.add(className)) {
             return;
         }
@@ -839,7 +842,12 @@ class Classfile {
         if (str == null) {
             return null;
         }
-        final var interned = stringInternMap.putIfAbsent(str, str);
+        // Looked up first, since most strings have been interned already, and ConcurrentHashMap#get takes no lock,
+        // while putIfAbsent locks the key's bin unless the key is the first in it
+        var interned = stringInternMap.get(str);
+        if (interned == null) {
+            interned = stringInternMap.putIfAbsent(str, str);
+        }
         if (interned != null) {
             return interned;
         }

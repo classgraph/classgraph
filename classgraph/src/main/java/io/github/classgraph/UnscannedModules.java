@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.jspecify.annotations.Nullable;
 
@@ -59,17 +60,22 @@ class UnscannedModules {
     /** The scan spec. */
     private final ScanSpec scanSpec;
 
+    // The scan's threads all look up external classes, such as java.lang.Object, at the same time, so a lookup takes
+    // no lock once the module it reads from has been opened. Under a lock held for the whole lookup, which reads the
+    // module, the threads of a 16-thread scan waited on each other.
+
     /**
      * A map from the name of a package to the modules that contain the package, or null until the map is built on
-     * the first lookup.
+     * the first lookup. It is built while holding the lock on {@code this}, and not changed once built.
      */
-    private @Nullable Map<String, List<ModuleReference>> packageNameToModule;
+    private volatile @Nullable Map<String, List<ModuleReference>> packageNameToModule;
 
     /**
      * A map from a module to the classpath element that was created for it, for the modules that have been looked
      * in so far.
      */
-    private final Map<ModuleReference, ClasspathElementModule> moduleToClasspathElement = new HashMap<>();
+    private final ConcurrentHashMap<ModuleReference, ClasspathElementModule> moduleToClasspathElement = //
+            new ConcurrentHashMap<>();
 
     /**
      * Constructor.
@@ -103,7 +109,8 @@ class UnscannedModules {
      * @return a work unit for scanning the classfile, or null if the class is not in any of the modules that are
      *         not being scanned
      */
-    synchronized @Nullable ClassfileScanWorkUnit findClassfile(final String className, final String classfilePath,
+    @Nullable
+    ClassfileScanWorkUnit findClassfile(final String className, final String classfilePath,
             final @Nullable LogNode log) {
         if (unscannedModules.isEmpty()) {
             return null;
@@ -130,7 +137,7 @@ class UnscannedModules {
      *
      * @return the classpath elements
      */
-    synchronized List<ClasspathElementModule> getClasspathElements() {
+    List<ClasspathElementModule> getClasspathElements() {
         final List<ClasspathElementModule> classpathElements = new ArrayList<>(moduleToClasspathElement.size());
         for (final ModuleReference moduleReference : unscannedModules) {
             final var classpathElement = moduleToClasspathElement.get(moduleReference);
@@ -147,8 +154,15 @@ class UnscannedModules {
      * @return the map from package name to modules, in module order
      */
     private Map<String, List<ModuleReference>> packageNameToModule() {
-        var map = packageNameToModule;
-        if (map == null) {
+        final var builtMap = packageNameToModule;
+        if (builtMap != null) {
+            return builtMap;
+        }
+        synchronized (this) {
+            var map = packageNameToModule;
+            if (map != null) {
+                return map;
+            }
             map = new HashMap<>();
             for (final ModuleReference moduleReference : unscannedModules) {
                 for (final String packageName : moduleReference.descriptor().packages()) {
@@ -161,8 +175,8 @@ class UnscannedModules {
                 }
             }
             packageNameToModule = map;
+            return map;
         }
-        return map;
     }
 
     /**
@@ -176,13 +190,16 @@ class UnscannedModules {
      */
     private ClasspathElementModule classpathElementForModule(final ModuleReference moduleReference,
             final @Nullable LogNode log) {
-        var classpathElement = moduleToClasspathElement.get(moduleReference);
-        if (classpathElement == null) {
-            classpathElement = new ClasspathElementModule(moduleReference, vfs, classLoaderStr,
-                    /* isLookupOnly = */ true, scanSpec);
-            classpathElement.open(/* workQueue = */ null, log);
-            moduleToClasspathElement.put(moduleReference, classpathElement);
+        // Looked up first, since computeIfAbsent locks the key's bin of the map even when the key is in it
+        final var classpathElement = moduleToClasspathElement.get(moduleReference);
+        if (classpathElement != null) {
+            return classpathElement;
         }
-        return classpathElement;
+        return moduleToClasspathElement.computeIfAbsent(moduleReference, ref -> {
+            final var newClasspathElement = new ClasspathElementModule(ref, vfs, classLoaderStr,
+                    /* isLookupOnly = */ true, scanSpec);
+            newClasspathElement.open(/* workQueue = */ null, log);
+            return newClasspathElement;
+        });
     }
 }
