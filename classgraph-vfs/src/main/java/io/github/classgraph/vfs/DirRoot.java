@@ -83,8 +83,10 @@ public final class DirRoot extends VfsRoot {
      *            step.
      * @param exiting
      *            {@code true} if exiting a directory after visiting its children.
+     * @param realPath
+     *            the real path of the directory to enter, if already known, otherwise null.
      */
-    private record WalkStep(Path path, String namePrefix, boolean exiting) {
+    private record WalkStep(Path path, String namePrefix, boolean exiting, @Nullable Path realPath) {
     }
 
     /** The canonicalized directory path. */
@@ -584,7 +586,7 @@ public final class DirRoot extends VfsRoot {
     private boolean walkIteratively(final VfsVisitor visitor, final @Nullable LogNode log) {
         final Set<Path> visitedDirs = new HashSet<>();
         final Deque<WalkStep> pending = new ArrayDeque<>();
-        pending.push(new WalkStep(dir, "", false));
+        pending.push(new WalkStep(dir, "", false, dir));
         while (!pending.isEmpty()) {
             final var step = pending.pop();
             if (step.exiting) {
@@ -599,7 +601,7 @@ public final class DirRoot extends VfsRoot {
             }
             final Path canonicalDir;
             try {
-                canonicalDir = currDir.toRealPath();
+                canonicalDir = step.realPath != null ? step.realPath : currDir.toRealPath();
             } catch (final IOException | SecurityException e) {
                 // A directory that cannot be resolved is skipped, rather than aborting the whole listing
                 if (log != null) {
@@ -615,8 +617,8 @@ public final class DirRoot extends VfsRoot {
             }
             // walkChildren pushes the subdirectories on top of this step, so the directory stays among the recorded
             // ancestors until all of them have been walked
-            pending.push(new WalkStep(canonicalDir, "", true));
-            if (!walkChildren(currDir, namePrefix, visitor, pending, log)) {
+            pending.push(new WalkStep(canonicalDir, "", true, null));
+            if (!walkChildren(currDir, canonicalDir, namePrefix, visitor, pending, log)) {
                 return false;
             }
         }
@@ -628,6 +630,8 @@ public final class DirRoot extends VfsRoot {
      *
      * @param currDir
      *            the directory to list.
+     * @param canonicalDir
+     *            the real path of {@code currDir}.
      * @param namePrefix
      *            the root-relative prefix of {@code currDir} with a trailing {@code '/'}, or {@code ""} for the
      *            root.
@@ -639,8 +643,8 @@ public final class DirRoot extends VfsRoot {
      *            the log node, or {@code null}.
      * @return {@code true} to continue traversal, or {@code false} if stopped by the visitor.
      */
-    private boolean walkChildren(final Path currDir, final String namePrefix, final VfsVisitor visitor,
-            final Deque<WalkStep> pending, final @Nullable LogNode log) {
+    private boolean walkChildren(final Path currDir, final Path canonicalDir, final String namePrefix,
+            final VfsVisitor visitor, final Deque<WalkStep> pending, final @Nullable LogNode log) {
         final List<DirListing.Child> children;
         try {
             // Each entry listed counts as progress, so that the threads waiting for this one do not time out while
@@ -660,14 +664,14 @@ public final class DirRoot extends VfsRoot {
                 Comparator.comparing(child -> String.valueOf(child.path().getFileName())));
         // Visit the files of a directory before walking its subdirectories, so that the reads that follow
         // the walk are grouped the same way the filesystem groups the metadata they need
-        final List<Path> subDirs = new ArrayList<>();
+        final List<DirListing.Child> subDirs = new ArrayList<>();
         for (final var listed : children) {
             // The attributes of each child both tell the files from the subdirectories and are handed to the
             // entry, so that a walk reads the metadata of each child at most once
             final var child = listed.path();
             final var attributes = listed.attributes();
             if (attributes.isDirectory()) {
-                subDirs.add(child);
+                subDirs.add(listed);
             } else if (attributes.isRegularFile()) {
                 final var name = namePrefix + child.getFileName();
                 final var entry = new DirEntry(this, child, name, attributes);
@@ -679,8 +683,14 @@ public final class DirRoot extends VfsRoot {
         }
         // Push in reverse, so that the subdirectories are walked in sorted order
         for (var i = subDirs.size() - 1; i >= 0; i--) {
+            // A subdirectory that is not a link is reached by no other path, since directories cannot be hard
+            // linked, and the listing gives its name as stored, so its real path is the real path of its parent
+            // followed by its name. This saves a toRealPath call per directory, which looks up every component
+            // of the path again.
             final var subDir = subDirs.get(i);
-            pending.push(new WalkStep(subDir, namePrefix + subDir.getFileName() + "/", false));
+            final var subDirPath = subDir.path();
+            pending.push(new WalkStep(subDirPath, namePrefix + subDirPath.getFileName() + "/", false,
+                    subDir.mayBeLink() ? null : canonicalDir.resolve(subDirPath.getFileName())));
         }
         return true;
     }

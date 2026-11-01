@@ -354,6 +354,26 @@ public class VfsWalkTest {
         }
     }
 
+    /**
+     * A symlink to an ancestor below the root is not followed either, since the real path the walk works out for a
+     * subdirectory that is not a link is the same as the real path of the symlink.
+     */
+    @Test
+    public void aSymlinkToAnAncestorBelowTheRootIsNotFollowed(@TempDir final File tempDir) throws IOException {
+        final var dir = new File(tempDir, "classes");
+        assertThat(new File(dir, "a/b").mkdirs()).isTrue();
+        Files.writeString(new File(dir, "a/b/B.txt").toPath(), "B");
+        createSymbolicLinkOrSkip(new File(dir, "a/b/up").toPath(), Path.of(".."));
+
+        try (var vfs = new Vfs()) {
+            final var recorder = new Recorder();
+            vfs.open(dir.getPath()).walk(recorder);
+
+            assertThat(recorder.dirNames).containsExactly("/", "a/", "a/b/", "a/b/up/");
+            assertThat(recorder.entryNames).containsExactly("a/b/B.txt");
+        }
+    }
+
     // ---------------------------------------------------------------------------------------------------------
 
     /** A jarfile is walked in central directory order, and its root entries are in the directory named "/". */
