@@ -33,6 +33,8 @@ jobs:
     - name: Compile
       run: ./mvnw --no-transfer-progress -B clean test-compile
     - name: Test 1
+      shell: bash
       run: ./mvnw --no-transfer-progress -B test -Dmaven.test.failure.ignore=true
     - name: Test 2
+      shell: bash
       run: ./mvnw --no-transfer-progress -B test -Dmaven.test.failure.ignore=true
