@@ -416,12 +416,16 @@ public class VfsWalkTest {
             Files.writeString(new File(level, "f" + i + ".txt").toPath(), "f");
             expected.add("top/" + "a/".repeat(i) + "f" + i + ".txt");
         }
+        // The links point to real paths, since following a link whose target has a link in it, as the temporary
+        // directory on macOS has (/var), counts both against the operating system's limit on the links followed to
+        // reach a path, which is 32 on macOS
+        final var realTempDir = tempDir.toPath().toRealPath();
         for (var i = 0; i < levels - 1; i++) {
-            final var next = new File(tempDir, "x" + (i + 1)).toPath();
+            final var next = realTempDir.resolve("x" + (i + 1));
             createSymbolicLinkOrSkip(new File(tempDir, "x" + i + "/a").toPath(), next);
             createSymbolicLinkOrSkip(new File(tempDir, "x" + i + "/b").toPath(), next);
         }
-        createSymbolicLinkOrSkip(new File(dir, "top").toPath(), new File(tempDir, "x0").toPath());
+        createSymbolicLinkOrSkip(new File(dir, "top").toPath(), realTempDir.resolve("x0"));
 
         try (var vfs = new Vfs()) {
             final var recorder = new Recorder();
