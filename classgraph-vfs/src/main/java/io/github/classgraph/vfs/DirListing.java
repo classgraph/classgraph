@@ -61,8 +61,11 @@ final class DirListing {
      *            the path of the child.
      * @param attributes
      *            its attributes, read with symbolic links followed.
+     * @param mayBeLink
+     *            false if the listing showed that the child is not a symbolic link, junction or other reparse
+     *            point, otherwise true.
      */
-    record Child(Path path, BasicFileAttributes attributes) {
+    record Child(Path path, BasicFileAttributes attributes, boolean mayBeLink) {
     }
 
     /** Constructor. */
@@ -94,9 +97,8 @@ final class DirListing {
                 }
                 // The walker does not follow symbolic links, so the attributes of a link are those of the link
                 // itself -- read them again, following the link, as Files#readAttributes does by default
-                children.add(new Child(file,
-                        attributes.isSymbolicLink() || attributes.isOther() ? FileUtils.readAttributes(file)
-                                : attributes));
+                final var isLink = attributes.isSymbolicLink() || attributes.isOther();
+                children.add(new Child(file, isLink ? FileUtils.readAttributes(file) : attributes, isLink));
                 if (onEachChild != null) {
                     onEachChild.run();
                 }
@@ -110,7 +112,7 @@ final class DirListing {
                 }
                 // The attributes of a child could not be read, for example because it was deleted after it was
                 // listed -- fall back the same way as FileUtils#readAttributes does
-                children.add(new Child(file, FileUtils.readAttributes(file)));
+                children.add(new Child(file, FileUtils.readAttributes(file), true));
                 if (onEachChild != null) {
                     onEachChild.run();
                 }
@@ -129,7 +131,7 @@ final class DirListing {
             // List the directory the link points to, keeping the paths of the children under the link
             try (var dirStream = Files.newDirectoryStream(dir)) {
                 for (final Path child : dirStream) {
-                    children.add(new Child(child, FileUtils.readAttributes(child)));
+                    children.add(new Child(child, FileUtils.readAttributes(child), true));
                     if (onEachChild != null) {
                         onEachChild.run();
                     }
