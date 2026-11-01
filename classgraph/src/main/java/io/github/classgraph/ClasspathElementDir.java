@@ -68,7 +68,8 @@ final class ClasspathElementDir extends ClasspathElement {
      * @param workUnit
      *            the work unit
      * @param classpathEltPath
-     *            the normalized classpath entry of the work unit, which is the directory
+     *            the normalized classpath entry of the work unit, which is the directory, resolved to its real path
+     *            (as Scanner#normalizeClasspathEntry does), so that the {@link Vfs} does not resolve it again
      * @param vfs
      *            the virtual filesystem to enumerate and read the directory through
      * @param scanSpec
@@ -94,7 +95,7 @@ final class ClasspathElementDir extends ClasspathElement {
         try {
             // Schedule the child classpath elements in the order the classloader would look in them, since the
             // classpath order determines which of two copies of the same class masks the other
-            final var root = vfs.open(classpathEltPath);
+            final var root = vfs.openRealPath(classpathEltPath);
             readModuleNameFromManifest(root, log);
             final var childScheduler = new ChildClasspathElementScheduler(workQueue, classpathEltPath);
 
@@ -187,7 +188,7 @@ final class ClasspathElementDir extends ClasspathElement {
             return null;
         }
         try {
-            final var entry = vfs.open(classpathEltPath).getEntry(relativePath);
+            final var entry = vfs.openRealPath(classpathEltPath).getEntry(relativePath);
             return entry == null ? null : newResource(entry);
         } catch (final IOException | SecurityException e) {
             return null;
@@ -402,7 +403,7 @@ final class ClasspathElementDir extends ClasspathElement {
                 : log(classpathElementIdx, "Scanning Path classpath element " + getURI(), log);
 
         try {
-            vfs.open(classpathEltPath).walk(new DirScanVisitor(subLog), subLog);
+            vfs.openRealPath(classpathEltPath).walk(new DirScanVisitor(subLog), subLog);
         } catch (final IOException | SecurityException e) {
             if (subLog != null) {
                 subLog.log("Could not scan directory " + classpathEltPath + " : " + e);
@@ -469,7 +470,8 @@ final class ClasspathElementDir extends ClasspathElement {
             return null;
         }
         try {
-            return vfs.open(containerPath);
+            // The parent of a real path is a real path too
+            return vfs.openRealPath(containerPath);
         } catch (final IOException | SecurityException e) {
             return null;
         }
