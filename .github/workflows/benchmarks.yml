@@ -70,7 +70,7 @@ jobs:
         mkdir -p target/netbeans-fix/src target/netbeans-fix/classes
         curl -fsSL -o target/netbeans-fix/src/JarFileSystem.java \
             https://raw.githubusercontent.com/lukehutch/netbeans/f30b11315ab2a8ddfadcba2113843ecc81e314a0/platform/openide.filesystems/src/org/openide/filesystems/JarFileSystem.java
-        javac --release 21 -nowarn -d target/netbeans-fix/classes \
+        javac --release 21 -nowarn -Xlint:-removal -d target/netbeans-fix/classes \
             -cp "$(cat classgraph-vfs/target/bench-cp.txt)" target/netbeans-fix/src/JarFileSystem.java
         jar cf target/netbeans-fix.jar -C target/netbeans-fix/classes .
     - name: Stop Spotlight indexing
