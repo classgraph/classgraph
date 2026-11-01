@@ -55,6 +55,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -74,35 +75,19 @@ import io.github.classgraph.vfs.internal.slice.Slice;
 
 /** A filesystem directory root. */
 public final class DirRoot extends VfsRoot {
-    /**
-     * A step in the iterative directory traversal stack.
-     *
-     * @param path
-     *            the directory to enter or exit.
-     * @param namePrefix
-     *            the root-relative directory prefix ending with {@code '/'}, or {@code ""} for the root or an exit
-     *            step.
-     * @param parent
-     *            the directory that {@code path} was listed in, or null for the root or an exit step.
-     * @param key
-     *            the {@link #identityKey} of the directory, or null for the root.
-     * @param mayBeLink
-     *            whether the listing showed that the directory may be a symbolic link, junction or other reparse
-     *            point.
-     * @param exiting
-     *            {@code true} if exiting a directory after visiting its children.
-     */
-    private record WalkStep(Path path, String namePrefix, @Nullable Ancestor parent, @Nullable Object key,
-            boolean mayBeLink, boolean exiting) {
-    }
-
-    /** A directory on the path of the walk from the root to the directory being walked. */
-    private static final class Ancestor {
+    /** A directory on the traversal stack. */
+    private static final class WalkStep {
         /** The path of the directory, under the root. */
         private final Path path;
 
+        /** The root-relative directory prefix ending with {@code '/'}, or {@code ""} for the root. */
+        private final String namePrefix;
+
         /** The directory that this one was listed in, or null for the root. */
-        private final @Nullable Ancestor parent;
+        private final @Nullable WalkStep parent;
+
+        /** The attributes of the directory, read with links followed, or null for the root. */
+        private final @Nullable BasicFileAttributes attributes;
 
         /** Whether the listing showed that the directory may be a symbolic link, junction or reparse point. */
         private final boolean mayBeLink;
@@ -110,53 +95,150 @@ public final class DirRoot extends VfsRoot {
         /** The real path of the directory, or null if it has not been needed yet. */
         private @Nullable Path realPath;
 
+        /** Whether {@link #realPath} has been added to {@link VisitedDirs#realPaths}. */
+        private boolean inRealPaths;
+
         /**
          * Constructor.
          *
          * @param path
          *            the path of the directory, under the root.
+         * @param namePrefix
+         *            the root-relative directory prefix ending with {@code '/'}, or {@code ""} for the root.
          * @param parent
          *            the directory that this one was listed in, or null for the root.
+         * @param attributes
+         *            the attributes of the directory, read with links followed, or null for the root.
          * @param mayBeLink
          *            whether the listing showed that the directory may be a link.
-         * @param realPath
-         *            the real path of the directory, if known, otherwise null.
          */
-        Ancestor(final Path path, final @Nullable Ancestor parent, final boolean mayBeLink,
-                final @Nullable Path realPath) {
+        WalkStep(final Path path, final String namePrefix, final @Nullable WalkStep parent,
+                final @Nullable BasicFileAttributes attributes, final boolean mayBeLink) {
             this.path = path;
+            this.namePrefix = namePrefix;
             this.parent = parent;
+            this.attributes = attributes;
             this.mayBeLink = mayBeLink;
-            this.realPath = realPath;
+            // The root is already canonical
+            this.realPath = parent == null ? path : null;
         }
 
         /**
          * Return the real path of the directory, looking it up the first time it is needed. toRealPath changes only
          * the components of a path that are links, and the listing gives the name of a child as it is stored, so
-         * the real path of a directory that is not a link is the real path of its parent followed by its name. This
-         * saves a toRealPath call, which looks up every component of the path again.
+         * the real path of a directory that is not a link is the real path of its parent followed by its name, and
+         * is its own path if no directory above it is a link either. This saves a toRealPath call, which looks up
+         * every component of the path again.
          *
          * @return the real path.
          * @throws IOException
          *             if the real path could not be read.
          */
         Path realPath() throws IOException {
-            if (realPath == null) {
+            var real = realPath;
+            if (real == null) {
                 final var parentDir = parent;
-                realPath = parentDir == null || mayBeLink ? path.toRealPath()
-                        : parentDir.realPath().resolve(path.getFileName());
+                if (parentDir == null || mayBeLink) {
+                    real = path.toRealPath();
+                } else {
+                    final var parentReal = parentDir.realPath();
+                    real = parentReal == parentDir.path ? path : parentReal.resolve(path.getFileName());
+                }
+                realPath = real;
             }
-            return realPath;
+            return real;
         }
     }
 
     /**
-     * An {@link #identityKey} that two directories can share.
+     * The directories a walk has entered. A directory is entered at most once, which both ends a symlink cycle and
+     * keeps a directory that several links lead to from being walked once per path to it, a number that grows
+     * exponentially with the number of levels of such links.
      *
-     * @param time
-     *            the creation time of the directory, or null if the filesystem does not record one.
+     * <p>
+     * A directory is identified by its {@link BasicFileAttributes#fileKey} where it has one, as on Linux and macOS,
+     * where the key holds the device and inode number, which no other directory has. On Windows the file key is
+     * null, so directories are told apart by their creation times, which other directories can have too, such as
+     * directories created at the same moment, or copied with their creation times, and the real paths of two
+     * directories are compared only when their creation times match. So toRealPath is called only for a link with
+     * the same creation time as another directory, and at most once for each.
      */
-    private record CreationTime(@Nullable FileTime time) {
+    private static final class VisitedDirs {
+        /** The file keys of the directories entered. */
+        private final Set<Object> fileKeys = new HashSet<>();
+
+        /** The first directory entered with each creation time, of those with no file key. */
+        private @Nullable Map<FileTime, WalkStep> firstByCreationTime;
+
+        /** The real paths of the directories with no file key that share a creation time with another. */
+        private @Nullable Set<Path> realPaths;
+
+        /** Constructor. */
+        VisitedDirs() {
+            // Empty
+        }
+
+        /**
+         * Record the root, which is always the first directory entered.
+         *
+         * @param root
+         *            the root.
+         * @param attributes
+         *            its attributes.
+         */
+        void addRoot(final WalkStep root, final BasicFileAttributes attributes) {
+            final var fileKey = attributes.fileKey();
+            if (fileKey != null) {
+                fileKeys.add(fileKey);
+            } else {
+                final Map<FileTime, WalkStep> byCreationTime = new HashMap<>();
+                byCreationTime.put(attributes.creationTime(), root);
+                firstByCreationTime = byCreationTime;
+            }
+        }
+
+        /**
+         * Record a directory as entered.
+         *
+         * @param dir
+         *            the directory.
+         * @param attributes
+         *            its attributes.
+         * @return true if the directory had not been entered before.
+         * @throws IOException
+         *             if its real path was needed and could not be read.
+         */
+        boolean add(final WalkStep dir, final BasicFileAttributes attributes) throws IOException {
+            final var fileKey = attributes.fileKey();
+            if (fileKey != null) {
+                return fileKeys.add(fileKey);
+            }
+            var byCreationTime = firstByCreationTime;
+            if (byCreationTime == null) {
+                byCreationTime = new HashMap<>();
+                firstByCreationTime = byCreationTime;
+            }
+            final var first = byCreationTime.putIfAbsent(attributes.creationTime(), dir);
+            if (first == null) {
+                return true;
+            }
+            var paths = realPaths;
+            if (paths == null) {
+                paths = new HashSet<>();
+                realPaths = paths;
+            }
+            final var realPath = dir.realPath();
+            if (!first.inRealPaths) {
+                // Every later directory with this creation time is added below, so only the first needs adding here
+                first.inRealPaths = true;
+                try {
+                    paths.add(first.realPath());
+                } catch (final IOException | SecurityException e) {
+                    // The first directory can no longer be resolved, so it cannot be shown to be this one
+                }
+            }
+            return paths.add(realPath);
+        }
     }
 
     /** The canonicalized directory path. */
@@ -622,11 +704,10 @@ public final class DirRoot extends VfsRoot {
 
     @Override
     void walkImpl(final VfsVisitor visitor, final @Nullable LogNode log) throws IOException {
-        // Symlinks can make a directory tree cyclic, so record the canonical paths of the directories on the way
-        // down to the one being walked -- otherwise a directory that contains a symlink to one of its own ancestors
-        // makes the walk never finish. Only those ancestors are recorded, not every directory walked so far, so
-        // that a directory reached a second time by another path that is not a cycle, such as a symlink to a sibling
-        // directory, is walked again under that path, as Files.walk does with FOLLOW_LINKS.
+        // Symlinks can make a directory tree cyclic, or lead to one directory by many paths, so each directory is
+        // walked once, under the first path the walk reaches it by. The links in a directory are walked only after
+        // all the directories that are not links, so that a directory is walked under its own path, rather than
+        // the path of a link to it, wherever the walk can reach it without following a link.
         walkIteratively(visitor, log);
     }
 
@@ -654,154 +735,81 @@ public final class DirRoot extends VfsRoot {
      * @return {@code true} if traversal completed, or {@code false} if stopped by the visitor.
      */
     private boolean walkIteratively(final VfsVisitor visitor, final @Nullable LogNode log) {
-        // The directories on the path from the root to the one being walked, by identityKey. A directory is not
-        // walked if it is one of them, since that is a symlink cycle. The root is added only once a link is
-        // reached, since only a link can lead back to it, which saves reading its attributes.
-        final Map<Object, List<Ancestor>> ancestorsByKey = new HashMap<>();
-        final var root = new Ancestor(dir, null, false, dir);
-        var rootAdded = false;
-        var rootKeyUnknown = false;
+        final var visitedDirs = new VisitedDirs();
+        // The directories that are not links, walked depth first, and the links, walked in the order they were
+        // found once there are no other directories left to walk
         final Deque<WalkStep> pending = new ArrayDeque<>();
-        pending.push(new WalkStep(dir, "", null, null, false, false));
-        while (!pending.isEmpty()) {
-            final var step = pending.pop();
-            if (step.exiting) {
-                // The steps are popped in reverse order of being pushed, so the directory exited is the last one
-                // added under its key
-                ancestorsByKey.computeIfPresent(step.key, (k, sameKey) -> {
-                    sameKey.remove(sameKey.size() - 1);
-                    return sameKey.isEmpty() ? null : sameKey;
-                });
-                continue;
+        final Deque<WalkStep> pendingLinks = new ArrayDeque<>();
+        pending.push(new WalkStep(dir, "", null, null, false));
+        while (true) {
+            final var step = pending.isEmpty() ? pendingLinks.poll() : pending.pop();
+            if (step == null) {
+                return true;
             }
-            final var currDir = step.path;
             final var namePrefix = step.namePrefix;
-            // Ask before listing, since not listing an unwanted directory is the whole point of asking
+            // Ask before listing, since not listing an unwanted directory is the whole point of asking. A directory
+            // the visitor skips is not recorded as entered, so it is still walked if another path leads to it.
             if (!visitor.enterDirectory(namePrefix.isEmpty() ? "/" : namePrefix)) {
                 continue;
             }
-            final var parent = step.parent;
-            final var key = step.key;
-            final Ancestor ancestor;
-            if (parent == null || key == null) {
-                ancestor = root;
-            } else {
-                ancestor = new Ancestor(currDir, parent, step.mayBeLink, null);
-                if (step.mayBeLink && !rootAdded) {
-                    rootAdded = true;
-                    try {
-                        // Added first, since it is the first directory on the path
-                        ancestorsByKey
-                                .computeIfAbsent(identityKey(Files.readAttributes(dir, BasicFileAttributes.class)),
-                                        k -> new ArrayList<>(1))
-                                .add(0, root);
-                    } catch (final IOException | SecurityException e) {
-                        // Compare the real path of each link with the root's instead
-                        rootKeyUnknown = true;
-                    }
-                }
-                final boolean isCycle;
+            final var attributes = step.attributes;
+            if (attributes != null) {
+                final boolean firstEntry;
                 try {
-                    isCycle = isAncestor(ancestor, key, ancestorsByKey)
-                            || rootKeyUnknown && step.mayBeLink && ancestor.realPath().equals(dir);
+                    firstEntry = visitedDirs.add(step, attributes);
                 } catch (final IOException | SecurityException e) {
                     // A directory that cannot be resolved is skipped, rather than aborting the whole listing
                     if (log != null) {
-                        log.log("Could not canonicalize path: " + currDir + " : " + e);
+                        log.log("Could not canonicalize path: " + step.path + " : " + e);
                     }
                     continue;
                 }
-                if (isCycle) {
+                if (!firstEntry) {
                     if (log != null) {
-                        log.log("Reached symlink cycle, stopping traversal: " + currDir);
+                        log.log("Directory already walked, by another path or a symlink cycle, skipping: "
+                                + step.path);
                     }
                     continue;
                 }
-                ancestorsByKey.computeIfAbsent(key, k -> new ArrayList<>(1)).add(ancestor);
-                // walkChildren pushes the subdirectories on top of this step, so the directory stays among the
-                // recorded ancestors until all of them have been walked
-                pending.push(new WalkStep(currDir, "", null, key, false, true));
             }
-            if (!walkChildren(currDir, ancestor, namePrefix, visitor, pending, log)) {
+            if (!walkChildren(step, visitor, visitedDirs, pending, pendingLinks, log)) {
                 return false;
             }
         }
-        return true;
     }
 
     /**
-     * Return a key that every path to a directory has in common. This is the {@link BasicFileAttributes#fileKey}
-     * where there is one, as on Linux and macOS, where it holds the device and inode number, which no other
-     * directory has. On Windows the file key is null, so the key is the creation time, which other directories can
-     * have too, such as directories created at the same moment, or copied with their creation times.
+     * Visit the files in a directory and push its subdirectories onto the traversal stacks.
      *
-     * @param attributes
-     *            the attributes of the directory, read with symbolic links followed.
-     * @return the key.
-     */
-    private static Object identityKey(final BasicFileAttributes attributes) {
-        final var fileKey = attributes.fileKey();
-        return fileKey != null ? fileKey : new CreationTime(attributes.creationTime());
-    }
-
-    /**
-     * Return whether a directory is on the path of the walk from the root to its parent. The real paths of the
-     * directories are compared only if their keys match and do not tell directories apart, so that toRealPath is
-     * called only then, and at most once per directory.
-     *
-     * @param dir
-     *            the directory.
-     * @param key
-     *            its {@link #identityKey}.
-     * @param ancestorsByKey
-     *            the directories on the path, by {@link #identityKey}.
-     * @return true if the directory is on the path.
-     * @throws IOException
-     *             if a real path could not be read.
-     */
-    private static boolean isAncestor(final Ancestor dir, final Object key,
-            final Map<Object, List<Ancestor>> ancestorsByKey) throws IOException {
-        final var sameKey = ancestorsByKey.get(key);
-        if (sameKey == null) {
-            return false;
-        }
-        if (!(key instanceof CreationTime)) {
-            return true;
-        }
-        final var realPath = dir.realPath();
-        for (final var ancestor : sameKey) {
-            if (ancestor.realPath().equals(realPath)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Visit the files in a directory and push its subdirectories onto the traversal stack.
-     *
-     * @param currDir
+     * @param step
      *            the directory to list.
-     * @param ancestor
-     *            {@code currDir} as a directory on the path of the walk.
-     * @param namePrefix
-     *            the root-relative prefix of {@code currDir} with a trailing {@code '/'}, or {@code ""} for the
-     *            root.
      * @param visitor
      *            the visitor to notify of entries.
+     * @param visitedDirs
+     *            the directories entered, to record the root in.
      * @param pending
-     *            the traversal stack.
+     *            the stack of subdirectories that are not links.
+     * @param pendingLinks
+     *            the queue of subdirectories that may be links.
      * @param log
      *            the log node, or {@code null}.
      * @return {@code true} to continue traversal, or {@code false} if stopped by the visitor.
      */
-    private boolean walkChildren(final Path currDir, final Ancestor ancestor, final String namePrefix,
-            final VfsVisitor visitor, final Deque<WalkStep> pending, final @Nullable LogNode log) {
+    private boolean walkChildren(final WalkStep step, final VfsVisitor visitor, final VisitedDirs visitedDirs,
+            final Deque<WalkStep> pending, final Deque<WalkStep> pendingLinks, final @Nullable LogNode log) {
+        final var currDir = step.path;
+        final var namePrefix = step.namePrefix;
         final List<DirListing.Child> children;
         try {
             // Each entry listed counts as progress, so that the threads waiting for this one do not time out while
             // a large directory on a slow filesystem is still being listed
-            children = DirListing.list(currDir, getVfs().interruptionChecker()::progress);
+            final var listing = DirListing.list(currDir, getVfs().interruptionChecker()::progress);
+            children = listing.children();
+            if (step.attributes == null) {
+                // The root, whose attributes the listing read, so that recording it reads nothing more
+                final var rootAttributes = listing.attributes();
+                visitedDirs.addRoot(step, rootAttributes != null ? rootAttributes : FileUtils.readAttributes(dir));
+            }
         } catch (final IOException | DirectoryIteratorException | SecurityException e) {
             // A directory that cannot be opened is skipped, rather than aborting the whole listing
             if (log != null) {
@@ -833,14 +841,34 @@ public final class DirRoot extends VfsRoot {
                 }
             }
         }
-        // Push in reverse, so that the subdirectories are walked in sorted order
+        // Push in reverse, so that the subdirectories are walked in sorted order, and queue the links in sorted order
         for (var i = subDirs.size() - 1; i >= 0; i--) {
             final var subDir = subDirs.get(i);
-            final var subDirPath = subDir.path();
-            pending.push(new WalkStep(subDirPath, namePrefix + subDirPath.getFileName() + "/", ancestor,
-                    identityKey(subDir.attributes()), subDir.mayBeLink(), false));
+            if (!subDir.mayBeLink()) {
+                pending.push(walkStep(step, subDir));
+            }
+        }
+        for (final var subDir : subDirs) {
+            if (subDir.mayBeLink()) {
+                pendingLinks.add(walkStep(step, subDir));
+            }
         }
         return true;
+    }
+
+    /**
+     * Make the traversal step for a subdirectory.
+     *
+     * @param parent
+     *            the directory it was listed in.
+     * @param subDir
+     *            the subdirectory.
+     * @return the step.
+     */
+    private static WalkStep walkStep(final WalkStep parent, final DirListing.Child subDir) {
+        final var path = subDir.path();
+        return new WalkStep(path, parent.namePrefix + path.getFileName() + "/", parent, subDir.attributes(),
+                subDir.mayBeLink());
     }
 
     /**

@@ -31,12 +31,14 @@ package io.github.classgraph.vfs;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.jspecify.annotations.Nullable;
 
@@ -68,6 +70,18 @@ final class DirListing {
     record Child(Path path, BasicFileAttributes attributes, boolean mayBeLink) {
     }
 
+    /**
+     * A listed directory.
+     *
+     * @param attributes
+     *            the attributes of the directory itself, or null if it is a symbolic link or junction, which the
+     *            listing read only without following it.
+     * @param children
+     *            the children, in the order the filesystem listed them.
+     */
+    record Listing(@Nullable BasicFileAttributes attributes, List<Child> children) {
+    }
+
     /** Constructor. */
     private DirListing() {
         // Not instantiable
@@ -80,14 +94,22 @@ final class DirListing {
      *            the directory.
      * @param onEachChild
      *            run once for each child listed, or null.
-     * @return the children, in the order the filesystem listed them.
+     * @return the listing.
      * @throws IOException
      *             if the directory could not be opened or read.
      */
-    static List<Child> list(final Path dir, final @Nullable Runnable onEachChild) throws IOException {
+    static Listing list(final Path dir, final @Nullable Runnable onEachChild) throws IOException {
         final List<Child> children = new ArrayList<>();
         final var dirIsLink = new boolean[1];
+        final var dirAttributes = new AtomicReference<@Nullable BasicFileAttributes>();
         Files.walkFileTree(dir, Set.of(), 1, new SimpleFileVisitor<>() {
+            @Override
+            public FileVisitResult preVisitDirectory(final Path d, final BasicFileAttributes attributes) {
+                // Called only for the directory itself, since the depth is 1
+                dirAttributes.set(attributes);
+                return FileVisitResult.CONTINUE;
+            }
+
             @Override
             public FileVisitResult visitFile(final Path file, final BasicFileAttributes attributes) {
                 if (file.equals(dir)) {
@@ -95,10 +117,7 @@ final class DirListing {
                     dirIsLink[0] = true;
                     return FileVisitResult.CONTINUE;
                 }
-                // The walker does not follow symbolic links, so the attributes of a link are those of the link
-                // itself -- read them again, following the link, as Files#readAttributes does by default
-                final var isLink = attributes.isSymbolicLink() || attributes.isOther();
-                children.add(new Child(file, isLink ? FileUtils.readAttributes(file) : attributes, isLink));
+                children.add(child(file, attributes));
                 if (onEachChild != null) {
                     onEachChild.run();
                 }
@@ -128,16 +147,42 @@ final class DirListing {
             }
         });
         if (dirIsLink[0]) {
-            // List the directory the link points to, keeping the paths of the children under the link
+            // List the directory the link points to, keeping the paths of the children under the link. The listing
+            // holds no attributes, so read them without following links, as the walker does, which tells the
+            // children that are links apart at no extra cost.
             try (var dirStream = Files.newDirectoryStream(dir)) {
                 for (final Path child : dirStream) {
-                    children.add(new Child(child, FileUtils.readAttributes(child), true));
+                    Child listed;
+                    try {
+                        listed = child(child,
+                                Files.readAttributes(child, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS));
+                    } catch (final IOException | SecurityException e) {
+                        // Fall back the same way as visitFileFailed does
+                        listed = new Child(child, FileUtils.readAttributes(child), true);
+                    }
+                    children.add(listed);
                     if (onEachChild != null) {
                         onEachChild.run();
                     }
                 }
             }
         }
-        return children;
+        return new Listing(dirAttributes.get(), children);
+    }
+
+    /**
+     * Make a child from attributes read without following links.
+     *
+     * @param path
+     *            the path of the child.
+     * @param attributes
+     *            its attributes, read without following links.
+     * @return the child.
+     */
+    private static Child child(final Path path, final BasicFileAttributes attributes) {
+        // The attributes of a link are those of the link itself -- read them again, following the link, as
+        // Files#readAttributes does by default
+        final var isLink = attributes.isSymbolicLink() || attributes.isOther();
+        return new Child(path, isLink ? FileUtils.readAttributes(path) : attributes, isLink);
     }
 }
