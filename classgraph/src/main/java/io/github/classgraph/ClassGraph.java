@@ -106,20 +106,12 @@ public final class ClassGraph {
     /** The sources from which classpath elements and modules are discovered. */
     final ScanSourceSpec scanSourceSpec = new ScanSourceSpec();
 
-    /** The default number of worker threads to use while scanning. */
-    static final int DEFAULT_NUM_WORKER_THREADS = Math.max(
-            // Always scan with at least 2 threads
-            2, //
-            Math.min(
-                    // Top out at 16 threads
-                    16, //
-                    (int) Math.ceil(
-                            // Num IO threads (top out at 4, since most I/O devices won't scale better than this)
-                            Math.min(4.0, Runtime.getRuntime().availableProcessors() * 0.75) +
-                            // Num scanning threads (higher than available processors, because some threads can be
-                            // blocked)
-                                    Runtime.getRuntime().availableProcessors() * 1.25)) //
-    );
+    /**
+     * The default number of worker threads to use while scanning. A scan stops getting faster at about 8 threads,
+     * since linking the classes and building the {@link ScanResult} run on one thread, so more threads than this
+     * only wait for work.
+     */
+    static final int DEFAULT_NUM_WORKER_THREADS = 8;
 
     /** The default worker timeout (see {@link #setWorkerTimeout(Duration)}). */
     static final Duration DEFAULT_WORKER_TIMEOUT = Duration.ofMinutes(1);
