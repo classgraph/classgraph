@@ -173,6 +173,11 @@ public final class DirRoot extends VfsRoot {
         /** The real paths of the directories with no file key that share a creation time with another. */
         private @Nullable Set<Path> realPaths;
 
+        /** Constructor. */
+        VisitedDirs() {
+            // Empty
+        }
+
         /**
          * Record the root, which is always the first directory entered.
          *
