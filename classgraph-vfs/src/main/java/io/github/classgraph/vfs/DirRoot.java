@@ -235,8 +235,15 @@ public final class DirRoot extends VfsRoot {
         // closing it 40-50 us, and each thread's first read from it 25-46 us more than its later reads, measured
         // in FirstReadBenchmark on GitHub's Linux runners (x86-64 and aarch64). That is why reading every file
         // of a directory once through a new root takes 0.2-0.6 ms longer than reading them with
-        // Files.readAllBytes, which opens nothing first. A canonical path is not kept for the next root of the same
-        // directory, since a symlink on the path can be changed in between
+        // Files.readAllBytes, which opens nothing first. The cost is higher on Windows. There toRealPath alone took
+        // 138 us (164 us on aarch64), and the file opens that followed it took about 300 us longer in total than
+        // the same opens without it, in a plain Files.readAllBytes loop too. Reading 32 files of 1 MB through a
+        // new root took 0.4-0.7 ms longer than the same reads with no root on GitHub's windows-latest runner, and
+        // reading 34 files of 64 KB-4 MB took 0.5-1.1 ms longer than Files.readAllBytes on windows-11-arm. The
+        // root is opened and closed on one thread, so this cost stays the same as threads are added while the
+        // reads take less time: on windows-11-arm, a pass with 4 or 8 threads took 1.2-1.4 times as long as
+        // Files.readAllBytes, against 1.1 times with 1 thread. A canonical path is not kept for the next root of
+        // the same directory, since a symlink on the path can be changed in between
         this.dir = FileUtils.canonicalize(absoluteDir);
         try {
             this.pathStr = FileUtils.pathStr(this.dir);
