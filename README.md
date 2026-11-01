@@ -224,7 +224,7 @@ The fix is to add [Narcissus](https://github.com/toolfactory/narcissus) to your 
 <dependency>
     <groupId>io.github.toolfactory</groupId>
     <artifactId>narcissus</artifactId>
-    <version>1.0.13</version>
+    <version>1.0.14</version>
 </dependency>
 ```
 
@@ -234,7 +234,7 @@ If Narcissus is on the module path instead, it is used only if the module system
 
 To avoid the JDK's warning when Narcissus loads its native library, launch the JVM with `--enable-native-access=ALL-UNNAMED` if Narcissus is on the classpath, or with `--enable-native-access=io.github.toolfactory.narcissus` if it is on the module path.
 
-Narcissus includes a native library, and currently only Linux x64, Linux arm64, Windows x64, macOS x64 and macOS arm64 are supported -- feel free to contribute native code builds for other platforms or architectures. If Narcissus is present but its native library will not load, ClassGraph prints a message to `System.err` and falls back to standard reflection.
+Narcissus includes a native library, and currently only Linux x64, Linux arm64, Windows x64, Windows arm64, macOS x64 and macOS arm64 are supported -- feel free to contribute native code builds for other platforms or architectures. If Narcissus is present but its native library will not load, ClassGraph prints a message to `System.err` and falls back to standard reflection.
 
 **To clarify, you only need to add Narcissus if ClassGraph cannot find the classpath elements from your classloader, due to the enforcement of strong encapsulation, or if it is problematic that you are getting reflection access warnings on the console.**
 
