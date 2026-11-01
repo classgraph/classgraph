@@ -43,14 +43,11 @@ import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -157,15 +154,6 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
 
     /** All currently open roots owned by this {@link Vfs}. */
     private final Set<VfsRoot> openRoots = ConcurrentHashMap.newKeySet();
-
-    /**
-     * The cached directory roots in the default filesystem, grouped by the identity of their directory: its
-     * {@link BasicFileAttributes#fileKey()} where it has one, or else its creation time, which other directories
-     * can share. A directory opened by a second path, such as through a symlink, or on Windows by an 8.3 short
-     * name, is found here as the same directory, and only then are the real paths of the two read, to compare them.
-     * Guarded by itself.
-     */
-    private final Map<Object, List<DirRoot>> dirRootsByIdentity = new HashMap<>();
 
     /** Verbose log node enabled by {@link #verbose()}, or {@code null} if logging is disabled. */
     private volatile @Nullable LogNode log;
@@ -436,11 +424,6 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *            the key under which the root was opened.
      */
     private void registerAlias(final VfsRoot root, final Object openedKey) {
-        if (root instanceof DirRoot) {
-            // A directory root is found by the identity of its directory (see dirRootsByIdentity), and its
-            // reported path is its real path, which is not read just to register it
-            return;
-        }
         final var nioPath = root.getNioPath();
         if (nioPath != null && nioPath.getFileSystem() != FileSystems.getDefault()) {
             return;
@@ -586,17 +569,34 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
                     // jarfile, which reports the failure with the reason it could not be read
                     dir = null;
                 }
-                // One read of the metadata both tells a directory from a jarfile and identifies the directory
-                BasicFileAttributes attributes = null;
-                if (dir != null) {
-                    try {
-                        attributes = Files.readAttributes(dir, BasicFileAttributes.class);
-                    } catch (final IOException | SecurityException e) {
-                        // Not readable as a directory, so try opening it as a jarfile, which reports the reason
+                if (dir != null && Files.isDirectory(dir)) {
+                    // A directory root names itself by the canonical path of the directory that backs it, which is
+                    // what the path it was reached through has to be reconciled with when the two differ -- when
+                    // the directory was reached through a symlink, or, on Windows, by an 8.3 short name. The root
+                    // belongs under the canonical path in that case, where another thread may already have opened
+                    // one. Nothing but the directory's own name is read to build a root, but finding that name out
+                    // is half the cost of opening one on Windows, so the root just built is the one kept under the
+                    // canonical path unless one is already there, rather than being built again.
+                    final var dirRoot = new DirRoot(this, dir, isRealPath);
+                    final var canonicalKey = dirRoot.reportedPath();
+                    if (!canonicalKey.equals(resolvedPath)) {
+                        // The factory is called again only if the root it returned was closed before it was handed
+                        // out, and then builds a new one
+                        final var dirRootUsed = new AtomicBoolean();
+                        final VfsRoot root;
+                        try {
+                            root = openThroughCache(canonicalKey, /* aliasReportedPath = */ true,
+                                    () -> dirRootUsed.getAndSet(true)
+                                            ? openRootUncached(canonicalKey, outerLog, /* isRealPath = */ true)
+                                            : recordPathKey(canonicalKey, adopt(dirRoot)));
+                        } finally {
+                            if (!dirRootUsed.get()) {
+                                dirRoot.close();
+                            }
+                        }
+                        return recordPathKey(resolvedPath, root);
                     }
-                }
-                if (dir != null && attributes != null && attributes.isDirectory()) {
-                    return recordPathKey(resolvedPath, openDirRoot(dir, attributes, isRealPath));
+                    return recordPathKey(resolvedPath, adopt(dirRoot));
                 }
                 // A jarfile in the local filesystem is opened under its canonical path, so that two paths that
                 // reach the same jarfile -- one of them through a symlink, or, on Windows, by an 8.3 short name --
@@ -675,79 +675,6 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         }
         return recordPathKey(resolvedPath, adoptWithin(container,
                 new ArchiveRoot(this, container, containerZipFile.openNestedJar(childZipEntry, logNode))));
-    }
-
-    /**
-     * Open a root for a directory in the default filesystem, or return the root that is already open for it, if
-     * another path to the same directory was opened. Two paths name the same directory if their real paths are
-     * equal, but reading a real path is the largest part of the cost of opening a root on Windows. So the real
-     * paths are read only for directories with the same identity, the file key or creation time that the metadata
-     * just read gives. Two paths to one directory always have the same identity, since reading the metadata follows
-     * links, so this finds every root that comparing the real paths of all the open roots would find.
-     *
-     * @param dir
-     *            the directory.
-     * @param attributes
-     *            its attributes, read with links followed.
-     * @param isRealPath
-     *            true if the caller has resolved {@code dir} to its real path.
-     * @return the root.
-     * @throws IOException
-     *             if the root cannot be built.
-     */
-    private VfsRoot openDirRoot(final Path dir, final BasicFileAttributes attributes, final boolean isRealPath)
-            throws IOException {
-        final var fileKey = attributes.fileKey();
-        final Object identity = fileKey != null ? fileKey : attributes.creationTime();
-        // Adopted before it can be found in its bucket, so that closing this Vfs closes it however far it has got.
-        // If another root is returned instead, closing this one unregisters it from both.
-        final var dirRoot = adopt(new DirRoot(this, dir, isRealPath));
-        dirRoot.addUnregistration(() -> removeFromIdentityBucket(identity, dirRoot));
-        // The roots that have been compared with this one, so that a root added to the bucket while the real paths
-        // were being read is compared too, before this one is added
-        final Set<DirRoot> compared = Collections.newSetFromMap(new IdentityHashMap<>());
-        for (;;) {
-            final List<DirRoot> toCompare = new ArrayList<>();
-            synchronized (dirRootsByIdentity) {
-                final var bucket = dirRootsByIdentity.computeIfAbsent(identity, k -> new ArrayList<>());
-                for (final var other : bucket) {
-                    if (!compared.contains(other)) {
-                        toCompare.add(other);
-                    }
-                }
-                if (toCompare.isEmpty()) {
-                    bucket.add(dirRoot);
-                    break;
-                }
-            }
-            // The real paths are read outside the lock, since each is a read of the filesystem
-            for (final var other : toCompare) {
-                if (!other.isClosed() && other.getPath().equals(dirRoot.getPath())) {
-                    // The root just built was never handed out, so nothing else can be holding it
-                    dirRoot.close();
-                    return other;
-                }
-                compared.add(other);
-            }
-        }
-        return dirRoot;
-    }
-
-    /**
-     * Remove a directory root from {@link #dirRootsByIdentity}.
-     *
-     * @param identity
-     *            the identity of its directory.
-     * @param dirRoot
-     *            the root.
-     */
-    private void removeFromIdentityBucket(final Object identity, final DirRoot dirRoot) {
-        synchronized (dirRootsByIdentity) {
-            final var bucket = dirRootsByIdentity.get(identity);
-            if (bucket != null && bucket.removeIf(other -> other == dirRoot) && bucket.isEmpty()) {
-                dirRootsByIdentity.remove(identity);
-            }
-        }
     }
 
     /**
@@ -1031,13 +958,6 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
             // canonical path of the file that turned out to back it
             rootsByPath.discardValue(root);
             rootsByModule.values().removeIf(cachedRoot -> cachedRoot == root);
-            if (root instanceof DirRoot) {
-                // Otherwise a later open of the same directory by another path would find this root again
-                synchronized (dirRootsByIdentity) {
-                    dirRootsByIdentity.values()
-                            .removeIf(bucket -> bucket.removeIf(other -> other == root) && bucket.isEmpty());
-                }
-            }
         }
         // If this Vfs is already closing, the caches are cleared wholesale by close(), so there is nothing to do
     }
@@ -1165,9 +1085,6 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
                 // be handed a root that is about to be closed
                 rootsByPath.clear();
                 rootsByModule.clear();
-                synchronized (dirRootsByIdentity) {
-                    dirRootsByIdentity.clear();
-                }
                 // Close every root this Vfs opened, releasing what each root owns: its pooled module readers, and
                 // the file handles, memory mappings and temporary files that its jarfile was read through.
                 // VfsRoot#close throws no exception, so one root that fails to release does not stop the rest from

@@ -52,7 +52,7 @@ import io.github.classgraph.vfs.internal.slice.Slice;
 /** A file entry in a directory root. */
 final class DirEntry extends VfsEntry {
     /**
-     * The filesystem path of the file, or {@code null} until {@link #ioPath()} builds it, for an entry that was
+     * The filesystem path of the file, or {@code null} until {@link #getNioPath()} builds it, for an entry that was
      * looked up without building it. A file is read without it, through {@link #dirHandle}. (Threads that build it
      * at once build equal paths, so it needs no lock.)
      */
@@ -140,16 +140,6 @@ final class DirEntry extends VfsEntry {
 
     @Override
     public Path getNioPath() {
-        return ((DirRoot) getRoot()).reportedPath(ioPath(), name);
-    }
-
-    /**
-     * Returns the path that the file is read through, under the path the root was opened at, which differs from
-     * {@link #getNioPath()} if that path is not the directory's real path.
-     *
-     * @return the path the file is read through.
-     */
-    private Path ioPath() {
         var pathCurr = path;
         if (pathCurr == null) {
             pathCurr = ((DirRoot) getRoot()).resolveCanonicalName(name);
@@ -174,7 +164,7 @@ final class DirEntry extends VfsEntry {
         var lengthCurr = length;
         if (lengthCurr < 0L) {
             try {
-                lengthCurr = Files.size(ioPath());
+                lengthCurr = Files.size(getNioPath());
             } catch (final IOException | SecurityException e) {
                 return -1L;
             }
@@ -195,7 +185,7 @@ final class DirEntry extends VfsEntry {
             }
         }
         try {
-            return Files.getLastModifiedTime(ioPath()).toMillis();
+            return Files.getLastModifiedTime(getNioPath()).toMillis();
         } catch (final IOException | SecurityException e) {
             return 0L;
         }
@@ -205,7 +195,7 @@ final class DirEntry extends VfsEntry {
     boolean isReadable() {
         // A walk tells the files from the subdirectories with the metadata it already reads, and does not check
         // whether each file can be read, so a file that was listed may still be unreadable
-        return FileUtils.canReadAndIsFile(ioPath());
+        return FileUtils.canReadAndIsFile(getNioPath());
     }
 
     @Override
@@ -216,7 +206,7 @@ final class DirEntry extends VfsEntry {
             return unmodifiableEnumSet(posixAttributes.permissions());
         }
         try {
-            return unmodifiableEnumSet(Files.readAttributes(ioPath(), PosixFileAttributes.class).permissions());
+            return unmodifiableEnumSet(Files.readAttributes(getNioPath(), PosixFileAttributes.class).permissions());
         } catch (final IOException | UnsupportedOperationException | SecurityException e) {
             // The filesystem does not record POSIX permissions (e.g. on Windows)
             return null;
@@ -247,7 +237,8 @@ final class DirEntry extends VfsEntry {
      */
     private PathSlice openSlice() throws IOException {
         final var root = checkRootNotClosed();
-        return PathSlice.forDirEntry(ioPath(), root.openFile(name, path, dirHandle, relativePath), root.getVfs());
+        return PathSlice.forDirEntry(getNioPath(), root.openFile(name, path, dirHandle, relativePath),
+                root.getVfs());
     }
 
     /**

@@ -119,6 +119,8 @@ public final class DirRoot extends VfsRoot {
             this.parent = parent;
             this.attributes = attributes;
             this.mayBeLink = mayBeLink;
+            // The root is already canonical
+            this.realPath = parent == null ? path : null;
         }
 
         /**
@@ -138,10 +140,6 @@ public final class DirRoot extends VfsRoot {
                 final var parentDir = parent;
                 if (parentDir == null || mayBeLink) {
                     real = path.toRealPath();
-                    if (real.equals(path)) {
-                        // Kept as the same object, which is what tells a child that its own path is real too
-                        real = path;
-                    }
                 } else {
                     final var parentReal = parentDir.realPath();
                     real = parentReal == parentDir.path ? path : parentReal.resolve(path.getFileName());
@@ -243,25 +241,11 @@ public final class DirRoot extends VfsRoot {
         }
     }
 
-    /**
-     * The real path of a root's directory, and its normalized string form using {@code '/'} separators.
-     *
-     * @param path
-     *            the real path.
-     * @param pathStr
-     *            its string form.
-     */
-    private record RealDir(Path path, String pathStr) {
-    }
-
-    /** The absolute, normalized path of the directory, as the root was opened at, which files are read through. */
+    /** The canonicalized directory path. */
     private final Path dir;
 
-    /** The real path of the directory, which the root reports itself at, or null if it has not been needed yet. */
-    private volatile @Nullable RealDir realDir;
-
-    /** Held while {@link #realDir} is read from the filesystem, so that it is read once. */
-    private final Object realDirLock = new Object();
+    /** The normalized directory path string using {@code '/'} separators. */
+    private final String pathStr;
 
     /**
      * The string form of {@link #dir} followed by {@code '/'}, if {@link #dir} is in the default filesystem and
@@ -389,25 +373,40 @@ public final class DirRoot extends VfsRoot {
      */
     DirRoot(final Vfs vfs, final Path dir, final boolean isRealPath) throws IOException {
         super(vfs);
+        Path absoluteDir;
         try {
-            this.dir = dir.toAbsolutePath().normalize();
+            absoluteDir = dir.toAbsolutePath().normalize();
         } catch (final IOError | SecurityException e) {
             throw new IOException("Could not resolve directory " + dir + " : " + e, e);
         }
-        // Nothing is read from the filesystem here. Whether the path is a directory, the caller has just read.
-        // Whether it can be read is not checked, since listing the directory, or opening a file in it, fails with
-        // the reason if it cannot, and a directory that cannot be listed may still let the files in it be opened
-        // by name. The real path, which the root reports itself at, is read the first time it is asked for (see
-        // realDir), since toRealPath took 138 us (164 us on aarch64) on GitHub's Windows runners, the largest
-        // part of the cost of opening a root there, and reading the files of a root needs only its path. On a
-        // filesystem other than the default one, it is read here still, since the string form of a path there is
-        // formed from its URI, which can fail, and the failure is reported as the root failing to open
-        if (isRealPath || this.dir.getFileSystem() != FileSystems.getDefault()) {
-            try {
-                this.realDir = newRealDir(isRealPath ? this.dir : FileUtils.canonicalize(this.dir));
-            } catch (final IOError | SecurityException e) {
-                throw new IOException("Could not form URI for " + this.dir + " : " + e, e);
-            }
+        // Whether it is a directory is not read again: the caller has just read it, and each read of a file's
+        // metadata is a system call, which is a measurable part of the cost of opening a root. Whether it can be
+        // read is not checked, since listing the directory, or opening a file in it, fails with the reason if it
+        // cannot, and a directory that cannot be listed may still let the files in it be opened by name.
+        // A root is named by the canonical path of the directory that backs it, the same way a jarfile root is
+        // named by the canonical path of its jarfile, so that a directory reached through a symlink or -- on
+        // Windows -- through an 8.3 short name is recognized as the directory it really is, and read once. This
+        // costs a fixed amount for each root: creating a Vfs and opening a directory root in it took 100-125 us,
+        // closing it 40-50 us, and each thread's first read from it 25-46 us more than its later reads, measured
+        // in FirstReadBenchmark on GitHub's Linux runners (x86-64 and aarch64). That is why reading every file
+        // of a directory once through a new root takes 0.2-0.6 ms longer than reading them with
+        // Files.readAllBytes, which opens nothing first. The cost is higher on Windows. There toRealPath alone took
+        // 138 us (164 us on aarch64), and the file opens that followed it took about 300 us longer in total than
+        // the same opens without it, in a plain Files.readAllBytes loop too. Reading 32 files of 1 MB through a
+        // new root took 0.4-0.7 ms longer than the same reads with no root on GitHub's windows-latest runner, and
+        // reading 34 files of 64 KB-4 MB took 0.5-1.1 ms longer than Files.readAllBytes on windows-11-arm. The
+        // root is opened and closed on one thread, so this cost stays the same as threads are added while the
+        // reads take less time: on windows-11-arm, a pass with 4 or 8 threads took 1.2-1.4 times as long as
+        // Files.readAllBytes, against 1.1 times with 1 thread. Reading every class file of a directory took 5-10%
+        // longer than Files.readAllBytes on both Windows runners, a few ms per pass, which is far more than this
+        // fixed cost: a version that read the real path only when it was first asked for took the same time, in
+        // runs side by side with this one. A canonical path is not kept for the next root of the same directory,
+        // since a symlink on the path can be changed in between
+        this.dir = isRealPath ? absoluteDir : FileUtils.canonicalize(absoluteDir);
+        try {
+            this.pathStr = FileUtils.pathStr(this.dir);
+        } catch (final IOError | SecurityException e) {
+            throw new IOException("Could not form URI for " + this.dir + " : " + e, e);
         }
         final var dirStr = this.dir.toString();
         this.dirPrefix = this.dir.getFileSystem() == FileSystems.getDefault()
@@ -677,81 +676,25 @@ public final class DirRoot extends VfsRoot {
         return "directory";
     }
 
-    /**
-     * Returns a {@link RealDir} for a real path.
-     *
-     * @param realPath
-     *            the real path.
-     * @return the {@link RealDir}, keeping {@link #dir} itself as its path if the real path equals it.
-     */
-    private RealDir newRealDir(final Path realPath) {
-        final var path = realPath.equals(dir) ? dir : realPath;
-        return new RealDir(path, FileUtils.pathStr(path));
-    }
-
-    /**
-     * Returns the real path of the directory, reading it from the filesystem the first time it is asked for. If it
-     * cannot be read, the absolute path is resolved as far as it exists, as {@link FileUtils#canonicalize(Path)}
-     * does.
-     *
-     * @return the real path of the directory.
-     */
-    private RealDir realDir() {
-        var realDirCurr = realDir;
-        if (realDirCurr == null) {
-            synchronized (realDirLock) {
-                realDirCurr = realDir;
-                if (realDirCurr == null) {
-                    realDirCurr = newRealDir(FileUtils.canonicalize(dir));
-                    realDir = realDirCurr;
-                }
-            }
-        }
-        return realDirCurr;
-    }
-
-    /**
-     * Returns the real path of the directory, reading it from the filesystem the first time it is asked for.
-     *
-     * @return the real path of the directory.
-     */
-    Path realPath() {
-        return realDir().path();
-    }
-
-    /**
-     * Returns the path that a file in this root is reported at: under the real path of the directory.
-     *
-     * @param ioPath
-     *            the path that the file is read through, under {@link #dir}.
-     * @param name
-     *            the name of the file relative to the directory, using {@code '/'} separators.
-     * @return the reported path, which is {@code ioPath} itself if the directory was opened at its real path.
-     */
-    Path reportedPath(final Path ioPath, final String name) {
-        final var real = realDir().path();
-        return real == dir ? ioPath : real.resolve(name);
-    }
-
     @Override
     public String getPath() {
-        return realDir().pathStr();
+        return pathStr;
     }
 
     @Override
     public URI getURI() {
-        return URLPaths.toURI(realDir().path());
+        return URLPaths.toURI(dir);
     }
 
     @Override
     public URI resolveURI(final String pathWithinRoot) {
-        return URLPaths.toURI(realDir().path().resolve(pathWithinRoot));
+        return URLPaths.toURI(dir.resolve(pathWithinRoot));
     }
 
     @Override
     public @Nullable File getFile() {
         try {
-            return realDir().path().toFile();
+            return dir.toFile();
         } catch (final UnsupportedOperationException e) {
             // Filesystem supports the Path API but not the File API
             return null;
@@ -760,7 +703,7 @@ public final class DirRoot extends VfsRoot {
 
     @Override
     public Path getNioPath() {
-        return realDir().path();
+        return dir;
     }
 
     @Override
