@@ -299,12 +299,11 @@ public class VfsWalkTest {
     }
 
     /**
-     * A directory reached through a symlink is walked under the symlink's name as well as under its own, even when
-     * the symlink sorts first, and a walk narrowed to the real directory reports the same entries for it as a full
-     * walk does.
+     * A directory reached through a symlink is walked only under its own name, even when the symlink sorts first,
+     * and a walk narrowed to the real directory reports the same entries for it as a full walk does.
      */
     @Test
-    public void aSymlinkedDirectoryIsWalkedUnderBothNames(@TempDir final File tempDir) throws IOException {
+    public void aSymlinkedDirectoryIsWalkedOnlyUnderItsOwnName(@TempDir final File tempDir) throws IOException {
         final var dir = new File(tempDir, "classes");
         assertThat(new File(dir, "pkg").mkdirs()).isTrue();
         Files.writeString(new File(dir, "pkg/A.txt").toPath(), "A");
@@ -312,16 +311,21 @@ public class VfsWalkTest {
 
         try (var vfs = new Vfs()) {
             final var root = vfs.open(dir.getPath());
-            final var entryNames = root.getEntries().stream().map(VfsEntry::getPathFromRoot).toList();
-            assertThat(entryNames).containsExactly("alias/A.txt", "pkg/A.txt");
+            final var recorder = new Recorder();
+            root.walk(recorder);
+            // The link is offered after the directories that are not links
+            assertThat(recorder.dirNames).containsExactly("/", "pkg/", "alias/");
+            assertThat(recorder.entryNames).containsExactly("pkg/A.txt");
+            assertThat(root.getEntries().stream().map(VfsEntry::getPathFromRoot).toList())
+                    .containsExactly("pkg/A.txt");
             assertThat(root.getEntries("pkg/").stream().map(VfsEntry::getPathFromRoot).toList())
                     .containsExactly("pkg/A.txt");
         }
     }
 
-    /** Two symlinks to one directory are both walked, as is the directory itself. */
+    /** A directory that two symlinks lead to is walked once, under its own name. */
     @Test
-    public void twoSymlinksToOneDirectoryAreBothWalked(@TempDir final File tempDir) throws IOException {
+    public void aDirectoryWithTwoSymlinksToItIsWalkedOnce(@TempDir final File tempDir) throws IOException {
         final var dir = new File(tempDir, "classes");
         assertThat(new File(dir, "real/sub").mkdirs()).isTrue();
         Files.writeString(new File(dir, "real/sub/r.txt").toPath(), "r");
@@ -332,7 +336,98 @@ public class VfsWalkTest {
             final var recorder = new Recorder();
             vfs.open(dir.getPath()).walk(recorder);
 
-            assertThat(recorder.entryNames).containsExactly("l1/sub/r.txt", "l2/sub/r.txt", "real/sub/r.txt");
+            assertThat(recorder.dirNames).containsExactly("/", "real/", "real/sub/", "l1/", "l2/");
+            assertThat(recorder.entryNames).containsExactly("real/sub/r.txt");
+        }
+    }
+
+    /** A directory outside the root that two symlinks lead to is walked once, under the first symlink's name. */
+    @Test
+    public void aDirectoryOutsideTheRootWithTwoSymlinksToItIsWalkedOnce(@TempDir final File tempDir)
+            throws IOException {
+        final var dir = new File(tempDir, "classes");
+        assertThat(dir.mkdirs()).isTrue();
+        assertThat(new File(tempDir, "outside/sub").mkdirs()).isTrue();
+        Files.writeString(new File(tempDir, "outside/sub/x.txt").toPath(), "x");
+        createSymbolicLinkOrSkip(new File(dir, "l1").toPath(), new File(tempDir, "outside").toPath());
+        createSymbolicLinkOrSkip(new File(dir, "l2").toPath(), new File(tempDir, "outside").toPath());
+
+        try (var vfs = new Vfs()) {
+            final var recorder = new Recorder();
+            vfs.open(dir.getPath()).walk(recorder);
+
+            assertThat(recorder.dirNames).containsExactly("/", "l1/", "l1/sub/", "l2/");
+            assertThat(recorder.entryNames).containsExactly("l1/sub/x.txt");
+        }
+    }
+
+    /**
+     * A directory is walked under its own path even when a symlink to it is in a directory nearer the root and
+     * sorts first.
+     */
+    @Test
+    public void aSymlinkNearerTheRootDoesNotHideTheDirectory(@TempDir final File tempDir) throws IOException {
+        final var dir = new File(tempDir, "classes");
+        assertThat(new File(dir, "z/deep").mkdirs()).isTrue();
+        Files.writeString(new File(dir, "z/deep/f.txt").toPath(), "f");
+        createSymbolicLinkOrSkip(new File(dir, "a").toPath(), Path.of("z/deep"));
+
+        try (var vfs = new Vfs()) {
+            final var recorder = new Recorder();
+            vfs.open(dir.getPath()).walk(recorder);
+
+            assertThat(recorder.entryNames).containsExactly("z/deep/f.txt");
+        }
+    }
+
+    /**
+     * A directory the visitor skips under its own name is still walked under the name of a symlink to it, if the
+     * visitor wants that one.
+     */
+    @Test
+    public void aDirectorySkippedByTheVisitorIsWalkedThroughASymlink(@TempDir final File tempDir)
+            throws IOException {
+        final var dir = new File(tempDir, "classes");
+        assertThat(new File(dir, "pkg").mkdirs()).isTrue();
+        Files.writeString(new File(dir, "pkg/A.txt").toPath(), "A");
+        createSymbolicLinkOrSkip(new File(dir, "alias").toPath(), Path.of("pkg"));
+
+        try (var vfs = new Vfs()) {
+            final var recorder = new Recorder(dirName -> !dirName.equals("pkg/"), _ -> true);
+            vfs.open(dir.getPath()).walk(recorder);
+
+            assertThat(recorder.entryNames).containsExactly("alias/A.txt");
+        }
+    }
+
+    /**
+     * A chain of directories, each with two symlinks to the next, is walked once per directory, rather than once
+     * per path, which would double with each level.
+     */
+    @Test
+    public void directoriesThatManySymlinkPathsLeadToAreWalkedOnce(@TempDir final File tempDir) throws IOException {
+        final var dir = new File(tempDir, "classes");
+        assertThat(dir.mkdirs()).isTrue();
+        final var levels = 16;
+        final List<String> expected = new ArrayList<>();
+        for (var i = 0; i < levels; i++) {
+            final var level = new File(tempDir, "x" + i);
+            assertThat(level.mkdirs()).isTrue();
+            Files.writeString(new File(level, "f" + i + ".txt").toPath(), "f");
+            expected.add("top/" + "a/".repeat(i) + "f" + i + ".txt");
+        }
+        for (var i = 0; i < levels - 1; i++) {
+            final var next = new File(tempDir, "x" + (i + 1)).toPath();
+            createSymbolicLinkOrSkip(new File(tempDir, "x" + i + "/a").toPath(), next);
+            createSymbolicLinkOrSkip(new File(tempDir, "x" + i + "/b").toPath(), next);
+        }
+        createSymbolicLinkOrSkip(new File(dir, "top").toPath(), new File(tempDir, "x0").toPath());
+
+        try (var vfs = new Vfs()) {
+            final var recorder = new Recorder();
+            vfs.open(dir.getPath()).walk(recorder);
+
+            assertThat(recorder.entryNames).containsExactlyElementsOf(expected);
         }
     }
 
