@@ -260,7 +260,7 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      *             if this root or its {@link Vfs} has been closed.
      */
     public VfsRoot getContainerRoot() throws IOException {
-        checkNotClosed(getPath());
+        checkNotClosed();
         return this;
     }
 
@@ -302,7 +302,7 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      */
     public final void walk(final VfsVisitor visitor, final @Nullable LogNode log) throws IOException {
         Assert.notNull(visitor, "visitor");
-        checkNotClosed(getPath());
+        checkNotClosed();
         walkImpl(visitor, log);
     }
 
@@ -333,7 +333,7 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      *             if the entries could not be listed, or if this root or its {@link Vfs} has been closed.
      */
     public final @Unmodifiable List<VfsEntry> getEntries() throws IOException {
-        checkNotClosed(getPath());
+        checkNotClosed();
         return getEntriesImpl();
     }
 
@@ -697,7 +697,7 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     public synchronized @Nullable @Unmodifiable Map<String, String> getManifest() throws IOException {
         // Checked even when the manifest has already been read, so that a root of a closed Vfs reports itself as
         // closed rather than answering out of a cache that was warmed while it was open
-        checkNotClosed(getPath());
+        checkNotClosed();
         // This is synchronized rather than double-checked, so that a second thread asking for the manifest while
         // the first is still reading it waits for that read rather than starting a second one
         if (!manifestRead) {
@@ -1024,6 +1024,20 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
             throw new IOException("Cannot read " + what + " after the root has been closed");
         }
         vfs.checkNotClosed(what);
+    }
+
+    /**
+     * Throw {@link IOException} if this root or its {@link Vfs} has been closed, naming this root by
+     * {@link #getPath()}. The path is only built once the root is found closed, since building the path of a
+     * directory root reads its real path from the filesystem the first time.
+     *
+     * @throws IOException
+     *             if this root or its {@link Vfs} has been closed.
+     */
+    void checkNotClosed() throws IOException {
+        if (isClosed()) {
+            checkNotClosed(getPath());
+        }
     }
 
     /**

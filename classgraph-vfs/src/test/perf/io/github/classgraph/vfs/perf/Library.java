@@ -116,8 +116,8 @@ public enum Library {
     /**
      * The plain JDK API for the layout: {@code Files.readAllBytes} for a directory, and one shared
      * {@code java.util.zip.ZipFile} for a jarfile. For a directory it opens nothing, so unlike the libraries that
-     * open a root, it pays no fixed cost for each pass of {@link FirstReadBenchmark}. That cost is why
-     * classgraph-vfs is slower than this on a directory on Windows (see the constructor of {@code DirRoot}).
+     * open a root, it pays no fixed cost for each pass of {@link FirstReadBenchmark} (see the constructor of
+     * {@code DirRoot}).
      */
     JDK("JDK Files / ZipFile", EnumSet.of(Layout.DIR, Layout.STORED, Layout.DEFLATED)) {
         @Override

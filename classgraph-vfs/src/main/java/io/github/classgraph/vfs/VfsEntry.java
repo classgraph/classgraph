@@ -236,7 +236,11 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
      */
     public final InputStream open() throws IOException {
         final var root = getRoot();
-        root.checkNotClosed(getPath());
+        // Only build the path of the entry for the error message once the root is found closed, as
+        // RootCheckedInputStream#checkRootNotClosed does
+        if (root.isClosed()) {
+            root.checkNotClosed(getPath());
+        }
         final var inputStream = openUnchecked();
         final RootCheckedInputStream rootCheckedInputStream;
         try {

@@ -24,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -227,6 +228,17 @@ public class VfsTest {
      */
     private static String entryContent(final VfsRoot root, final String entryName) throws IOException {
         return Objects.requireNonNull(root.getEntry(entryName)).loadAsString();
+    }
+
+    /**
+     * Returns the path string that a root or entry reports for a path in the default filesystem.
+     *
+     * @param path
+     *            the path.
+     * @return its string form, with {@code '/'} separators.
+     */
+    private static String pathStr(final Path path) {
+        return path.toString().replace(File.separatorChar, '/');
     }
 
     /**
@@ -858,23 +870,168 @@ public class VfsTest {
     }
 
     /**
-     * A directory that cannot be read cannot be opened as a root, since nothing can be listed or read through it.
+     * A directory that cannot be listed, but whose files can be opened by name, as on Unix when its read permission
+     * is removed and its execute permission kept, can be opened as a root. Its files can be read by name, and
+     * listing it fails, rather than listing nothing.
      *
      * @param tempDir
      *            a temporary directory.
+     * @throws IOException
+     *             if the directory cannot be set up.
      */
     @Test
-    public void anUnreadableDirectoryCannotBeOpened(@TempDir final File tempDir) {
-        final var unreadable = new File(tempDir, "unreadable");
-        assertThat(unreadable.mkdir()).isTrue();
-        if (!unreadable.setReadable(false) || unreadable.canRead()) {
-            // Running as root, or on a filesystem that does not enforce permissions, the directory stays readable
-            abort("Directories cannot be made unreadable here");
+    public void aDirectoryThatCannotBeListedCanBeOpenedAndReadByName(@TempDir final File tempDir)
+            throws IOException {
+        final var unlistable = new File(tempDir, "unlistable").toPath();
+        Files.createDirectory(unlistable);
+        Files.writeString(unlistable.resolve("a.txt"), RESOURCE_CONTENT);
+        if (!Files.getFileStore(unlistable).supportsFileAttributeView("posix")) {
+            abort("POSIX permissions are not supported here");
+        }
+        Files.setPosixFilePermissions(unlistable, EnumSet.of(PosixFilePermission.OWNER_EXECUTE));
+        try {
+            boolean listable;
+            try {
+                Files.newDirectoryStream(unlistable).close();
+                listable = true;
+            } catch (final IOException _) {
+                listable = false;
+            }
+            if (listable) {
+                // Running as root, the directory can still be listed
+                abort("Directories cannot be made unlistable here");
+            }
+
+            try (var vfs = new Vfs()) {
+                final var root = vfs.open(unlistable);
+                final var entry = root.getEntry("a.txt");
+                assertThat(entry).isNotNull();
+                assertThat(new String(entry.load(), StandardCharsets.UTF_8)).isEqualTo(RESOURCE_CONTENT);
+                assertThatThrownBy(root::getEntries).isInstanceOf(IOException.class);
+            }
+        } finally {
+            Files.setPosixFilePermissions(unlistable, EnumSet.allOf(PosixFilePermission.class));
+        }
+    }
+
+    /**
+     * Two directories with the same identity where the identity is not exact, as when two directories have the same
+     * creation time on Windows, where directories have no file key, are opened as two roots, each reporting its own
+     * path. A link to one of them still reaches its root.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the directories cannot be set up.
+     */
+    @Test
+    public void twoDirectoriesWithTheSameCreationTimeAreTwoRoots(@TempDir final File tempDir) throws IOException {
+        final var first = Files.createDirectory(tempDir.toPath().resolve("first"));
+        final var second = Files.createDirectory(tempDir.toPath().resolve("second"));
+        Files.writeString(first.resolve("first.txt"), RESOURCE_CONTENT);
+        Files.writeString(second.resolve("second.txt"), RESOURCE_CONTENT);
+        final var creationTime = Files.readAttributes(first, BasicFileAttributes.class).creationTime();
+        try {
+            // Takes effect on Windows, which is where directories are identified by their creation times
+            Files.setAttribute(second, "basic:creationTime", creationTime);
+        } catch (final IOException | UnsupportedOperationException _) {
+            // Directories are identified by their file keys here
         }
 
         try (var vfs = new Vfs()) {
-            assertThatThrownBy(() -> vfs.open(unreadable)).isInstanceOf(IOException.class)
-                    .hasMessageContaining("Not a readable directory");
+            final var firstRoot = vfs.open(first);
+            final var secondRoot = vfs.open(second);
+            assertThat(secondRoot).isNotSameAs(firstRoot);
+            assertThat(firstRoot.getPath()).isEqualTo(pathStr(first.toRealPath()));
+            assertThat(secondRoot.getPath()).isEqualTo(pathStr(second.toRealPath()));
+            assertThat(firstRoot.getEntry("first.txt")).isNotNull();
+            assertThat(secondRoot.getEntry("second.txt")).isNotNull();
+            final var link = createSymbolicLinkOrSkip(tempDir.toPath().resolve("link"), first);
+            assertThat(vfs.open(link)).isSameAs(firstRoot);
+        }
+    }
+
+    /**
+     * A directory opened through a symlink first reports its real path, and a later open by the real path reaches
+     * the same root.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the directories cannot be set up.
+     */
+    @Test
+    public void aDirectoryOpenedThroughASymlinkFirstReportsItsRealPath(@TempDir final File tempDir)
+            throws IOException {
+        final var realDir = Files.createDirectory(tempDir.toPath().resolve("real"));
+        Files.writeString(realDir.resolve("a.txt"), RESOURCE_CONTENT);
+        final var link = createSymbolicLinkOrSkip(tempDir.toPath().resolve("link"), realDir);
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(link);
+            final var realPath = realDir.toRealPath();
+            assertThat(root.getPath()).isEqualTo(pathStr(realPath));
+            assertThat(root.getNioPath()).isEqualTo(realPath);
+            final var entry = root.getEntry("a.txt");
+            assertThat(entry).isNotNull();
+            assertThat(entry.getNioPath()).isEqualTo(realPath.resolve("a.txt"));
+            assertThat(entry.getPath()).isEqualTo(pathStr(realPath.resolve("a.txt")));
+            assertThat(new String(entry.load(), StandardCharsets.UTF_8)).isEqualTo(RESOURCE_CONTENT);
+            assertThat(vfs.open(realDir)).isSameAs(root);
+        }
+    }
+
+    /**
+     * A directory root that has been evicted is not reached again by another path to the same directory.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the directories cannot be set up.
+     */
+    @Test
+    public void anEvictedDirectoryRootIsNotReachedThroughASymlink(@TempDir final File tempDir) throws IOException {
+        final var realDir = Files.createDirectory(tempDir.toPath().resolve("real"));
+        final var link = createSymbolicLinkOrSkip(tempDir.toPath().resolve("link"), realDir);
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(realDir);
+            vfs.evict(root);
+            final var reopened = vfs.open(link);
+            assertThat(reopened).isNotSameAs(root);
+            assertThat(reopened.getPath()).isEqualTo(root.getPath());
+            assertThat(vfs.open(realDir)).isSameAs(reopened);
+        }
+    }
+
+    /**
+     * {@link Vfs#openRealPath(Path)} opens a directory or a jarfile at its real path, and another path to the same
+     * directory or jarfile reaches the same root.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the directories cannot be set up.
+     */
+    @Test
+    public void openRealPathReachesTheSameRootAsAnotherPath(@TempDir final File tempDir) throws IOException {
+        final var realDir = Files.createDirectory(tempDir.toPath().resolve("real")).toRealPath();
+        Files.writeString(realDir.resolve("a.txt"), RESOURCE_CONTENT);
+        final var jarFile = realDir.resolve("widget.jar");
+        writeJar(jarFile.toFile(), "com/xyz/widget.txt");
+
+        try (var vfs = new Vfs()) {
+            final var dirRoot = vfs.openRealPath(realDir);
+            assertThat(dirRoot).isInstanceOf(DirRoot.class);
+            assertThat(dirRoot.getPath()).isEqualTo(pathStr(realDir));
+            assertThat(entryContent(dirRoot, "a.txt")).isEqualTo(RESOURCE_CONTENT);
+            final var jarRoot = vfs.openRealPath(jarFile);
+            assertThat(jarRoot.getEntry("com/xyz/widget.txt")).isNotNull();
+            assertThat(vfs.open(realDir)).isSameAs(dirRoot);
+            assertThat(vfs.open(jarFile)).isSameAs(jarRoot);
+            final var link = createSymbolicLinkOrSkip(tempDir.toPath().resolve("link"), realDir);
+            assertThat(vfs.open(link)).isSameAs(dirRoot);
+            assertThat(vfs.open(link.resolve("widget.jar"))).isSameAs(jarRoot);
         }
     }
 
