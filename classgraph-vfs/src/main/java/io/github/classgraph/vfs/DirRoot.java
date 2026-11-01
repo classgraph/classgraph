@@ -47,13 +47,14 @@ import java.nio.file.Path;
 import java.nio.file.SecureDirectoryStream;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.FileTime;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Deque;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -77,16 +78,85 @@ public final class DirRoot extends VfsRoot {
      * A step in the iterative directory traversal stack.
      *
      * @param path
-     *            the directory to enter, or the canonical ancestor path to remove on exit.
+     *            the directory to enter or exit.
      * @param namePrefix
      *            the root-relative directory prefix ending with {@code '/'}, or {@code ""} for the root or an exit
      *            step.
+     * @param parent
+     *            the directory that {@code path} was listed in, or null for the root or an exit step.
+     * @param key
+     *            the {@link #identityKey} of the directory, or null for the root.
+     * @param mayBeLink
+     *            whether the listing showed that the directory may be a symbolic link, junction or other reparse
+     *            point.
      * @param exiting
      *            {@code true} if exiting a directory after visiting its children.
-     * @param realPath
-     *            the real path of the directory to enter, if already known, otherwise null.
      */
-    private record WalkStep(Path path, String namePrefix, boolean exiting, @Nullable Path realPath) {
+    private record WalkStep(Path path, String namePrefix, @Nullable Ancestor parent, @Nullable Object key,
+            boolean mayBeLink, boolean exiting) {
+    }
+
+    /** A directory on the path of the walk from the root to the directory being walked. */
+    private static final class Ancestor {
+        /** The path of the directory, under the root. */
+        private final Path path;
+
+        /** The directory that this one was listed in, or null for the root. */
+        private final @Nullable Ancestor parent;
+
+        /** Whether the listing showed that the directory may be a symbolic link, junction or reparse point. */
+        private final boolean mayBeLink;
+
+        /** The real path of the directory, or null if it has not been needed yet. */
+        private @Nullable Path realPath;
+
+        /**
+         * Constructor.
+         *
+         * @param path
+         *            the path of the directory, under the root.
+         * @param parent
+         *            the directory that this one was listed in, or null for the root.
+         * @param mayBeLink
+         *            whether the listing showed that the directory may be a link.
+         * @param realPath
+         *            the real path of the directory, if known, otherwise null.
+         */
+        Ancestor(final Path path, final @Nullable Ancestor parent, final boolean mayBeLink,
+                final @Nullable Path realPath) {
+            this.path = path;
+            this.parent = parent;
+            this.mayBeLink = mayBeLink;
+            this.realPath = realPath;
+        }
+
+        /**
+         * Return the real path of the directory, looking it up the first time it is needed. toRealPath changes only
+         * the components of a path that are links, and the listing gives the name of a child as it is stored, so
+         * the real path of a directory that is not a link is the real path of its parent followed by its name. This
+         * saves a toRealPath call, which looks up every component of the path again.
+         *
+         * @return the real path.
+         * @throws IOException
+         *             if the real path could not be read.
+         */
+        Path realPath() throws IOException {
+            if (realPath == null) {
+                final var parentDir = parent;
+                realPath = parentDir == null || mayBeLink ? path.toRealPath()
+                        : parentDir.realPath().resolve(path.getFileName());
+            }
+            return realPath;
+        }
+    }
+
+    /**
+     * An {@link #identityKey} that two directories can share.
+     *
+     * @param time
+     *            the creation time of the directory, or null if the filesystem does not record one.
+     */
+    private record CreationTime(@Nullable FileTime time) {
     }
 
     /** The canonicalized directory path. */
@@ -584,13 +654,24 @@ public final class DirRoot extends VfsRoot {
      * @return {@code true} if traversal completed, or {@code false} if stopped by the visitor.
      */
     private boolean walkIteratively(final VfsVisitor visitor, final @Nullable LogNode log) {
-        final Set<Path> visitedDirs = new HashSet<>();
+        // The directories on the path from the root to the one being walked, by identityKey. A directory is not
+        // walked if it is one of them, since that is a symlink cycle. The root is added only once a link is
+        // reached, since only a link can lead back to it, which saves reading its attributes.
+        final Map<Object, List<Ancestor>> ancestorsByKey = new HashMap<>();
+        final var root = new Ancestor(dir, null, false, dir);
+        var rootAdded = false;
+        var rootKeyUnknown = false;
         final Deque<WalkStep> pending = new ArrayDeque<>();
-        pending.push(new WalkStep(dir, "", false, dir));
+        pending.push(new WalkStep(dir, "", null, null, false, false));
         while (!pending.isEmpty()) {
             final var step = pending.pop();
             if (step.exiting) {
-                visitedDirs.remove(step.path);
+                // The steps are popped in reverse order of being pushed, so the directory exited is the last one
+                // added under its key
+                ancestorsByKey.computeIfPresent(step.key, (k, sameKey) -> {
+                    sameKey.remove(sameKey.size() - 1);
+                    return sameKey.isEmpty() ? null : sameKey;
+                });
                 continue;
             }
             final var currDir = step.path;
@@ -599,26 +680,49 @@ public final class DirRoot extends VfsRoot {
             if (!visitor.enterDirectory(namePrefix.isEmpty() ? "/" : namePrefix)) {
                 continue;
             }
-            final Path canonicalDir;
-            try {
-                canonicalDir = step.realPath != null ? step.realPath : currDir.toRealPath();
-            } catch (final IOException | SecurityException e) {
-                // A directory that cannot be resolved is skipped, rather than aborting the whole listing
-                if (log != null) {
-                    log.log("Could not canonicalize path: " + currDir + " : " + e);
+            final var parent = step.parent;
+            final var key = step.key;
+            final Ancestor ancestor;
+            if (parent == null || key == null) {
+                ancestor = root;
+            } else {
+                ancestor = new Ancestor(currDir, parent, step.mayBeLink, null);
+                if (step.mayBeLink && !rootAdded) {
+                    rootAdded = true;
+                    try {
+                        // Added first, since it is the first directory on the path
+                        ancestorsByKey
+                                .computeIfAbsent(identityKey(Files.readAttributes(dir, BasicFileAttributes.class)),
+                                        k -> new ArrayList<>(1))
+                                .add(0, root);
+                    } catch (final IOException | SecurityException e) {
+                        // Compare the real path of each link with the root's instead
+                        rootKeyUnknown = true;
+                    }
                 }
-                continue;
-            }
-            if (!visitedDirs.add(canonicalDir)) {
-                if (log != null) {
-                    log.log("Reached symlink cycle, stopping traversal: " + currDir);
+                final boolean isCycle;
+                try {
+                    isCycle = isAncestor(ancestor, key, ancestorsByKey)
+                            || rootKeyUnknown && step.mayBeLink && ancestor.realPath().equals(dir);
+                } catch (final IOException | SecurityException e) {
+                    // A directory that cannot be resolved is skipped, rather than aborting the whole listing
+                    if (log != null) {
+                        log.log("Could not canonicalize path: " + currDir + " : " + e);
+                    }
+                    continue;
                 }
-                continue;
+                if (isCycle) {
+                    if (log != null) {
+                        log.log("Reached symlink cycle, stopping traversal: " + currDir);
+                    }
+                    continue;
+                }
+                ancestorsByKey.computeIfAbsent(key, k -> new ArrayList<>(1)).add(ancestor);
+                // walkChildren pushes the subdirectories on top of this step, so the directory stays among the
+                // recorded ancestors until all of them have been walked
+                pending.push(new WalkStep(currDir, "", null, key, false, true));
             }
-            // walkChildren pushes the subdirectories on top of this step, so the directory stays among the recorded
-            // ancestors until all of them have been walked
-            pending.push(new WalkStep(canonicalDir, "", true, null));
-            if (!walkChildren(currDir, canonicalDir, namePrefix, visitor, pending, log)) {
+            if (!walkChildren(currDir, ancestor, namePrefix, visitor, pending, log)) {
                 return false;
             }
         }
@@ -626,12 +730,60 @@ public final class DirRoot extends VfsRoot {
     }
 
     /**
+     * Return a key that every path to a directory has in common. This is the {@link BasicFileAttributes#fileKey}
+     * where there is one, as on Linux and macOS, where it holds the device and inode number, which no other
+     * directory has. On Windows the file key is null, so the key is the creation time, which other directories can
+     * have too, such as directories created at the same moment, or copied with their creation times.
+     *
+     * @param attributes
+     *            the attributes of the directory, read with symbolic links followed.
+     * @return the key.
+     */
+    private static Object identityKey(final BasicFileAttributes attributes) {
+        final var fileKey = attributes.fileKey();
+        return fileKey != null ? fileKey : new CreationTime(attributes.creationTime());
+    }
+
+    /**
+     * Return whether a directory is on the path of the walk from the root to its parent. The real paths of the
+     * directories are compared only if their keys match and do not tell directories apart, so that toRealPath is
+     * called only then, and at most once per directory.
+     *
+     * @param dir
+     *            the directory.
+     * @param key
+     *            its {@link #identityKey}.
+     * @param ancestorsByKey
+     *            the directories on the path, by {@link #identityKey}.
+     * @return true if the directory is on the path.
+     * @throws IOException
+     *             if a real path could not be read.
+     */
+    private static boolean isAncestor(final Ancestor dir, final Object key,
+            final Map<Object, List<Ancestor>> ancestorsByKey) throws IOException {
+        final var sameKey = ancestorsByKey.get(key);
+        if (sameKey == null) {
+            return false;
+        }
+        if (!(key instanceof CreationTime)) {
+            return true;
+        }
+        final var realPath = dir.realPath();
+        for (final var ancestor : sameKey) {
+            if (ancestor.realPath().equals(realPath)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Visit the files in a directory and push its subdirectories onto the traversal stack.
      *
      * @param currDir
      *            the directory to list.
-     * @param canonicalDir
-     *            the real path of {@code currDir}.
+     * @param ancestor
+     *            {@code currDir} as a directory on the path of the walk.
      * @param namePrefix
      *            the root-relative prefix of {@code currDir} with a trailing {@code '/'}, or {@code ""} for the
      *            root.
@@ -643,7 +795,7 @@ public final class DirRoot extends VfsRoot {
      *            the log node, or {@code null}.
      * @return {@code true} to continue traversal, or {@code false} if stopped by the visitor.
      */
-    private boolean walkChildren(final Path currDir, final Path canonicalDir, final String namePrefix,
+    private boolean walkChildren(final Path currDir, final Ancestor ancestor, final String namePrefix,
             final VfsVisitor visitor, final Deque<WalkStep> pending, final @Nullable LogNode log) {
         final List<DirListing.Child> children;
         try {
@@ -683,14 +835,10 @@ public final class DirRoot extends VfsRoot {
         }
         // Push in reverse, so that the subdirectories are walked in sorted order
         for (var i = subDirs.size() - 1; i >= 0; i--) {
-            // A subdirectory that is not a link is reached by no other path, since directories cannot be hard
-            // linked, and the listing gives its name as stored, so its real path is the real path of its parent
-            // followed by its name. This saves a toRealPath call per directory, which looks up every component
-            // of the path again.
             final var subDir = subDirs.get(i);
             final var subDirPath = subDir.path();
-            pending.push(new WalkStep(subDirPath, namePrefix + subDirPath.getFileName() + "/", false,
-                    subDir.mayBeLink() ? null : canonicalDir.resolve(subDirPath.getFileName())));
+            pending.push(new WalkStep(subDirPath, namePrefix + subDirPath.getFileName() + "/", ancestor,
+                    identityKey(subDir.attributes()), subDir.mayBeLink(), false));
         }
         return true;
     }
