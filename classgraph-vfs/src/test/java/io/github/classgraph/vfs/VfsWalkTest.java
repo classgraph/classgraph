@@ -374,6 +374,29 @@ public class VfsWalkTest {
         }
     }
 
+    /**
+     * A subdirectory that is not a link is not walked if it is an ancestor, which it can be after a symlink has led
+     * out of the directory it is in.
+     */
+    @Test
+    public void aSubdirectoryThatIsAnAncestorIsNotWalked(@TempDir final File tempDir) throws IOException {
+        final var dir = new File(tempDir, "classes");
+        assertThat(dir.mkdirs()).isTrue();
+        assertThat(new File(tempDir, "e/m/a").mkdirs()).isTrue();
+        Files.writeString(new File(tempDir, "e/m/a/f.txt").toPath(), "f");
+        createSymbolicLinkOrSkip(new File(tempDir, "e/m/a/up").toPath(), Path.of("../.."));
+        createSymbolicLinkOrSkip(new File(dir, "l").toPath(), new File(tempDir, "e/m/a").toPath());
+
+        try (var vfs = new Vfs()) {
+            final var recorder = new Recorder();
+            vfs.open(dir.getPath()).walk(recorder);
+
+            // "l/up/m/a/" is "e/m/a", which is "l/", and is not a link in "l/up/m/", which is not a link either
+            assertThat(recorder.dirNames).containsExactly("/", "l/", "l/up/", "l/up/m/", "l/up/m/a/");
+            assertThat(recorder.entryNames).containsExactly("l/f.txt");
+        }
+    }
+
     // ---------------------------------------------------------------------------------------------------------
 
     /** A jarfile is walked in central directory order, and its root entries are in the directory named "/". */
