@@ -61,6 +61,7 @@ import io.github.classgraph.Classfile.TypeAnnotation;
 import io.github.classgraph.TypeUtils.ModifierType;
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.base.internal.utils.CollectionUtils;
 
 /**
  * Holds metadata about a class encountered during a scan.
@@ -392,6 +393,20 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     // Synchronized, since classfiles are linked on many threads at once, and each can relate other classes to this one
     synchronized boolean addRelatedClass(final RelType relType, final ClassInfo classInfo) {
         return relatedClasses.computeIfAbsent(relType, _ -> new LinkedHashSet<>(4)).add(classInfo);
+    }
+
+    /**
+     * Sort the classes that directly enclose this class by name. Classfiles can name more than one enclosing class
+     * for a class (the Scala compiler names both {@code T} and {@code T$} for an anonymous function), and
+     * classfiles are linked in no fixed order. Call this after every classfile has been linked.
+     */
+    void sortEnclosingClasses() {
+        final var enclosingClasses = relatedClasses.get(RelType.ENCLOSING_CLASSES);
+        if (enclosingClasses != null && enclosingClasses.size() > 1) {
+            final var sorted = CollectionUtils.sortCopy(enclosingClasses);
+            enclosingClasses.clear();
+            enclosingClasses.addAll(sorted);
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------

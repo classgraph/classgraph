@@ -1190,6 +1190,9 @@ class Scanner {
         runner.forEachIndex(classfiles.size(),
                 i -> classfiles.get(i).linkClassInfo(classNameToClassInfo, classNameToNewClassInfo));
         classNameToClassInfo.putAll(classNameToNewClassInfo);
+        for (final ClassInfo classInfo : classNameToClassInfo.values()) {
+            classInfo.sortEnclosingClasses();
+        }
         // Keyed by identity, since ClasspathElementModule#equals compares module names only
         final Map<ClasspathElement, ModuleInfo> classpathEltToModuleInfo = new IdentityHashMap<>();
         for (final Classfile c : classfiles) {
