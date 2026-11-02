@@ -130,8 +130,16 @@ public final class PathSyntax {
         final var pathLen = path.length();
         final var pathHasInitialSlash = path.charAt(0) == '/';
         final var pathHasInitialSlashSlash = pathHasInitialSlash && pathLen > 1 && path.charAt(1) == '/';
+        final var hasSegmentToSanitize = hasSegmentToSanitize(path, nestedJarSepIdx,
+                collapseParentSegmentsInFirstSection);
+        // The common case is a path with nothing to change, such as a jarfile entry name, which is returned without
+        // being copied. (With no initial slash, there is no initial slash to strip, and no UNC path.)
+        if (!hasSegmentToSanitize && !pathHasInitialSlash
+                && !(removeFinalSlash && path.charAt(pathLen - 1) == '/')) {
+            return path;
+        }
         final StringBuilder pathSanitized = new StringBuilder(pathLen + 16);
-        if (hasSegmentToSanitize(path, nestedJarSepIdx, collapseParentSegmentsInFirstSection)) {
+        if (hasSegmentToSanitize) {
             appendSanitizedSegments(path, nestedJarSepIdx, collapseParentSegmentsInFirstSection, pathSanitized);
             if (pathSanitized.isEmpty() && pathHasInitialSlash) {
                 pathSanitized.append('/');
@@ -179,6 +187,12 @@ public final class PathSyntax {
      */
     private static boolean hasSegmentToSanitize(final String path, final int nestedJarSepIdx,
             final boolean collapseParentSegmentsInFirstSection) {
+        // Without a nested jar separator, every '!' is an ordinary character, so a path needs sanitizing only if it
+        // has an empty segment, which takes "//", or a "." or ".." segment, which starts either the path or "/.".
+        // String.indexOf (which is vectorized) rules out the common case before the character-by-character scan below
+        if (nestedJarSepIdx < 0 && path.charAt(0) != '.' && path.indexOf("/.") < 0 && path.indexOf("//") < 0) {
+            return false;
+        }
         // Find all '/' and nested jar separator '!' character positions, which split a path into segments. This
         // scan reads the path via charAt() rather than copying it into a char[], since the common case is that
         // nothing needs sanitizing, and the copy would then be pure overhead.

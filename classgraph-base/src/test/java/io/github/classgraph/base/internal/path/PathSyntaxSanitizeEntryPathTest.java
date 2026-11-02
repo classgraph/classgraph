@@ -205,6 +205,18 @@ public class PathSyntaxSanitizeEntryPathTest {
     }
 
     /**
+     * A path with nothing to sanitize, which every entry name in an ordinary jarfile is, is returned without being
+     * copied, including one with a '!' or a '.' within a segment name.
+     */
+    @Test
+    public void pathWithNothingToSanitizeIsReturnedAsIs() {
+        for (final var path : new String[] { "a", "a/b/C.class", "a/b/", "a!b/.c/d.", "META-INF/x..y" }) {
+            assertThat(PathSyntax.sanitizeRelativePath(path, false)).isSameAs(path);
+        }
+        assertThat(PathSyntax.sanitizeRelativePath("a/b/", true)).isEqualTo("a/b");
+    }
+
+    /**
      * A final '/' that is to be kept is kept whether or not some other part of the path needs sanitizing, so that a
      * redundant segment does not change whether the path names a directory.
      *

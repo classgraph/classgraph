@@ -35,7 +35,7 @@ import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -139,10 +139,20 @@ public final class ArchiveRoot extends VfsRoot {
      */
     private EntryIndex entryIndex() {
         var index = entryIndex;
-        if (index == null) {
+        if (index != null) {
+            return index;
+        }
+        // Built under a lock, since the threads that read a jarfile in parallel all ask for the index at once as
+        // they start, and each would otherwise build its own copy of it
+        synchronized (this) {
+            index = entryIndex;
+            if (index != null) {
+                return index;
+            }
             final var packageRootPrefix = packageRoot.isEmpty() ? "" : packageRoot + "/";
-            final List<VfsEntry> entriesTmp = new ArrayList<>(logicalZipFile.getEntries().size());
-            final Map<String, VfsEntry> entriesByNameTmp = new LinkedHashMap<>();
+            final var numEntries = logicalZipFile.getEntries().size();
+            final List<VfsEntry> entriesTmp = new ArrayList<>(numEntries);
+            final Map<String, VfsEntry> entriesByNameTmp = new HashMap<>(numEntries * 2);
             for (final var zipEntry : logicalZipFile.getEntries()) {
                 if (zipEntry.entryNameUnversioned.startsWith(packageRootPrefix)) {
                     final var entry = new ArchiveEntry(this, zipEntry,
@@ -153,13 +163,11 @@ public final class ArchiveRoot extends VfsRoot {
                     entriesByNameTmp.put(entry.getPathFromRoot(), entry);
                 }
             }
-            // Two threads racing here each build an equivalent index, and one wins, which is harmless -- the
-            // entries hold no resources
             index = new EntryIndex(Collections.unmodifiableList(entriesTmp),
                     Collections.unmodifiableMap(entriesByNameTmp));
             entryIndex = index;
+            return index;
         }
-        return index;
     }
 
     /**
