@@ -588,11 +588,24 @@ Two benchmarks:
 * **Whole archive.** One thread opens the archive, reads every entry in turn, and closes it. The
   result is the time per archive, in milliseconds, which includes opening it.
 
-Each library reads an entry the way it is normally used to. cgvfs is measured twice: through
-`VfsRoot.load(name)`, and through `Files.readAllBytes` on `VfsRoot.asFileSystem()`, the
-same call zipfs is read with. "JDK Files / ZipFile" is `Files.readAllBytes` for a directory and one
-`java.util.zip.ZipFile` shared by every thread for a jarfile; `URL` is `URL.openStream()` on a
-`file:` or `jar:` URL.
+Each library reads an entry the way it is normally used to. Each series in the charts is one
+library, read as follows:
+
+| Series | Version | How an entry is read |
+| --- | --- | --- |
+| classgraph-vfs | 6.0.2 (commit `63706fe9`, before release) | `VfsRoot.load(name)` |
+| classgraph-vfs (nio) | the same | `Files.readAllBytes` on a path from `VfsRoot.asFileSystem()`: the same library, through the standard `java.nio.file` API rather than its own, so it pays the cost of that API, and is read the same way as zipfs |
+| JDK Files / ZipFile | JDK 26.0.2 | `Files.readAllBytes` for a directory; for a jarfile, one `java.util.zip.ZipFile` shared by every thread |
+| JDK zipfs | JDK 26.0.2 | `Files.readAllBytes` on the JDK's zip filesystem, with a nested jarfile opened as a zip filesystem inside the outer one |
+| JDK URL.openStream | JDK 26.0.2 | `URL.openStream()` on a `file:` or `jar:` URL (the JDK keeps the `JarFile` behind a `jar:` URL open in its cache) |
+| JDK ZipInputStream | JDK 26.0.2 | reads the archive from front to back (whole-archive charts only) |
+| Apache Commons VFS | 2.10.0 | `resolveFile(name).getContent().getByteArray()`, through its own manager with `CacheStrategy.MANUAL` |
+| TrueVFS | 0.14.0 | `Files.readAllBytes` on a `TPath` |
+| JBoss VFS | 3.3.2.Final | `getChild(name).openStream()`, with the jarfile mounted, and a nested jarfile mounted over its own entry |
+| Okio | 3.18.2 | `source(path).readByteArray()` on the filesystem from `Okio.openZip` for a jarfile, or on `FileSystem.SYSTEM` for a directory |
+| Spring Boot loader | 4.1.2 | `NestedJarFile.getInputStream(entry)`, for a stored nested jarfile only, the one layout it reads |
+| Apache Commons Compress | 1.28.0 | `ZipFile.getInputStream(entry)` |
+| NetBeans filesystems | RELEASE310, with `JarFileSystem` patched (see below) | `findResource(name).asBytes()` on a `LocalFileSystem` for a directory, or a `JarFileSystem` for a jarfile |
 
 A library is left out of a layout it cannot read (see the [features](#features) table).
 `ZipInputStream` cannot read an entry by name, so it appears only in the whole-archive charts.
