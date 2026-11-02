@@ -350,7 +350,9 @@ public final class ScanResult implements AutoCloseable {
                 for (final ClassInfo refdClassInfo : refdClassInfos) {
                     // Don't add self-references
                     if (!ci.equals(refdClassInfo) && isListedAsDependency(refdClassInfo)) {
-                        refdClassInfo.setScanResult(this);
+                        if (refdClassInfo.scanResult != this) {
+                            refdClassInfo.setScanResult(this);
+                        }
                         refdClassesFiltered.add(refdClassInfo);
                     }
                 }

@@ -687,15 +687,21 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
             // Every scanned class is marked as scanned before any classfile is linked, so isScannedClass does not
             // change while classfiles are linked on many threads at once
             if (!innerClassInfo.isScannedClass) {
-                // Several classfiles can name the same class that was not scanned. The enclosing class's entry
-                // replaces the modifiers, and the others merge into them, so the result does not depend on the
-                // order the classfiles are linked in.
+                // Several classfiles can name the same class that was not scanned. The first enclosing class's
+                // entry replaces the modifiers, and any other enclosing class's entry merges into them, as do the
+                // entries of other classes until an enclosing class's entry is seen, so the result does not depend
+                // on the order the classfiles are linked in.
                 synchronized (innerClassInfo) {
                     if (classContainment.outerClassName().equals(classfileClassName)) {
-                        // The access flags of an InnerClasses entry hold every modifier of a nested class (JVMS
-                        // 4.7.6)
-                        innerClassInfo.modifiers = classContainment.innerClassModifierBits();
-                        innerClassInfo.hasModifiersFromEnclosingClass = true;
+                        if (innerClassInfo.hasModifiersFromEnclosingClass) {
+                            innerClassInfo.mergeNestedClassModifiers(classContainment.innerClassModifierBits());
+                        } else {
+                            // The access flags of an InnerClasses entry hold every modifier of a nested class
+                            // (JVMS 4.7.6)
+                            innerClassInfo.modifiers = classContainment.innerClassModifierBits();
+                            innerClassInfo.hasModifiersFromEnclosingClass = true;
+                            innerClassInfo.hasAccessLevelFromInnerClassesEntry = true;
+                        }
                     } else if (!innerClassInfo.hasModifiersFromEnclosingClass) {
                         innerClassInfo.mergeNestedClassModifiers(classContainment.innerClassModifierBits());
                     }
@@ -4158,7 +4164,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
             for (final String refdClassName : this.referencedClassNames) {
                 final var classInfo = ClassInfo.getOrCreateClassInfo(refdClassName,
                         scanResult().classNameToClassInfo, classNameToClassInfo);
-                classInfo.setScanResult(scanResult);
+                if (classInfo.scanResult != scanResult) {
+                    classInfo.setScanResult(scanResult);
+                }
                 refdClassInfo.add(classInfo);
             }
         }
