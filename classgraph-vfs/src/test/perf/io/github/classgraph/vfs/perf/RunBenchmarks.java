@@ -52,7 +52,8 @@ import io.github.classgraph.vfs.perf.BenchmarkFixtures.Layout;
  * Runs {@link FirstReadBenchmark} at 1, 2, 4 and so on up to twice the number of CPUs (at most 32) threads, and
  * {@link WholeArchiveBenchmark} on one thread, for every {@link Library} on every {@link Content} type and every
  * {@link Layout} the library supports. Each JMH run's results are written as JSON to the results directory, and the
- * tables in the README are written to {@code results.md} there.
+ * tables that the README's charts are drawn from (by {@code plot_benchmarks.py}) are written to {@code results.md}
+ * there.
  *
  * <p>
  * The libraries are compared on each combination of content type and layout by running all of them on it, one after
@@ -112,8 +113,8 @@ public final class RunBenchmarks {
     private static final int ROUNDS = 2;
 
     /**
-     * The largest number of threads {@link FirstReadBenchmark} is run at by default. ClassGraph uses 16 worker
-     * threads at most.
+     * The largest number of threads {@link FirstReadBenchmark} is run at by default. ClassGraph uses 8 worker
+     * threads by default.
      */
     private static final int MAX_THREADS = 32;
 
@@ -156,8 +157,8 @@ public final class RunBenchmarks {
         } else if (quick) {
             threadCounts.addAll(List.of(1, 16));
         } else {
-            // Up to twice the number of CPUs, which includes the number of worker threads ClassGraph uses by
-            // default on a machine with few CPUs (8 on 4 CPUs)
+            // Up to twice the number of CPUs, which includes the 8 worker threads ClassGraph uses by default on a
+            // machine with as few as 4 CPUs
             final var maxThreads = Math.min(MAX_THREADS, 2 * Runtime.getRuntime().availableProcessors());
             for (var threads = 1; threads <= maxThreads; threads *= 2) {
                 threadCounts.add(threads);

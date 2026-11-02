@@ -382,9 +382,11 @@ file is read either through a memory-mapped `ByteBuffer`, which is indexed absol
 one, and which reaches `pread` without taking the channel's position lock. The central directory is
 parsed once into an immutable index. So entry lookup and entry reads take no locks at all.
 
-(Which of the two is used is a speed choice, not a correctness one. Memory mapping is measurably
-faster on Windows and is not on Linux or macOS, where it can be slower, so it is used on Windows
-only. See the
+(Which of the two is used is a speed choice, not a correctness one. A jarfile is memory-mapped, and
+a read from it goes through the mapping if it is small and through `FileChannel#read` if it is
+large: a read through the mapping costs a page fault for each page it touches the first time, and a
+read through a channel costs a system call, so the mapping is faster for a read of under about 32KB
+on Linux, and the channel for a larger one. A file in a directory is read through a channel. See the
 [memory mapping benchmark](https://github.com/classgraph/classgraph/wiki/Memory-Mapping-Benchmark).
 A mapped file is unmapped when the root that mapped it is closed, which closing the `Vfs` does to
 every root, by closing the `java.lang.foreign.Arena` that mapped it. The root closes every
@@ -552,35 +554,37 @@ Notes:
 
 ## Benchmarks
 
-> **These numbers are provisional.** They were measured while other work was running on the same
-> machine, so they are not reliable, and cells may be off by a large factor in either direction.
-> They will be replaced by a run on an idle machine.
-
 Every library in the [comparison above](#compared-with-other-libraries) that can read an entry by
 name is measured on the same work, with [JMH](https://github.com/openjdk/jmh) 1.37. The benchmarks
 are in [`src/test/perf`](src/test/perf/io/github/classgraph/vfs/perf):
 [`RunBenchmarks`](src/test/perf/io/github/classgraph/vfs/perf/RunBenchmarks.java) generates the
-archives, runs everything, and writes the tables below; its Javadoc gives the command.
+archives, runs everything, and writes a table of the results, which
+[`plot_benchmarks.py`](src/test/perf/plot_benchmarks.py) draws as the charts below; its Javadoc gives
+the command.
 
 Three kinds of content, each in five layouts:
 
 * **Content.** *Classfiles*: 2000 classfiles from across `java.base` (7MB), small entries that
   deflate to about half their size, which is what a classpath scan reads. *Text*: 1424 entries of
-  pseudo-English text from 512 bytes to 128KB (34MB), which deflates to about a third. *Binary*: 34
-  entries of pseudo-random bytes from 64KB to 4MB (35MB), which do not compress. The sizes of the
-  text and binary entries are spread evenly on a log scale, so that half of the bytes are in
-  entries of under 66KB and 2.2MB respectively; in the jarfiles of a Maven repository, half of the
-  bytes of text resources are in entries of under 67KB, and of binary resources under 2.8MB.
+  pseudo-English text from 512 bytes to 128KB (34MB), which deflates to about a third. *Binary*:
+  320 entries of pseudo-random bytes from 4KB to 1MB (61MB), which do not compress. The sizes of
+  the text and binary entries are spread evenly on a log scale, so that half of the bytes are in
+  entries of under 66KB and 530KB respectively. In the jarfiles of a Maven repository, half of the
+  bytes of text resources are in entries of under 67KB, and of binary resources under 2.8MB: the
+  binary entries here are smaller than that, so that there are enough of them for 32 threads to
+  share evenly, and so that the deflated nested jarfile still fits in the memory `Vfs` buffers a
+  nested jarfile in by default.
 * **Layout.** A directory; a jarfile with its entries stored; a jarfile with its entries deflated;
   and that deflated jarfile nested inside an outer jarfile, either stored or deflated there.
 
 Two benchmarks:
 
 * **First reads.** The archive is opened, every entry is looked up by name and read in full exactly
-  once, in a shuffled order, by 1, 2, 4 or more threads that each take the next entry whenever
-  they finish one, and the archive is closed. This is how a classloader or a scanner reads a jarfile, so a library that caches the
-  content of entries gains nothing from its cache. The result is the total size of the entries
-  divided by the time taken, including opening and closing the archive, in MB/s.
+  once, in a shuffled order, by 1, 2, 4, 8, 16 or 32 threads that each take the next entry
+  whenever they finish one, and the archive is closed. This is how a classloader or a scanner reads
+  a jarfile, so a library that caches the content of entries gains nothing from its cache. The
+  result is the total size of the entries divided by the time taken, including opening and closing
+  the archive, in MB/s.
 * **Whole archive.** One thread opens the archive, reads every entry in turn, and closes it. The
   result is the time per archive, in milliseconds, which includes opening it.
 
@@ -591,7 +595,7 @@ same call zipfs is read with. "JDK Files / ZipFile" is `Files.readAllBytes` for 
 `file:` or `jar:` URL.
 
 A library is left out of a layout it cannot read (see the [features](#features) table).
-`ZipInputStream` cannot read an entry by name, so it appears only in the whole-archive tables.
+`ZipInputStream` cannot read an entry by name, so it appears only in the whole-archive charts.
 NetBeans was run with `JarFileSystem` built from the fix in
 [apache/netbeans#9762](https://github.com/apache/netbeans/pull/9762), placed ahead of the NetBeans
 jarfiles on the classpath. Without that fix, NetBeans is left out of the text and binary content
@@ -602,211 +606,33 @@ with `CacheStrategy.MANUAL`.
 
 All the libraries are run on one combination of content and layout one after another, and then
 again in reverse order, so that a change in the speed of the machine during the run does not favor
-some libraries over others. Each cell is the mean of those two JMH forks, each with 4 warmup and 4
+some libraries over others. Each result is the mean of those two JMH forks, each with 4 warmup and 4
 measurement iterations of 1 second, and a heap of 2GB. Machine: AMD Ryzen 9 3950X, 16 physical
-cores with two hardware threads each, 125GB RAM, Linux, JDK 26.0.2. The archives are in `/tmp`,
-which is `tmpfs` here, so every read comes out of memory.
+cores with two hardware threads each, 125GB RAM, Linux, JDK 26.0.2, with nothing else running. The
+archives are on an ext4 filesystem on an NVMe SSD, and are in the page cache after the first warmup
+iteration, so the measured reads come out of memory. The two classgraph-vfs results were measured in a
+second run, after a change that made opening a jarfile faster, on the same machine and setup as the
+other libraries.
 
-Random reads, classes, MB/s:
+![Every entry read once, in random order, classes: MB/s against the number of threads, for each layout](docs/benchmarks/first-read-classes.png)
 
-| Layout | Library | 1 thread | 2 threads | 4 threads | 8 threads | 16 threads |
-|---|---|--:|--:|--:|--:|--:|
-| dir | classgraph-vfs | 131 | 245 | 469 | 946 | 1,629 |
-| dir | classgraph-vfs (nio) | 134 | 248 | 511 | 939 | 1,686 |
-| dir | JDK Files / ZipFile | 556 | 1,160 | 1,907 | 3,233 | 3,748 |
-| dir | JDK URL.openStream | 224 | 379 | 767 | 1,367 | 1,835 |
-| dir | Apache Commons VFS | 303 | 578 | 1,056 | 1,852 | 1,832 |
-| dir | TrueVFS | 160 | 308 | 621 | 1,140 | 1,886 |
-| dir | JBoss VFS | 352 | 652 | 1,200 | 2,212 | 3,485 |
-| dir | Okio | 472 | 899 | 1,629 | 2,983 | 3,972 |
-| dir | NetBeans filesystems | 302 | 581 | 984 | 1,851 | 1,949 |
-| stored | classgraph-vfs | 2,254 | 4,038 | 5,479 | 5,169 | 5,135 |
-| stored | classgraph-vfs (nio) | 1,466 | 2,626 | 3,487 | 2,476 | 2,770 |
-| stored | JDK Files / ZipFile | 911 | 1,096 | 965 | 888 | 840 |
-| stored | JDK zipfs | 857 | 1,371 | 1,994 | 2,206 | 1,975 |
-| stored | JDK URL.openStream | 671 | 754 | 928 | 822 | 789 |
-| stored | Apache Commons VFS | 489 | 900 | 1,054 | 973 | 944 |
-| stored | TrueVFS | 131 | 222 | 275 | 256 | 232 |
-| stored | JBoss VFS | 819 | 999 | 980 | 910 | 887 |
-| stored | Okio | 464 | 832 | 1,439 | 2,622 | 3,461 |
-| stored | Apache Commons Compress | 1,232 | 2,097 | 2,673 | 2,795 | 2,750 |
-| stored | NetBeans filesystems | 427 | 401 | 338 | 324 | 313 |
-| deflated | classgraph-vfs | 262 | 521 | 994 | 1,885 | 3,024 |
-| deflated | classgraph-vfs (nio) | 239 | 465 | 912 | 1,471 | 1,290 |
-| deflated | JDK Files / ZipFile | 262 | 516 | 821 | 801 | 749 |
-| deflated | JDK zipfs | 253 | 464 | 871 | 1,492 | 1,742 |
-| deflated | JDK URL.openStream | 225 | 400 | 733 | 797 | 743 |
-| deflated | Apache Commons VFS | 199 | 374 | 665 | 859 | 771 |
-| deflated | TrueVFS | 134 | 221 | 267 | 264 | 233 |
-| deflated | JBoss VFS | 254 | 450 | 813 | 866 | 826 |
-| deflated | Okio | 188 | 366 | 691 | 1,300 | 1,825 |
-| deflated | Apache Commons Compress | 226 | 448 | 861 | 1,524 | 2,153 |
-| deflated | NetBeans filesystems | 146 | 140 | 142 | 116 | 129 |
-| nested-stored | classgraph-vfs | 273 | 527 | 960 | 1,849 | 3,054 |
-| nested-stored | classgraph-vfs (nio) | 246 | 465 | 831 | 1,385 | 1,282 |
-| nested-stored | JDK zipfs | 282 | 544 | 961 | 1,620 | 1,688 |
-| nested-stored | Apache Commons VFS | 188 | 371 | 641 | 840 | 724 |
-| nested-stored | TrueVFS | 111 | 189 | 274 | 266 | 233 |
-| nested-stored | JBoss VFS | 252 | 450 | 806 | 880 | 806 |
-| nested-stored | Spring Boot loader | 230 | 403 | 430 | 443 | 420 |
-| nested-deflated | classgraph-vfs | 292 | 577 | 1,091 | 2,066 | 3,555 |
-| nested-deflated | classgraph-vfs (nio) | 263 | 470 | 906 | 1,562 | 1,172 |
-| nested-deflated | JDK zipfs | 270 | 528 | 974 | 1,604 | 1,680 |
-| nested-deflated | Apache Commons VFS | 187 | 369 | 641 | 810 | 754 |
-| nested-deflated | TrueVFS | 110 | 191 | 254 | 265 | 233 |
-| nested-deflated | JBoss VFS | 252 | 457 | 768 | 867 | 822 |
+![Every entry read once, in random order, text: MB/s against the number of threads, for each layout](docs/benchmarks/first-read-text.png)
 
-Random reads, text, MB/s:
+![Every entry read once, in random order, binary: MB/s against the number of threads, for each layout](docs/benchmarks/first-read-binary.png)
 
-| Layout | Library | 1 thread | 2 threads | 4 threads | 8 threads | 16 threads |
-|---|---|--:|--:|--:|--:|--:|
-| dir | classgraph-vfs | 1,734 | 3,564 | 6,184 | 10,048 | 11,887 |
-| dir | classgraph-vfs (nio) | 1,841 | 3,424 | 6,319 | 10,677 | 11,237 |
-| dir | JDK Files / ZipFile | 3,808 | 6,792 | 10,577 | 13,214 | 11,226 |
-| dir | JDK URL.openStream | 1,967 | 3,131 | 5,616 | 6,141 | 6,521 |
-| dir | Apache Commons VFS | 2,440 | 4,391 | 6,646 | 7,658 | 6,872 |
-| dir | TrueVFS | 2,010 | 3,865 | 6,767 | 9,852 | 10,350 |
-| dir | JBoss VFS | 3,075 | 5,634 | 9,817 | 13,399 | 12,518 |
-| dir | Okio | 2,842 | 5,043 | 8,344 | 9,938 | 11,231 |
-| dir | NetBeans filesystems | 3,087 | 5,464 | 9,274 | 12,820 | 12,009 |
-| stored | classgraph-vfs | 5,239 | 9,622 | 11,737 | 13,696 | 12,828 |
-| stored | classgraph-vfs (nio) | 4,833 | 8,306 | 11,725 | 13,450 | 11,987 |
-| stored | JDK Files / ZipFile | 3,034 | 4,028 | 3,854 | 3,610 | 3,099 |
-| stored | JDK zipfs | 2,459 | 4,178 | 5,257 | 5,616 | 5,035 |
-| stored | JDK URL.openStream | 2,716 | 3,314 | 3,809 | 3,335 | 3,656 |
-| stored | Apache Commons VFS | 3,034 | 3,160 | 3,197 | 1,468 | 3,000 |
-| stored | TrueVFS | 1,697 | 2,666 | 4,941 | 4,745 | 4,511 |
-| stored | JBoss VFS | 2,943 | 3,883 | 3,685 | 3,568 | 3,582 |
-| stored | Okio | 2,450 | 4,463 | 7,285 | 8,683 | 10,419 |
-| stored | Apache Commons Compress | 3,170 | 5,143 | 6,920 | 6,897 | 6,687 |
-| stored | NetBeans filesystems | 1,941 | 1,962 | 1,772 | 1,739 | 1,670 |
-| deflated | classgraph-vfs | 592 | 1,177 | 2,243 | 4,453 | 8,048 |
-| deflated | classgraph-vfs (nio) | 547 | 1,081 | 2,125 | 4,131 | 6,873 |
-| deflated | JDK Files / ZipFile | 511 | 1,038 | 1,896 | 3,701 | 3,430 |
-| deflated | JDK zipfs | 494 | 956 | 1,800 | 3,392 | 4,761 |
-| deflated | JDK URL.openStream | 501 | 915 | 1,900 | 3,558 | 3,478 |
-| deflated | Apache Commons VFS | 714 | 1,382 | 2,686 | 3,897 | 3,537 |
-| deflated | TrueVFS | 1,663 | 2,891 | 5,117 | 4,770 | 4,473 |
-| deflated | JBoss VFS | 507 | 999 | 1,947 | 3,711 | 3,597 |
-| deflated | Okio | 463 | 916 | 1,767 | 3,382 | 6,477 |
-| deflated | Apache Commons Compress | 425 | 792 | 1,656 | 3,219 | 5,434 |
-| deflated | NetBeans filesystems | 441 | 411 | 376 | 384 | 386 |
-| nested-stored | classgraph-vfs | 596 | 1,170 | 2,223 | 4,444 | 7,886 |
-| nested-stored | classgraph-vfs (nio) | 527 | 1,084 | 2,135 | 4,114 | 6,894 |
-| nested-stored | JDK zipfs | 511 | 979 | 1,883 | 3,525 | 4,808 |
-| nested-stored | Apache Commons VFS | 708 | 1,359 | 2,682 | 3,479 | 3,574 |
-| nested-stored | TrueVFS | 1,449 | 2,626 | 4,655 | 4,785 | 4,353 |
-| nested-stored | JBoss VFS | 514 | 1,002 | 1,953 | 3,658 | 3,748 |
-| nested-stored | Spring Boot loader | 504 | 989 | 1,884 | 3,367 | 3,326 |
-| nested-deflated | classgraph-vfs | 612 | 1,169 | 2,326 | 4,651 | 8,426 |
-| nested-deflated | classgraph-vfs (nio) | 550 | 1,097 | 2,226 | 4,243 | 7,126 |
-| nested-deflated | JDK zipfs | 471 | 988 | 1,881 | 3,468 | 4,860 |
-| nested-deflated | Apache Commons VFS | 702 | 1,322 | 2,688 | 4,256 | 3,568 |
-| nested-deflated | TrueVFS | 1,510 | 2,810 | 4,558 | 4,736 | 4,365 |
-| nested-deflated | JBoss VFS | 511 | 1,002 | 1,952 | 3,713 | 3,664 |
+![Open, read every entry, close, classes: milliseconds for each library, for each layout](docs/benchmarks/whole-archive-classes.png)
 
-Random reads, binary, MB/s:
+![Open, read every entry, close, text: milliseconds for each library, for each layout](docs/benchmarks/whole-archive-text.png)
 
-| Layout | Library | 1 thread | 2 threads | 4 threads | 8 threads | 16 threads |
-|---|---|--:|--:|--:|--:|--:|
-| dir | classgraph-vfs | 4,949 | 8,324 | 11,119 | 12,011 | 11,258 |
-| dir | classgraph-vfs (nio) | 4,751 | 8,360 | 11,085 | 12,708 | 11,332 |
-| dir | JDK Files / ZipFile | 5,604 | 9,643 | 12,028 | 13,299 | 11,255 |
-| dir | JDK URL.openStream | 2,990 | 4,631 | 6,790 | 6,609 | 6,961 |
-| dir | Apache Commons VFS | 3,899 | 6,066 | 7,196 | 7,522 | 5,820 |
-| dir | TrueVFS | 5,073 | 8,238 | 11,620 | 13,358 | 10,655 |
-| dir | JBoss VFS | 5,374 | 9,159 | 11,914 | 13,408 | 11,785 |
-| dir | Okio | 3,059 | 5,060 | 6,664 | 7,383 | 7,192 |
-| dir | NetBeans filesystems | 5,225 | 8,966 | 12,012 | 13,638 | 11,248 |
-| stored | classgraph-vfs | 5,381 | 8,647 | 11,995 | 11,829 | 11,567 |
-| stored | classgraph-vfs (nio) | 5,107 | 8,998 | 11,765 | 13,817 | 11,182 |
-| stored | JDK Files / ZipFile | 3,176 | 4,084 | 4,605 | 4,481 | 4,245 |
-| stored | JDK zipfs | 2,463 | 4,207 | 5,064 | 5,032 | 4,979 |
-| stored | JDK URL.openStream | 2,726 | 4,140 | 4,244 | 3,953 | 4,541 |
-| stored | Apache Commons VFS | 3,932 | 4,696 | 4,266 | 3,527 | 3,236 |
-| stored | TrueVFS | 4,488 | 7,420 | 10,629 | 11,851 | 9,364 |
-| stored | JBoss VFS | 3,105 | 4,044 | 4,629 | 4,446 | 4,478 |
-| stored | Okio | 2,633 | 4,400 | 5,955 | 6,611 | 7,039 |
-| stored | Apache Commons Compress | 3,141 | 5,217 | 6,703 | 7,316 | 7,016 |
-| stored | NetBeans filesystems | 1,013 | 1,285 | 1,223 | 1,249 | 1,260 |
-| deflated | classgraph-vfs | 3,202 | 5,659 | 8,397 | 10,412 | 9,342 |
-| deflated | classgraph-vfs (nio) | 2,391 | 4,393 | 6,140 | 7,376 | 5,979 |
-| deflated | JDK Files / ZipFile | 2,382 | 3,361 | 3,636 | 3,477 | 3,415 |
-| deflated | JDK zipfs | 2,046 | 3,492 | 4,748 | 4,997 | 4,807 |
-| deflated | JDK URL.openStream | 2,093 | 3,316 | 3,398 | 3,438 | 3,509 |
-| deflated | Apache Commons VFS | 2,377 | 3,152 | 3,339 | 3,316 | 3,276 |
-| deflated | TrueVFS | 4,408 | 7,229 | 10,757 | 12,082 | 9,375 |
-| deflated | JBoss VFS | 2,372 | 3,249 | 3,651 | 3,443 | 3,541 |
-| deflated | Okio | 2,193 | 3,829 | 5,861 | 7,191 | 7,275 |
-| deflated | Apache Commons Compress | 1,499 | 2,659 | 4,695 | 6,722 | 6,529 |
-| deflated | NetBeans filesystems | 886 | 1,005 | 987 | 981 | 992 |
-| nested-stored | classgraph-vfs | 3,174 | 5,511 | 8,740 | 9,369 | 9,036 |
-| nested-stored | classgraph-vfs (nio) | 2,271 | 4,233 | 6,084 | 4,170 | 6,178 |
-| nested-stored | JDK zipfs | 2,970 | 4,451 | 4,894 | 4,671 | 4,586 |
-| nested-stored | Apache Commons VFS | 2,223 | 3,002 | 3,110 | 3,219 | 3,106 |
-| nested-stored | TrueVFS | 4,340 | 7,457 | 9,733 | 11,717 | 7,921 |
-| nested-stored | JBoss VFS | 2,012 | 3,196 | 3,433 | 3,371 | 3,338 |
-| nested-stored | Spring Boot loader | 2,470 | 3,355 | 3,377 | 3,302 | 3,235 |
-| nested-deflated | classgraph-vfs | 5,764 | 9,312 | 13,182 | 14,076 | 14,027 |
-| nested-deflated | classgraph-vfs (nio) | 3,785 | 6,475 | 7,756 | 4,358 | 7,514 |
-| nested-deflated | JDK zipfs | 2,884 | 4,366 | 4,853 | 4,736 | 4,619 |
-| nested-deflated | Apache Commons VFS | 2,252 | 2,845 | 3,121 | 2,944 | 3,062 |
-| nested-deflated | TrueVFS | 4,245 | 7,332 | 9,971 | 12,081 | 9,515 |
-| nested-deflated | JBoss VFS | 2,212 | 3,024 | 3,342 | 3,304 | 3,488 |
+![Open, read every entry, close, binary: milliseconds for each library, for each layout](docs/benchmarks/whole-archive-binary.png)
 
-Open, read every entry, close, classes, ms:
-
-| Library | dir | stored | deflated | nested-stored | nested-deflated |
-|---|--:|--:|--:|--:|--:|
-| classgraph-vfs | 54.2 | 7.1 | 32.7 | 31.5 | 35.4 |
-| classgraph-vfs (nio) | 50.0 | 8.4 | 33.9 | 32.5 | 37.1 |
-| JDK Files / ZipFile | 13.2 | 8.6 | 27.8 |  |  |
-| JDK zipfs |  | 9.0 | 29.3 | 27.6 | 36.3 |
-| JDK URL.openStream | 31.9 | 10.6 | 30.5 |  |  |
-| JDK ZipInputStream |  | 8.2 | 33.0 | 34.7 | 48.9 |
-| Apache Commons VFS | 41.3 | 32.5 | 52.7 | 62.7 | 71.2 |
-| TrueVFS | 48.6 | 161.5 | 189.4 | 209.3 | 209.3 |
-| JBoss VFS | 20.2 | 10.1 | 29.9 | 33.6 | 42.0 |
-| Okio | 15.2 | 18.5 | 40.9 |  |  |
-| Spring Boot loader |  |  |  | 30.0 |  |
-| Apache Commons Compress |  | 15.7 | 42.1 |  |  |
-| NetBeans filesystems | 27.7 | 19.1 | 42.3 |  |  |
-
-Open, read every entry, close, text, ms:
-
-| Library | dir | stored | deflated | nested-stored | nested-deflated |
-|---|--:|--:|--:|--:|--:|
-| classgraph-vfs | 18.4 | 7.4 | 58.4 | 58.2 | 80.1 |
-| classgraph-vfs (nio) | 16.8 | 7.3 | 59.6 | 59.8 | 80.2 |
-| JDK Files / ZipFile | 9.2 | 11.5 | 65.2 |  |  |
-| JDK zipfs |  | 13.4 | 68.5 | 69.5 | 90.9 |
-| JDK URL.openStream | 16.8 | 12.2 | 66.9 |  |  |
-| JDK ZipInputStream |  | 13.3 | 94.2 | 96.3 | 131.6 |
-| Apache Commons VFS | 17.1 | 15.1 | 52.7 | 65.3 | 85.1 |
-| TrueVFS | 16.2 | 67.7 | 135.5 | 148.2 | 163.0 |
-| JBoss VFS | 10.7 | 11.9 | 67.7 | 73.9 | 97.9 |
-| Okio | 11.8 | 14.4 | 72.5 |  |  |
-| Spring Boot loader |  |  |  | 67.1 |  |
-| Apache Commons Compress |  | 14.0 | 81.7 |  |  |
-| NetBeans filesystems | 11.9 | 16.9 | 72.6 |  |  |
-
-Open, read every entry, close, binary, ms:
-
-| Library | dir | stored | deflated | nested-stored | nested-deflated |
-|---|--:|--:|--:|--:|--:|
-| classgraph-vfs | 7.5 | 7.0 | 11.3 | 11.3 | 33.6 |
-| classgraph-vfs (nio) | 6.8 | 6.4 | 13.5 | 13.6 | 31.9 |
-| JDK Files / ZipFile | 6.0 | 11.3 | 14.6 |  |  |
-| JDK zipfs |  | 13.3 | 17.0 | 24.8 | 27.0 |
-| JDK URL.openStream | 10.4 | 10.8 | 14.6 |  |  |
-| JDK ZipInputStream |  | 13.2 | 66.3 | 71.4 | 89.9 |
-| Apache Commons VFS | 10.2 | 10.1 | 16.1 | 52.1 | 51.2 |
-| TrueVFS | 6.6 | 37.6 | 37.5 | 66.6 | 66.3 |
-| JBoss VFS | 6.5 | 11.3 | 14.5 | 41.8 | 49.3 |
-| Okio | 11.2 | 13.3 | 15.5 |  |  |
-| Spring Boot loader |  |  |  | 13.4 |  |
-| Apache Commons Compress |  | 10.7 | 23.9 |  |  |
-| NetBeans filesystems | 6.1 | 33.0 | 41.1 |  |  |
+The first-read curves stop rising for two reasons. First, part of each operation is done by one
+thread while the others wait: opening the archive and reading its central directory, and closing it,
+which for a jarfile includes unmapping the file. A nested jarfile that is deflated inside its outer
+jarfile must also be inflated into memory by one thread before any of its entries can be read, which
+is why the nested-deflated curves flatten soonest. Second, every read copies the entry into a newly
+allocated byte array, and on this machine a plain copy into new arrays peaks at about 18.8GB/s, at 4
+threads, and falls to about 12.3GB/s at 32 threads.
 
 ## Recipes
 
