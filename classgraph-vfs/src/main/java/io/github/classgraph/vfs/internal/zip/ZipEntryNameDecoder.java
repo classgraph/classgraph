@@ -108,7 +108,9 @@ final class ZipEntryNameDecoder {
      * @return the decoded name
      */
     static String decodeEntryName(final byte[] nameBytes, final boolean isUtf8) {
-        if (!isUtf8) {
+        // A name of ASCII bytes alone decodes to the same string in UTF-8 and in CP437, so it skips the strict
+        // decoder, which takes about three times as long. Many jarfiles do not set bit 11 even for ASCII names
+        if (!isUtf8 && !isAscii(nameBytes)) {
             // Decode strictly, so that a name that is not valid UTF-8 can be recognized and decoded as CP437
             try {
                 return StandardCharsets.UTF_8.newDecoder() //
@@ -121,6 +123,22 @@ final class ZipEntryNameDecoder {
         }
         // String's UTF-8 decoder replaces a malformed sequence with U+FFFD rather than throwing
         return new String(nameBytes, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Check whether every byte is ASCII.
+     *
+     * @param bytes
+     *            the bytes to check
+     * @return true if no byte has its high bit set
+     */
+    private static boolean isAscii(final byte[] bytes) {
+        for (final var b : bytes) {
+            if (b < 0) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
