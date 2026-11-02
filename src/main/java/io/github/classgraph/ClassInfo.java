@@ -38,6 +38,7 @@ import java.net.URI;
 import java.net.URL;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -61,6 +62,7 @@ import nonapi.io.github.classgraph.types.Parser;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
 import nonapi.io.github.classgraph.utils.Assert;
+import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /** Holds metadata about a class encountered during a scan. */
@@ -71,6 +73,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     /** Class modifier flags, e.g. Modifier.PUBLIC */
     private int modifiers;
+
+    /** The strongest source of the access level in {@link #modifiers}, or -1 if none has been applied. */
+    private transient int nestedModifiersSource = -1;
 
     /** True if the class is a record. */
     private boolean isRecord;
@@ -341,7 +346,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            the {@link ClassInfo}
      * @return true, if successful
      */
-    boolean addRelatedClass(final RelType relType, final ClassInfo classInfo) {
+    // Synchronized, since classfiles are linked on many threads at once, and each can relate other classes to this one
+    synchronized boolean addRelatedClass(final RelType relType, final ClassInfo classInfo) {
         Set<ClassInfo> classInfoSet = relatedClasses.get(relType);
         if (classInfoSet == null) {
             relatedClasses.put(relType, classInfoSet = new LinkedHashSet<>(4));
@@ -349,11 +355,25 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         return classInfoSet.add(classInfo);
     }
 
+    /**
+     * Sort the classes that directly enclose this class by name. Classfiles can name more than one enclosing class
+     * for a class (the Scala compiler names both {@code T} and {@code T$} for an anonymous function), and
+     * classfiles are linked in no fixed order. Call this after every classfile has been linked.
+     */
+    void sortOuterClasses() {
+        final Set<ClassInfo> outerClasses = relatedClasses.get(RelType.CONTAINED_WITHIN_OUTER_CLASS);
+        if (outerClasses != null && outerClasses.size() > 1) {
+            final List<ClassInfo> sorted = CollectionUtils.sortCopy(outerClasses);
+            outerClasses.clear();
+            outerClasses.addAll(sorted);
+        }
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get a ClassInfo object, or create it if it doesn't exist. N.B. not threadsafe, so ClassInfo objects should
-     * only ever be constructed by a single thread.
+     * Get a ClassInfo object, or create it if it doesn't exist. Threadsafe if the map is: two threads that create
+     * the same class at once get the same object.
      *
      * @param className
      *            the class name
@@ -438,7 +458,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 classInfo = new ArrayClassInfo(
                         new ArrayTypeSignature(elementTypeSignature, numArrayDims, arrayTypeSigStrBuf.toString()));
             }
-            classNameToClassInfo.put(canonicalClassName, classInfo);
+            // While classfiles are being linked, the map keeps the first object added for a name, and returns it
+            final ClassInfo previous = classNameToClassInfo.put(canonicalClassName, classInfo);
+            if (previous != null) {
+                classInfo = previous;
+            }
         }
         return classInfo;
     }
@@ -462,22 +486,64 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param modifiers
      *            the class modifiers
      */
-    void setModifiers(final int modifiers) {
+    // This and the other methods that change the modifiers are synchronized, since classfiles are linked on many
+    // threads at once, and several can refer to this class
+    synchronized void setModifiers(final int modifiers) {
         this.modifiers |= modifiers;
     }
 
     /** The access level modifier bits: {@code public}, {@code private} and {@code protected}. */
     private static final int ACCESS_LEVEL_MODIFIERS = Modifier.PUBLIC | Modifier.PRIVATE | Modifier.PROTECTED;
 
+    /** An {@code InnerClasses} entry in a classfile that only refers to the nested class. */
+    static final int NESTED_MODIFIERS_FROM_OTHER_CLASS = 0;
+
+    /** An {@code InnerClasses} entry in the classfile of the enclosing class. */
+    static final int NESTED_MODIFIERS_FROM_ENCLOSING_CLASS = 1;
+
+    /** An {@code InnerClasses} entry in the classfile of the nested class itself. */
+    static final int NESTED_MODIFIERS_FROM_OWN_CLASSFILE = 2;
+
     /**
-     * Set the modifiers of a nested class from the {@code InnerClasses} attribute of its enclosing class, replacing
-     * the access-level bits read from the classfile while OR-ing in the remaining modifier bits.
+     * Add the modifiers of a nested class from an {@code InnerClasses} attribute entry, OR-ing in the modifier bits
+     * other than the access level. The access level replaces the one read from the classfile. Classfiles compiled
+     * against different versions of a class can disagree about its access level, and classfiles are linked in no
+     * fixed order, so the entry from the strongest source is kept, and the widest access level among entries from
+     * that source.
      *
      * @param innerClassModifierBits
      *            the modifier bits from the {@code InnerClasses} attribute entry for this class
+     * @param source
+     *            the classfile the entry was found in: one of the {@code NESTED_MODIFIERS_FROM_} constants
      */
-    void setNestedClassModifiers(final int innerClassModifierBits) {
-        this.modifiers = (this.modifiers & ~ACCESS_LEVEL_MODIFIERS) | innerClassModifierBits;
+    synchronized void addNestedClassModifiers(final int innerClassModifierBits, final int source) {
+        final int oldAccess = this.modifiers & ACCESS_LEVEL_MODIFIERS;
+        final int newAccess = innerClassModifierBits & ACCESS_LEVEL_MODIFIERS;
+        final int access = source > nestedModifiersSource
+                || source == nestedModifiersSource && accessRank(newAccess) > accessRank(oldAccess) ? newAccess
+                        : oldAccess;
+        this.modifiers = (this.modifiers & ~ACCESS_LEVEL_MODIFIERS)
+                | (innerClassModifierBits & ~ACCESS_LEVEL_MODIFIERS) | access;
+        nestedModifiersSource = Math.max(nestedModifiersSource, source);
+    }
+
+    /**
+     * Rank an access level from narrowest to widest.
+     *
+     * @param accessLevelModifierBits
+     *            the access level modifier bits
+     * @return 0 for {@code private}, 1 for package-private, 2 for {@code protected}, 3 for {@code public}
+     */
+    private static int accessRank(final int accessLevelModifierBits) {
+        if ((accessLevelModifierBits & Modifier.PUBLIC) != 0) {
+            return 3;
+        } else if ((accessLevelModifierBits & Modifier.PROTECTED) != 0) {
+            return 2;
+        } else if ((accessLevelModifierBits & Modifier.PRIVATE) != 0) {
+            return 0;
+        } else {
+            return 1;
+        }
     }
 
     /**
@@ -486,7 +552,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param isInterface
      *            true if this is an interface
      */
-    void setIsInterface(final boolean isInterface) {
+    synchronized void setIsInterface(final boolean isInterface) {
         if (isInterface) {
             this.modifiers |= Modifier.INTERFACE;
         }
@@ -498,7 +564,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param isAnnotation
      *            true if this is an annotation
      */
-    void setIsAnnotation(final boolean isAnnotation) {
+    synchronized void setIsAnnotation(final boolean isAnnotation) {
         if (isAnnotation) {
             this.modifiers |= ANNOTATION_CLASS_MODIFIER;
         }
@@ -577,15 +643,32 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @param classContainmentEntries
      *            the class containment entries
+     * @param classfileClassName
+     *            the name of the class whose classfile holds the entries
+     * @param ownInnerClassAccessFlags
+     *            the access flags of the {@code InnerClasses} entry for the class in its own classfile, or -1 if it
+     *            has none
      * @param classNameToClassInfo
      *            the map from class name to class info
      */
     static void addClassContainment(final List<ClassContainment> classContainmentEntries,
+            final String classfileClassName, final int ownInnerClassAccessFlags,
             final Map<String, ClassInfo> classNameToClassInfo) {
         for (final ClassContainment classContainment : classContainmentEntries) {
             final ClassInfo innerClassInfo = ClassInfo.getOrCreateClassInfo(classContainment.innerClassName,
                     classNameToClassInfo);
-            innerClassInfo.setNestedClassModifiers(classContainment.innerClassModifierBits);
+            if (!classContainment.innerClassName.equals(classfileClassName)) {
+                innerClassInfo.addNestedClassModifiers(classContainment.innerClassModifierBits,
+                        classContainment.outerClassName.equals(classfileClassName)
+                                ? NESTED_MODIFIERS_FROM_ENCLOSING_CLASS
+                                : NESTED_MODIFIERS_FROM_OTHER_CLASS);
+            } else if (ownInnerClassAccessFlags != -1) {
+                // The entry for a local or anonymous class comes from its EnclosingMethod attribute, and holds the
+                // access flags of the classfile rather than the flags of its own InnerClasses entry, which has an
+                // outer class index of 0, so it adds no entry of its own
+                innerClassInfo.addNestedClassModifiers(ownInnerClassAccessFlags,
+                        NESTED_MODIFIERS_FROM_OWN_CLASSFILE);
+            }
             final ClassInfo outerClassInfo = ClassInfo.getOrCreateClassInfo(classContainment.outerClassName,
                     classNameToClassInfo);
             innerClassInfo.addRelatedClass(RelType.CONTAINED_WITHIN_OUTER_CLASS, outerClassInfo);
@@ -761,8 +844,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Add a class that has just been scanned (as opposed to just referenced by a scanned class). Not threadsafe,
-     * should be run in single threaded context.
+     * Create the {@link ClassInfo} of a class that has just been scanned (as opposed to just referenced by a
+     * scanned class). Threadsafe.
      *
      * @param className
      *            the class name
@@ -770,40 +853,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            the class modifiers
      * @param isExternalClass
      *            true if this is an external class
-     * @param classNameToClassInfo
-     *            the map from class name to class info
      * @param classpathElement
      *            the classpath element
      * @param classfileResource
      *            the classfile resource
      * @return the class info
      */
-    static ClassInfo addScannedClass(final String className, final int classModifiers,
-            final boolean isExternalClass, final Map<String, ClassInfo> classNameToClassInfo,
-            final ClasspathElement classpathElement, final Resource classfileResource) {
-        ClassInfo classInfo = classNameToClassInfo.get(className);
-        if (classInfo == null) {
-            // This is the first time this class has been seen, add it
-            classNameToClassInfo.put(className,
-                    classInfo = new ClassInfo(className, classModifiers, classfileResource));
-        } else {
-            // There was a previous placeholder ClassInfo class added, due to the class being referred
-            // to by a class linked earlier, for example as a superclass, interface, annotation, enclosing
-            // class or nested class. The isScannedClass field should be false
-            // in this case, since the actual class definition wasn't reached before now.
-            if (classInfo.isScannedClass) {
-                // The class should not have been scanned more than once, because of classpath masking
-                throw new IllegalArgumentException("Class " + className
-                        + " should not have been encountered more than once due to classpath masking --"
-                        + " please report this bug at: https://github.com/classgraph/classgraph/issues");
-            }
-
-            // Set the classfileResource for the placeholder class
-            classInfo.classfileResource = classfileResource;
-
-            // Add any additional modifier bits
-            classInfo.modifiers |= classModifiers;
-        }
+    static ClassInfo newScannedClass(final String className, final int classModifiers,
+            final boolean isExternalClass, final ClasspathElement classpathElement,
+            final Resource classfileResource) {
+        final ClassInfo classInfo = new ClassInfo(className, classModifiers, classfileResource);
 
         // Mark the class as scanned
         classInfo.isScannedClass = true;
@@ -3739,6 +3798,63 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Check whether an annotation of this class, or of one of its fields, methods or method parameters, has one of
+     * the given names. These are the annotations that {@link #handleRepeatableAnnotations(Set)} reads. This only
+     * reads this class and its members, so it may be called for many classes at once, on different threads.
+     *
+     * @param annotationNames
+     *            the annotation names
+     * @return true if an annotation of this class or of one of its members has one of the names
+     */
+    boolean hasAnnotationNamedIn(final Set<String> annotationNames) {
+        if (anyNamedIn(annotationInfo, annotationNames)) {
+            return true;
+        }
+        if (fieldInfo != null) {
+            for (final FieldInfo fi : fieldInfo) {
+                if (anyNamedIn(fi.annotationInfo, annotationNames)) {
+                    return true;
+                }
+            }
+        }
+        if (methodInfo != null) {
+            for (final MethodInfo mi : methodInfo) {
+                if (anyNamedIn(mi.annotationInfo, annotationNames)) {
+                    return true;
+                }
+                if (mi.parameterAnnotationInfo != null) {
+                    for (final AnnotationInfo[] pai : mi.parameterAnnotationInfo) {
+                        if (pai != null && anyNamedIn(Arrays.asList(pai), annotationNames)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Check whether an annotation in a list has one of the given names.
+     *
+     * @param annotations
+     *            the annotations, or null
+     * @param annotationNames
+     *            the annotation names
+     * @return true if an annotation in the list has one of the names
+     */
+    private static boolean anyNamedIn(final List<AnnotationInfo> annotations, final Set<String> annotationNames) {
+        if (annotations != null) {
+            for (final AnnotationInfo ai : annotations) {
+                if (annotationNames.contains(ai.getName())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 
     /**
      * Handle {@link Repeatable} annotations.

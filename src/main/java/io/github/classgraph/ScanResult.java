@@ -49,6 +49,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
@@ -299,13 +300,20 @@ public final class ScanResult implements Closeable {
      *            the nested jar handler
      * @param topLevelLog
      *            the toplevel log
+     * @param parallelRunner
+     *            runs the work of indexing the classes on the worker threads of the scan
+     * @throws InterruptedException
+     *             if the thread was interrupted
+     * @throws ExecutionException
+     *             if indexing a class threw an exception
      */
     ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
             final List<String> rawClasspathEltOrderStrs, final ClasspathFinder classpathFinder,
             final Map<String, ClassInfo> classNameToClassInfo,
             final Map<String, PackageInfo> packageNameToPackageInfo,
             final Map<String, ModuleInfo> moduleNameToModuleInfo, final Map<File, Long> fileToLastModified,
-            final NestedJarHandler nestedJarHandler, final LogNode topLevelLog) {
+            final NestedJarHandler nestedJarHandler, final LogNode topLevelLog,
+            final ParallelRunner parallelRunner) throws InterruptedException, ExecutionException {
         this.scanSpec = scanSpec;
         this.rawClasspathEltOrderStrs = rawClasspathEltOrderStrs;
         this.classpathOrder = classpathOrder;
@@ -319,7 +327,7 @@ public final class ScanResult implements Closeable {
         this.topLevelLog = topLevelLog;
 
         if (classNameToClassInfo != null) {
-            indexResourcesAndClassInfo(topLevelLog);
+            indexResourcesAndClassInfo(new ArrayList<>(classNameToClassInfo.values()), parallelRunner, topLevelLog);
         }
 
         if (classNameToClassInfo != null) {
@@ -345,8 +353,22 @@ public final class ScanResult implements Closeable {
                 }
             }
             if (!allRepeatableAnnotationNames.isEmpty()) {
-                for (final ClassInfo classInfo : classNameToClassInfo.values()) {
-                    classInfo.handleRepeatableAnnotations(allRepeatableAnnotationNames);
+                // Find the classes that hold a container annotation on the worker threads, since that reads every
+                // annotation of every class and member. Then unpack their containers on this thread, in the order
+                // of the map, as before, since unpacking a container links each repeat to its annotation class.
+                // (The map is listed again here, since indexing may have added placeholder classes to it.)
+                final List<ClassInfo> allClassInfo = new ArrayList<>(classNameToClassInfo.values());
+                final boolean[] holdsContainer = new boolean[allClassInfo.size()];
+                parallelRunner.forEachIndex(allClassInfo.size(), new ParallelRunner.IndexAction() {
+                    @Override
+                    public void accept(final int i) {
+                        holdsContainer[i] = allClassInfo.get(i).hasAnnotationNamedIn(allRepeatableAnnotationNames);
+                    }
+                });
+                for (int i = 0; i < holdsContainer.length; i++) {
+                    if (holdsContainer[i]) {
+                        allClassInfo.get(i).handleRepeatableAnnotations(allRepeatableAnnotationNames);
+                    }
                 }
             }
         }
@@ -368,15 +390,29 @@ public final class ScanResult implements Closeable {
     /**
      * Index {@link Resource} and {@link ClassInfo} objects.
      *
+     * @param allClassInfo
+     *            each {@link ClassInfo} object in the map from class name to {@link ClassInfo}
+     * @param parallelRunner
+     *            runs work on the worker threads of the scan
      * @param log
      *            the log
+     * @throws InterruptedException
+     *             if the thread was interrupted
+     * @throws ExecutionException
+     *             if setting the scan result of a class threw an exception
      */
-    private void indexResourcesAndClassInfo(final LogNode log) {
-        // Add backrefs from Info objects back to this ScanResult
-        final Collection<ClassInfo> allClassInfo = classNameToClassInfo.values();
-        for (final ClassInfo classInfo : allClassInfo) {
-            classInfo.setScanResult(this);
-        }
+    private void indexResourcesAndClassInfo(final List<ClassInfo> allClassInfo, final ParallelRunner parallelRunner,
+            final LogNode log) throws InterruptedException, ExecutionException {
+        // Add backrefs from Info objects back to this ScanResult. Each class sets the scan result only in itself
+        // and in the objects it was read with (its members, annotations and type signatures), which no other
+        // class holds, so the classes are split across the worker threads.
+        final ScanResult thisScanResult = this;
+        parallelRunner.forEachIndex(allClassInfo.size(), new ParallelRunner.IndexAction() {
+            @Override
+            public void accept(final int i) {
+                allClassInfo.get(i).setScanResult(thisScanResult);
+            }
+        });
 
         // If inter-class dependencies are enabled, create placeholder ClassInfo objects
         // for any referenced
@@ -1767,7 +1803,13 @@ public final class ScanResult implements Closeable {
         }
 
         // Index Resource and ClassInfo objects
-        scanResult.indexResourcesAndClassInfo(/* log = */ null);
+        try {
+            scanResult.indexResourcesAndClassInfo(new ArrayList<>(scanResult.classNameToClassInfo.values()),
+                    ParallelRunner.SERIAL, /* log = */ null);
+        } catch (final InterruptedException | ExecutionException e) {
+            // ParallelRunner.SERIAL throws neither of these
+            throw new IllegalStateException(e);
+        }
 
         scanResult.isObtainedFromDeserialization = true;
         return scanResult;

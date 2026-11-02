@@ -58,6 +58,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -364,6 +365,20 @@ class Scanner implements Callable<ScanResult> {
         // Throw InterruptedException if any of the workers failed
         interruptionChecker.check();
     }
+
+    /** The {@link ParallelRunner} of the scan, which runs tasks on the worker threads. */
+    private final ParallelRunner workerThreadRunner = new ParallelRunner() {
+        @Override
+        void runAll(final List<Runnable> tasks) throws InterruptedException, ExecutionException {
+            processWorkUnits(tasks, /* log = */ null, new WorkUnitProcessor<Runnable>() {
+                @Override
+                public void processWorkUnit(final Runnable task, final WorkQueue<Runnable> workQueue,
+                        final LogNode log) {
+                    task.run();
+                }
+            });
+        }
+    };
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -1030,9 +1045,13 @@ class Scanner implements Callable<ScanResult> {
      *            the classpath element order
      * @param maskLog
      *            the mask log
+     * @throws InterruptedException
+     *             if a worker was interrupted.
+     * @throws ExecutionException
+     *             If a worker threw an uncaught exception.
      */
-    private static void maskDuplicateResources(final List<ClasspathElement> classpathElementOrder,
-            final LogNode maskLog) {
+    private void maskDuplicateResources(final List<ClasspathElement> classpathElementOrder, final LogNode maskLog)
+            throws InterruptedException, ExecutionException {
         // Only a relative path that occurs more than once can be a duplicate of the same file, and computing the
         // URI of a resource is not free (for modules it requires a reflective call to ModuleReader#find), so
         // find the colliding relative paths first, and only compare URIs for those.
@@ -1046,11 +1065,22 @@ class Scanner implements Callable<ScanResult> {
             }
         }
         if (!collidingRelativePaths.isEmpty()) {
+            // Finding the file identity key of a resource is most of the work, and reads only its own classpath
+            // element, so the keys are found on the worker threads. Then the first resource with each key is kept,
+            // in classpath order, on this thread.
+            final Map<String, String> canonicalPathCache = new ConcurrentHashMap<>();
+            final String[][] fileIdentityKeys = new String[classpathElementOrder.size()][];
+            workerThreadRunner.forEachIndex(classpathElementOrder.size(), new ParallelRunner.IndexAction() {
+                @Override
+                public void accept(final int i) {
+                    fileIdentityKeys[i] = classpathElementOrder.get(i).getFileIdentityKeys(collidingRelativePaths,
+                            canonicalPathCache);
+                }
+            });
             final Set<String> fileIdentityKeysFound = new HashSet<>();
-            final Map<String, String> canonicalPathCache = new HashMap<>();
             for (int classpathIdx = 0; classpathIdx < classpathElementOrder.size(); classpathIdx++) {
                 classpathElementOrder.get(classpathIdx).maskDuplicateResources(classpathIdx,
-                        collidingRelativePaths, fileIdentityKeysFound, canonicalPathCache, maskLog);
+                        fileIdentityKeys[classpathIdx], fileIdentityKeysFound, maskLog);
             }
         }
         if (maskLog != null) {
@@ -1097,8 +1127,8 @@ class Scanner implements Callable<ScanResult> {
         }
 
         // Scan classfiles, if scanSpec.enableClassInfo is true.
-        // (classNameToClassInfo is only written from one thread, while the classfiles are linked and the
-        // ScanResult is built, and is only read after that)
+        // (classNameToClassInfo is only written from one thread, and is not written while the worker threads
+        // are reading it)
         final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
         final Map<String, PackageInfo> packageNameToPackageInfo = new HashMap<>();
         final Map<String, ModuleInfo> moduleNameToModuleInfo = new HashMap<>();
@@ -1141,11 +1171,34 @@ class Scanner implements Callable<ScanResult> {
                 classpathElement.classfileScanFinished();
             }
 
-            // Link the Classfile objects to produce ClassInfo objects. This needs to be done from a single thread.
+            // Link the Classfile objects to produce ClassInfo objects. First add every scanned class to the map, so
+            // that the map does not change while the classfiles are linked on the worker threads, then link them,
+            // then add the classes that were referred to but not scanned to the map, then add the classes to their
+            // packages and modules on this thread.
             final LogNode linkLog = topLevelLog == null ? null : topLevelLog.log("Linking related classfiles");
-            while (!scannedClassfiles.isEmpty()) {
-                final Classfile c = scannedClassfiles.remove();
-                c.link(classNameToClassInfo, packageNameToPackageInfo, moduleNameToModuleInfo);
+            final List<Classfile> classfiles = new ArrayList<>(scannedClassfiles);
+            workerThreadRunner.forEachIndex(classfiles.size(), new ParallelRunner.IndexAction() {
+                @Override
+                public void accept(final int i) {
+                    classfiles.get(i).createClassInfo();
+                }
+            });
+            for (final Classfile c : classfiles) {
+                c.addScannedClass(classNameToClassInfo);
+            }
+            final ConcurrentMap<String, ClassInfo> classNameToNewClassInfo = new ConcurrentHashMap<>();
+            workerThreadRunner.forEachIndex(classfiles.size(), new ParallelRunner.IndexAction() {
+                @Override
+                public void accept(final int i) {
+                    classfiles.get(i).linkClassInfo(classNameToClassInfo, classNameToNewClassInfo);
+                }
+            });
+            classNameToClassInfo.putAll(classNameToNewClassInfo);
+            for (final ClassInfo classInfo : classNameToClassInfo.values()) {
+                classInfo.sortOuterClasses();
+            }
+            for (final Classfile c : classfiles) {
+                c.linkPackageAndModule(packageNameToPackageInfo, moduleNameToModuleInfo);
             }
 
             // Uncomment the following code to create placeholder external classes for any classes
@@ -1182,7 +1235,7 @@ class Scanner implements Callable<ScanResult> {
         // Return a new ScanResult
         final ScanResult scanResult = new ScanResult(scanSpec, finalClasspathEltOrder, finalClasspathEltOrderStrs,
                 classpathFinder, classNameToClassInfo, packageNameToPackageInfo, moduleNameToModuleInfo,
-                fileToLastModified, nestedJarHandler, topLevelLog);
+                fileToLastModified, nestedJarHandler, topLevelLog, workerThreadRunner);
 
         // Set the ScanResult in each classpath element, so that the classpath elements can determine when the
         // ScanResult is closed
@@ -1322,7 +1375,7 @@ class Scanner implements Callable<ScanResult> {
             return new ScanResult(scanSpec, finalClasspathEltOrderFiltered, finalClasspathEltOrderStrs,
                     classpathFinder, /* classNameToClassInfo = */ null, /* packageNameToPackageInfo = */ null,
                     /* moduleNameToModuleInfo = */ null, /* fileToLastModified = */ null, nestedJarHandler,
-                    topLevelLog);
+                    topLevelLog, ParallelRunner.SERIAL);
         }
     }
 

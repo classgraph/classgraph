@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.lang.reflect.Modifier;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -39,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import io.github.classgraph.Scanner.ClassfileScanWorkUnit;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
@@ -53,7 +55,9 @@ import nonapi.io.github.classgraph.utils.StringUtils;
 
 /**
  * A classfile binary format parser. Each instance reads one classfile, in its constructor, through a
- * {@link ClassfileReader}.
+ * {@link ClassfileReader}, and holds what it read until {@link #createClassInfo()},
+ * {@link #linkClassInfo(Map, ConcurrentMap)} and {@link #linkPackageAndModule(Map, Map)} transfer it into
+ * {@link ClassInfo}, {@link PackageInfo} and {@link ModuleInfo} objects.
  *
  * <p>
  * See <a href="https://docs.oracle.com/javase/specs/jvms/se16/html/jvms-4.html">the class file format spec</a>.
@@ -142,6 +146,12 @@ class Classfile {
 
     /** The method info list. */
     private MethodInfoList methodInfoList;
+
+    /**
+     * The {@link ClassInfo} of this class, set by {@link #createClassInfo()}, or null for a module or package
+     * descriptor.
+     */
+    private ClassInfo classInfo;
 
     /** The type signature. */
     private String typeSignatureStr;
@@ -467,82 +477,192 @@ class Classfile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Link classes. Not threadsafe, should be run in a single-threaded context.
+     * A view of the map from class name to class info, which holds every scanned class and is not changed, and of a
+     * thread-safe map that classes that were not scanned are added to. {@link #linkClassInfo(Map, ConcurrentMap)}
+     * passes it to every call that creates or links a {@link ClassInfo}, so that classfiles can be linked on many
+     * threads at once.
+     */
+    private static final class ClassNameMapView extends AbstractMap<String, ClassInfo> {
+        /** The map from class name to class info, which holds every scanned class. */
+        private final Map<String, ClassInfo> classNameToClassInfo;
+
+        /** The thread-safe map that the {@link ClassInfo} objects of classes that were not scanned are added to. */
+        private final ConcurrentMap<String, ClassInfo> classNameToNewClassInfo;
+
+        /**
+         * Constructor.
+         *
+         * @param classNameToClassInfo
+         *            the map from class name to class info, which holds every scanned class
+         * @param classNameToNewClassInfo
+         *            the thread-safe map to add the {@link ClassInfo} objects of classes that were not scanned to
+         */
+        ClassNameMapView(final Map<String, ClassInfo> classNameToClassInfo,
+                final ConcurrentMap<String, ClassInfo> classNameToNewClassInfo) {
+            super();
+            this.classNameToClassInfo = classNameToClassInfo;
+            this.classNameToNewClassInfo = classNameToNewClassInfo;
+        }
+
+        @Override
+        public ClassInfo get(final Object key) {
+            final ClassInfo classInfo = classNameToClassInfo.get(key);
+            return classInfo != null ? classInfo : classNameToNewClassInfo.get(key);
+        }
+
+        @Override
+        public boolean containsKey(final Object key) {
+            return get(key) != null;
+        }
+
+        /**
+         * Add a class, unlike {@link Map#put(Object, Object)} keeping any object already held for the name, so that
+         * two threads that add the same class get the same object. (This is not named {@code putIfAbsent}, since
+         * {@link Map#putIfAbsent(Object, Object)} is not in the Java 7 API.)
+         *
+         * @param className
+         *            the class name
+         * @param classInfo
+         *            the {@link ClassInfo} to add
+         * @return the object already held for the name, or null if classInfo was added
+         */
+        @Override
+        public ClassInfo put(final String className, final ClassInfo classInfo) {
+            final ClassInfo existing = classNameToClassInfo.get(className);
+            return existing != null ? existing : classNameToNewClassInfo.putIfAbsent(className, classInfo);
+        }
+
+        @Override
+        public Set<Entry<String, ClassInfo>> entrySet() {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    /**
+     * Whether this classfile is a module descriptor.
+     *
+     * @return true if this classfile is a module descriptor
+     */
+    private boolean isModuleDescriptor() {
+        return className.equals("module-info");
+    }
+
+    /**
+     * Whether this classfile is a package descriptor.
+     *
+     * @return true if this classfile is a package descriptor
+     */
+    private boolean isPackageDescriptor() {
+        return className.equals("package-info") || className.endsWith(".package-info");
+    }
+
+    /**
+     * The first of the three steps of linking classfiles: create the {@link ClassInfo} object for this class,
+     * unless this is a module or package descriptor. Threadsafe.
+     */
+    void createClassInfo() {
+        if (!isModuleDescriptor() && !isPackageDescriptor()) {
+            classInfo = ClassInfo.newScannedClass(className, classModifiers, isExternalClass, classpathElement,
+                    classfileResource);
+        }
+    }
+
+    /**
+     * Add the {@link ClassInfo} object created by {@link #createClassInfo()} to the map from class name to class
+     * info. Not threadsafe: this is called for each classfile in turn, so that every scanned class is in the map
+     * before any classfile is linked by {@link #linkClassInfo(Map, ConcurrentMap)}, and the map holds only scanned
+     * classes until then.
      *
      * @param classNameToClassInfo
      *            map from class name to class info
+     */
+    void addScannedClass(final Map<String, ClassInfo> classNameToClassInfo) {
+        if (classInfo != null && classNameToClassInfo.put(className, classInfo) != null) {
+            // The class should not have been scanned more than once, because of classpath masking
+            throw new IllegalArgumentException("Class " + className
+                    + " should not have been encountered more than once due to classpath masking --"
+                    + " please report this bug at: https://github.com/classgraph/classgraph/issues");
+        }
+    }
+
+    /**
+     * The second of the three steps of linking classfiles: transfer everything that was read from the classfile
+     * into the {@link ClassInfo} object for this class, and link it to the classes it refers to. This may be called
+     * for many classfiles at once, on different threads: it writes to the {@link ClassInfo} of another class only
+     * through methods that lock that {@link ClassInfo}, and does not add to the map from class name to class info,
+     * which other threads are reading.
+     *
+     * @param classNameToClassInfo
+     *            map from class name to class info, which holds every scanned class, and is not changed
+     * @param classNameToNewClassInfo
+     *            a thread-safe map to add the {@link ClassInfo} objects for classes that were not scanned to
+     */
+    void linkClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+            final ConcurrentMap<String, ClassInfo> classNameToNewClassInfo) {
+        if (classInfo == null) {
+            return;
+        }
+        final Map<String, ClassInfo> classNameMapView = new ClassNameMapView(classNameToClassInfo,
+                classNameToNewClassInfo);
+        classInfo.setClassfileVersion(minorVersion, majorVersion);
+        classInfo.setIsInterface(isInterface);
+        classInfo.setIsAnnotation(isAnnotation);
+        classInfo.setIsRecord(isRecord);
+        classInfo.setSourceFile(sourceFile);
+        if (superclassName != null) {
+            classInfo.addSuperclass(superclassName, classNameMapView);
+        }
+        if (implementedInterfaces != null) {
+            for (final String interfaceName : implementedInterfaces) {
+                classInfo.addImplementedInterface(interfaceName, classNameMapView);
+            }
+        }
+        if (classAnnotations != null) {
+            for (final AnnotationInfo classAnnotation : classAnnotations) {
+                classInfo.addClassAnnotation(classAnnotation, classNameMapView);
+            }
+        }
+        if (classContainmentEntries != null) {
+            ClassInfo.addClassContainment(classContainmentEntries, className, ownInnerClassAccessFlags,
+                    classNameMapView);
+        }
+        if (annotationParamDefaultValues != null) {
+            classInfo.addAnnotationParamDefaultValues(annotationParamDefaultValues);
+        }
+        if (hasEnclosingMethodAttribute) {
+            classInfo.setLocalOrAnonymousClass(/* isAnonymous = */ hasNoSimpleName,
+                    fullyQualifiedDefiningMethodName);
+        }
+        if (fieldInfoList != null) {
+            classInfo.addFieldInfo(fieldInfoList, classNameMapView);
+        }
+        if (methodInfoList != null) {
+            classInfo.addMethodInfo(methodInfoList, classNameMapView);
+        }
+        if (typeSignatureStr != null) {
+            classInfo.setTypeSignature(typeSignatureStr);
+        }
+        if (refdClassNames != null) {
+            classInfo.addReferencedClassNames(refdClassNames);
+        }
+        if (classTypeAnnotationDecorators != null) {
+            classInfo.addTypeDecorators(classTypeAnnotationDecorators);
+        }
+    }
+
+    /**
+     * The last of the three steps of linking classfiles: add the class to its package and module. Not threadsafe,
+     * should be run in a single-threaded context.
+     *
      * @param packageNameToPackageInfo
      *            map from package name to package info
      * @param moduleNameToModuleInfo
      *            map from module name to module info
      */
-    void link(final Map<String, ClassInfo> classNameToClassInfo,
-            final Map<String, PackageInfo> packageNameToPackageInfo,
+    void linkPackageAndModule(final Map<String, PackageInfo> packageNameToPackageInfo,
             final Map<String, ModuleInfo> moduleNameToModuleInfo) {
-        boolean isModuleDescriptor = false;
-        boolean isPackageDescriptor = false;
-        ClassInfo classInfo = null;
-        if (className.equals("module-info")) {
-            isModuleDescriptor = true;
-
-        } else if (className.equals("package-info") || className.endsWith(".package-info")) {
-            isPackageDescriptor = true;
-
-        } else {
-            // Handle regular classfile
-            classInfo = ClassInfo.addScannedClass(className, classModifiers, isExternalClass, classNameToClassInfo,
-                    classpathElement, classfileResource);
-            classInfo.setClassfileVersion(minorVersion, majorVersion);
-            classInfo.setModifiers(classModifiers);
-            classInfo.setIsInterface(isInterface);
-            classInfo.setIsAnnotation(isAnnotation);
-            classInfo.setIsRecord(isRecord);
-            classInfo.setSourceFile(sourceFile);
-            if (superclassName != null) {
-                classInfo.addSuperclass(superclassName, classNameToClassInfo);
-            }
-            if (implementedInterfaces != null) {
-                for (final String interfaceName : implementedInterfaces) {
-                    classInfo.addImplementedInterface(interfaceName, classNameToClassInfo);
-                }
-            }
-            if (classAnnotations != null) {
-                for (final AnnotationInfo classAnnotation : classAnnotations) {
-                    classInfo.addClassAnnotation(classAnnotation, classNameToClassInfo);
-                }
-            }
-            if (classContainmentEntries != null) {
-                ClassInfo.addClassContainment(classContainmentEntries, classNameToClassInfo);
-            }
-            if (annotationParamDefaultValues != null) {
-                classInfo.addAnnotationParamDefaultValues(annotationParamDefaultValues);
-            }
-            if (hasEnclosingMethodAttribute) {
-                classInfo.setLocalOrAnonymousClass(/* isAnonymous = */ hasNoSimpleName,
-                        fullyQualifiedDefiningMethodName);
-                // The InnerClasses entry of a local or anonymous class has an outer class index of 0, so it adds
-                // no containment entry, and the flags that only it holds (such as the ACC_STATIC of a local
-                // record, enum or interface) have to be applied here
-                if (ownInnerClassAccessFlags != -1) {
-                    classInfo.setNestedClassModifiers(ownInnerClassAccessFlags);
-                }
-            }
-            if (fieldInfoList != null) {
-                classInfo.addFieldInfo(fieldInfoList, classNameToClassInfo);
-            }
-            if (methodInfoList != null) {
-                classInfo.addMethodInfo(methodInfoList, classNameToClassInfo);
-            }
-            if (typeSignatureStr != null) {
-                classInfo.setTypeSignature(typeSignatureStr);
-            }
-            if (refdClassNames != null) {
-                classInfo.addReferencedClassNames(refdClassNames);
-            }
-            if (classTypeAnnotationDecorators != null) {
-                classInfo.addTypeDecorators(classTypeAnnotationDecorators);
-            }
-        }
+        final boolean isModuleDescriptor = isModuleDescriptor();
+        final boolean isPackageDescriptor = isPackageDescriptor();
 
         // Get or create PackageInfo, if this is not a module descriptor (the module descriptor's package is "")
         PackageInfo packageInfo = null;
