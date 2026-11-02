@@ -3914,7 +3914,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (this.referencedClassNames != null) {
             for (final String refdClassName : this.referencedClassNames) {
                 final ClassInfo classInfo = ClassInfo.getOrCreateClassInfo(refdClassName, classNameToClassInfo);
-                classInfo.setScanResult(scanResult);
+                if (classInfo.scanResult != scanResult) {
+                    classInfo.setScanResult(scanResult);
+                }
                 refdClassInfo.add(classInfo);
             }
         }

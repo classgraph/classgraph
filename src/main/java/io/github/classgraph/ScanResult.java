@@ -426,7 +426,9 @@ public final class ScanResult implements Closeable {
                             && !refdClassInfo.getName().equals("java.lang.Object")
                             // Only add class to result if it is accepted, or external classes are enabled
                             && (!refdClassInfo.isExternalClass() || scanSpec.enableExternalClasses)) {
-                        refdClassInfo.setScanResult(this);
+                        if (refdClassInfo.scanResult != this) {
+                            refdClassInfo.setScanResult(this);
+                        }
                         refdClassesFiltered.add(refdClassInfo);
                     }
                 }
