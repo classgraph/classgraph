@@ -92,6 +92,59 @@ public class NestedClassAccessLevelTest {
     }
 
     /**
+     * Write the classfile of an anonymous class {@code p/Outer$1}, as a compiler can: public in the classfile's
+     * access flags, package-private in its own {@code InnerClasses} entry, with an {@code EnclosingMethod} attribute.
+     *
+     * @param dir
+     *            the directory to write the classfile to.
+     * @throws IOException
+     *             if the classfile could not be written.
+     */
+    private static void writeAnonymousClassfile(final Path dir) throws IOException {
+        final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (DataOutputStream out = new DataOutputStream(bytes)) {
+            out.writeInt(0xCAFEBABE);
+            out.writeShort(0);
+            out.writeShort(52);
+            final String[] classes = { "p/Outer$1", "java/lang/Object", OUTER };
+            out.writeShort(1 + 2 * classes.length + 2);
+            for (int i = 0; i < classes.length; i++) {
+                out.writeByte(1);
+                out.writeUTF(classes[i]);
+                out.writeByte(7);
+                out.writeShort(2 * i + 1);
+            }
+            final int innerClassesAttributeName = 2 * classes.length + 1;
+            out.writeByte(1);
+            out.writeUTF("InnerClasses");
+            out.writeByte(1);
+            out.writeUTF("EnclosingMethod");
+            // Public class, this class, superclass, then no interfaces, fields or methods
+            out.writeShort(0x21);
+            out.writeShort(2);
+            out.writeShort(4);
+            out.writeShort(0);
+            out.writeShort(0);
+            out.writeShort(0);
+            out.writeShort(2);
+            out.writeShort(innerClassesAttributeName);
+            out.writeInt(2 + 8);
+            out.writeShort(1);
+            out.writeShort(2);
+            out.writeShort(0);
+            out.writeShort(0);
+            out.writeShort(0);
+            out.writeShort(innerClassesAttributeName + 1);
+            out.writeInt(4);
+            out.writeShort(6);
+            out.writeShort(0);
+        }
+        final Path file = dir.resolve("p/Outer$1.class");
+        Files.createDirectories(file.getParent());
+        Files.write(file, bytes.toByteArray());
+    }
+
+    /**
      * Scan two directories in both orders, on one thread so that classfiles are linked in classpath order.
      *
      * @param first
@@ -168,5 +221,23 @@ public class NestedClassAccessLevelTest {
         writeClassfile(first, "p/Client1", PACKAGE_PRIVATE);
         writeClassfile(second, "p/Client2", PUBLIC);
         assertAccessLevel(first, second, Modifier.PUBLIC);
+    }
+
+    /**
+     * The access flags of an anonymous class's classfile are not its access level: its own {@code InnerClasses}
+     * entry is.
+     *
+     * @param tempDir
+     *            the directory to write classfiles to.
+     * @throws IOException
+     *             if a classfile could not be written.
+     */
+    @Test
+    public void anonymousClassUsesOwnEntryNotClassfileFlags(@TempDir final Path tempDir) throws IOException {
+        writeAnonymousClassfile(tempDir);
+        try (ScanResult scanResult = new ClassGraph().enableClassInfo().enableExternalClasses()
+                .ignoreClassVisibility().overrideClasspath(tempDir.toString()).scan(1)) {
+            assertThat(scanResult.getClassInfo("p.Outer$1").isPublic()).isFalse();
+        }
     }
 }

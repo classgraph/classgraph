@@ -46,6 +46,10 @@ abstract class ParallelRunner {
         }
     };
 
+    /** Create a runner. */
+    ParallelRunner() {
+    }
+
     /** An action to call for each of a range of indices. */
     interface IndexAction {
         /**
