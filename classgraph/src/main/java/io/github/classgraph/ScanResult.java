@@ -49,6 +49,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
@@ -231,12 +232,18 @@ public final class ScanResult implements AutoCloseable {
      *            the virtual filesystem that everything found by the scan was read through
      * @param topLevelLog
      *            the toplevel log
+     * @param parallelRunner
+     *            runs the work of indexing the classes on the worker threads of the scan
+     * @throws InterruptedException
+     *             if the thread was interrupted
+     * @throws ExecutionException
+     *             if indexing a class threw an exception
      */
     ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
             final Map<String, ClassInfo> classNameToClassInfo,
             final Map<String, PackageInfo> packageNameToPackageInfo, final List<ModuleInfo> moduleInfoInScanOrder,
-            final @Nullable Map<File, Long> fileToLastModified, final Vfs vfs,
-            final @Nullable LogNode topLevelLog) {
+            final @Nullable Map<File, Long> fileToLastModified, final Vfs vfs, final @Nullable LogNode topLevelLog,
+            final ParallelRunner parallelRunner) throws InterruptedException, ExecutionException {
         this.scanSpec = scanSpec;
         this.classpathOrder = classpathOrder;
         this.fileToLastModified = fileToLastModified;
@@ -252,7 +259,7 @@ public final class ScanResult implements AutoCloseable {
         this.vfs = vfs;
         this.topLevelLog = topLevelLog;
 
-        indexResourcesAndClassInfo(topLevelLog);
+        indexResourcesAndClassInfo(new ArrayList<>(classNameToClassInfo.values()), parallelRunner, topLevelLog);
 
         // Handle @Repeatable annotations: collect the names of their container annotations, which are the values of
         // their @Repeatable meta-annotations, then unpack the repeats from every container that was applied
@@ -280,8 +287,18 @@ public final class ScanResult implements AutoCloseable {
         }
         this.containerAnnotationNames = allRepeatableAnnotationNames;
         if (!allRepeatableAnnotationNames.isEmpty()) {
-            for (final ClassInfo classInfo : classNameToClassInfo.values()) {
-                classInfo.handleRepeatableAnnotations(allRepeatableAnnotationNames);
+            // Find the classes that hold a container annotation on the worker threads, since that reads every
+            // annotation of every class and member. Then unpack their containers on this thread, in the order of
+            // the map, as before, since unpacking a container links each repeat to its annotation class. (The map
+            // is listed again here, since indexing may have added placeholder classes to it.)
+            final List<ClassInfo> allClassInfo = new ArrayList<>(classNameToClassInfo.values());
+            final var holdsContainer = new boolean[allClassInfo.size()];
+            parallelRunner.forEachIndex(allClassInfo.size(), i -> holdsContainer[i] = allClassInfo.get(i)
+                    .hasAnnotationNamedIn(allRepeatableAnnotationNames));
+            for (var i = 0; i < holdsContainer.length; i++) {
+                if (holdsContainer[i]) {
+                    allClassInfo.get(i).handleRepeatableAnnotations(allRepeatableAnnotationNames);
+                }
             }
             for (final PackageInfo packageInfo : packageNameToPackageInfo.values()) {
                 packageInfo.handleRepeatableAnnotations(allRepeatableAnnotationNames);
@@ -305,15 +322,23 @@ public final class ScanResult implements AutoCloseable {
     /**
      * Index {@link Resource} and {@link ClassInfo} objects.
      *
+     * @param allClassInfo
+     *            each {@link ClassInfo} object in the map from class name to {@link ClassInfo}
+     * @param parallelRunner
+     *            runs work on the worker threads of the scan
      * @param log
      *            the log node, or null to skip logging
+     * @throws InterruptedException
+     *             if the thread was interrupted
+     * @throws ExecutionException
+     *             if setting the scan result of a class threw an exception
      */
-    private void indexResourcesAndClassInfo(final @Nullable LogNode log) {
-        // Add backrefs from Info objects back to this ScanResult
-        final var allClassInfo = classNameToClassInfo.values();
-        for (final ClassInfo classInfo : allClassInfo) {
-            classInfo.setScanResult(this);
-        }
+    private void indexResourcesAndClassInfo(final List<ClassInfo> allClassInfo, final ParallelRunner parallelRunner,
+            final @Nullable LogNode log) throws InterruptedException, ExecutionException {
+        // Add backrefs from Info objects back to this ScanResult. Each class sets the scan result only in itself
+        // and in the objects it was read with (its members, annotations and type signatures), which no other
+        // class holds, so the classes are split across the worker threads.
+        parallelRunner.forEachIndex(allClassInfo.size(), i -> allClassInfo.get(i).setScanResult(this));
 
         // If inter-class dependencies are enabled, create placeholder ClassInfo objects for any referenced classes
         // that were not scanned

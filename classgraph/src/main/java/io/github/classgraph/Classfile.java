@@ -53,9 +53,9 @@ import io.github.classgraph.vfs.reader.RandomAccessOrSequentialReader;
 
 /**
  * A classfile binary format parser. Each instance parses one classfile, in its constructor, through a
- * {@link RandomAccessOrSequentialReader}, and holds what it read until {@link #link} transfers it into
- * {@link ClassInfo}, {@link PackageInfo} and {@link ModuleInfo} objects. Instances are not threadsafe and are not
- * reused.
+ * {@link RandomAccessOrSequentialReader}, and holds what it read until {@link #createClassInfo()},
+ * {@link #linkClassInfo(Map, Map)} and {@link #linkPackageAndModule(Map, Map)} transfer it into {@link ClassInfo},
+ * {@link PackageInfo} and {@link ModuleInfo} objects. Instances are not threadsafe and are not reused.
  *
  * <p>
  * See <a href="https://docs.oracle.com/javase/specs/jvms/se26/html/jvms-4.html">the class file format spec</a>.
@@ -157,8 +157,17 @@ class Classfile {
     /** The field info list. */
     private @Nullable List<FieldInfo> fieldInfoList;
 
+    /** The enum constants, in the order they are declared in, or null if there are none. */
+    private @Nullable List<FieldInfo> enumConstantList;
+
     /** The method info list. */
     private @Nullable List<MethodInfo> methodInfoList;
+
+    /**
+     * The {@link ClassInfo} of this class, set by {@link #createClassInfo()}, or null for a module or package
+     * descriptor.
+     */
+    private @Nullable ClassInfo classInfo;
 
     /** The type signature. */
     private @Nullable String typeSignatureStr;
@@ -261,7 +270,7 @@ class Classfile {
 
     /**
      * A view of the map from class name to class info that records the name of every class that is looked up or
-     * added through it. {@link #linkClassInfo(Map)} passes it to every call that creates or links a
+     * added through it. {@link #linkClassInfo(ClassInfo, Map)} passes it to every call that creates or links a
      * {@link ClassInfo} for another class, so that the names it records are exactly the classes that the classfile
      * brings into the class graph.
      */
@@ -303,8 +312,70 @@ class Classfile {
         }
 
         @Override
+        public @Nullable ClassInfo putIfAbsent(final String className, final ClassInfo classInfo) {
+            classNames.add(className);
+            return classNameToClassInfo.putIfAbsent(className, classInfo);
+        }
+
+        @Override
         public Set<Entry<String, ClassInfo>> entrySet() {
             return classNameToClassInfo.entrySet();
+        }
+    }
+
+    /**
+     * A view of the map from class name to class info, which holds every scanned class and is not changed, and of a
+     * thread-safe map that classes that were not scanned are added to. {@link #linkClassInfo(Map, Map)} passes it
+     * to every call that creates or links a {@link ClassInfo}, so that classfiles can be linked on many threads at
+     * once.
+     */
+    private static final class ClassNameMapView extends AbstractMap<String, ClassInfo> {
+        /** The map from class name to class info, which holds every scanned class. */
+        private final Map<String, ClassInfo> classNameToClassInfo;
+
+        /** The thread-safe map that the {@link ClassInfo} objects of classes that were not scanned are added to. */
+        private final Map<String, ClassInfo> classNameToNewClassInfo;
+
+        /**
+         * Constructor.
+         *
+         * @param classNameToClassInfo
+         *            the map from class name to class info, which holds every scanned class
+         * @param classNameToNewClassInfo
+         *            the thread-safe map to add the {@link ClassInfo} objects of classes that were not scanned to
+         */
+        ClassNameMapView(final Map<String, ClassInfo> classNameToClassInfo,
+                final Map<String, ClassInfo> classNameToNewClassInfo) {
+            this.classNameToClassInfo = classNameToClassInfo;
+            this.classNameToNewClassInfo = classNameToNewClassInfo;
+        }
+
+        @Override
+        public @Nullable ClassInfo get(final Object key) {
+            final var classInfo = classNameToClassInfo.get(key);
+            return classInfo != null ? classInfo : classNameToNewClassInfo.get(key);
+        }
+
+        @Override
+        public boolean containsKey(final Object key) {
+            return get(key) != null;
+        }
+
+        // Only putIfAbsent is used to add a class, so that two threads that add the same class get the same object
+        @Override
+        public @Nullable ClassInfo put(final String className, final ClassInfo classInfo) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public @Nullable ClassInfo putIfAbsent(final String className, final ClassInfo classInfo) {
+            final var existing = classNameToClassInfo.get(className);
+            return existing != null ? existing : classNameToNewClassInfo.putIfAbsent(className, classInfo);
+        }
+
+        @Override
+        public Set<Entry<String, ClassInfo>> entrySet() {
+            throw new UnsupportedOperationException();
         }
     }
 
@@ -615,32 +686,87 @@ class Classfile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Link classes. Not threadsafe, should be run in a single-threaded context.
+     * Whether this classfile is a module descriptor.
+     *
+     * @return true if this classfile is a module descriptor
+     */
+    private boolean isModuleDescriptor() {
+        return "module-info".equals(className);
+    }
+
+    /**
+     * Whether this classfile is a package descriptor.
+     *
+     * @return true if this classfile is a package descriptor
+     */
+    private boolean isPackageDescriptor() {
+        return "package-info".equals(className) || className.endsWith(".package-info");
+    }
+
+    /**
+     * The first of the three steps of linking classfiles: create the {@link ClassInfo} object for this class,
+     * unless this is a module or package descriptor. Threadsafe.
+     */
+    void createClassInfo() {
+        if (!isModuleDescriptor() && !isPackageDescriptor()) {
+            // The class's modifiers, including ACC_INTERFACE and ACC_ANNOTATION, are those in its classfile
+            classInfo = ClassInfo.newScannedClass(className, classModifiers, isExternalClass, classpathElement,
+                    classfileResource);
+        }
+    }
+
+    /**
+     * Add the {@link ClassInfo} object created by {@link #createClassInfo()} to the map from class name to class
+     * info. Not threadsafe: this is called for each classfile in turn, so that every scanned class is in the map
+     * before any classfile is linked by {@link #linkClassInfo(Map, Map)}, and the map holds only scanned classes
+     * until then.
      *
      * @param classNameToClassInfo
      *            map from class name to class info
+     */
+    void addScannedClass(final Map<String, ClassInfo> classNameToClassInfo) {
+        if (classInfo != null && classNameToClassInfo.putIfAbsent(className, classInfo) != null) {
+            // The class should not have been scanned more than once, because of classpath masking
+            throw new IllegalArgumentException("Class " + className
+                    + " should not have been encountered more than once due to classpath masking --"
+                    + " please report this bug at: https://github.com/classgraph/classgraph/issues");
+        }
+    }
+
+    /**
+     * The second of the three steps of linking classfiles: transfer everything that was read from the classfile
+     * into the {@link ClassInfo} object for this class, and link it to the classes it refers to. This may be called
+     * for many classfiles at once, on different threads: it writes to the {@link ClassInfo} of another class only
+     * through methods that lock that {@link ClassInfo}, and does not add to the map from class name to class info,
+     * which other threads are reading.
+     *
+     * @param classNameToClassInfo
+     *            map from class name to class info, which holds every scanned class, and is not changed
+     * @param classNameToNewClassInfo
+     *            a thread-safe map to add the {@link ClassInfo} objects for classes that were not scanned to
+     */
+    void linkClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+            final Map<String, ClassInfo> classNameToNewClassInfo) {
+        if (classInfo != null) {
+            linkClassInfo(classInfo, new ClassNameMapView(classNameToClassInfo, classNameToNewClassInfo));
+        }
+    }
+
+    /**
+     * The last of the three steps of linking classfiles: add the class to its package and module. Not threadsafe,
+     * should be run in a single-threaded context.
+     *
      * @param packageNameToPackageInfo
      *            map from package name to package info
      * @param classpathEltToModuleInfo
      *            map from classpath element to the module info for the module the classpath element holds, keyed by
      *            identity
      */
-    void link(final Map<String, ClassInfo> classNameToClassInfo,
-            final Map<String, PackageInfo> packageNameToPackageInfo,
+    void linkPackageAndModule(final Map<String, PackageInfo> packageNameToPackageInfo,
             final Map<ClasspathElement, ModuleInfo> classpathEltToModuleInfo) {
-        var isModuleDescriptor = false;
-        var isPackageDescriptor = false;
-        ClassInfo classInfo = null;
-        if ("module-info".equals(className)) {
-            isModuleDescriptor = true;
-
-        } else if ("package-info".equals(className) || className.endsWith(".package-info")) {
-            isPackageDescriptor = true;
-
-        } else {
-            // Handle regular classfile
-            classInfo = linkClassInfo(classNameToClassInfo);
-        }
+        final var isModuleDescriptor = isModuleDescriptor();
+        final var isPackageDescriptor = isPackageDescriptor();
+        final var classInfo = this.classInfo;
 
         // An external class was only read so that an accepted class' own declarations can be reported, so it is not
         // listed as a member of its package or module unless external classes were enabled, and a rejected class
@@ -693,18 +819,14 @@ class Classfile {
     }
 
     /**
-     * Create the {@link ClassInfo} object for this class, and transfer everything that was read from the classfile
-     * into it. Not threadsafe, should be run in a single-threaded context.
+     * Transfer everything that was read from the classfile into the {@link ClassInfo} object for this class.
      *
+     * @param classInfo
+     *            the {@link ClassInfo} object for this class
      * @param classNameToClassInfo
      *            map from class name to class info
-     * @return the {@link ClassInfo} object for this class.
      */
-    private ClassInfo linkClassInfo(final Map<String, ClassInfo> classNameToClassInfo) {
-        // addScannedClass sets the class's modifiers, including ACC_INTERFACE and ACC_ANNOTATION, to those in its
-        // classfile, replacing any that other classfiles' references to the class implied
-        final var classInfo = ClassInfo.addScannedClass(className, classModifiers, isExternalClass,
-                classNameToClassInfo, classpathElement, classfileResource);
+    private void linkClassInfo(final ClassInfo classInfo, final Map<String, ClassInfo> classNameToClassInfo) {
         classInfo.setClassfileVersion(minorVersion, majorVersion);
         classInfo.setIsRecord(isRecord);
         classInfo.setRecordComponentNames(recordComponentNames);
@@ -742,7 +864,7 @@ class Classfile {
                     fullyQualifiedDefiningMethodName);
         }
         if (fieldInfoList != null) {
-            classInfo.addFieldInfo(fieldInfoList, linkedClassNameMap);
+            classInfo.addFieldInfo(fieldInfoList, enumConstantList, linkedClassNameMap);
         }
         if (methodInfoList != null) {
             classInfo.addMethodInfo(methodInfoList, linkedClassNameMap);
@@ -761,7 +883,6 @@ class Classfile {
         if (classTypeAnnotations != null) {
             classInfo.setTypeAnnotations(classTypeAnnotations);
         }
-        return classInfo;
     }
 
     /**
@@ -2822,8 +2943,8 @@ class Classfile {
     /**
      * Parses the classfile's header, constant pool, fields, methods and attributes, and, if scanning is extended
      * upward to external classes, schedules the external classes it refers to (superclasses, interfaces,
-     * annotations and others) for scanning. The {@link ClassInfo} is created later, by {@link #link}. Assumes
-     * classpath masking has already been performed, so that only one class of a given name will be added.
+     * annotations and others) for scanning. The {@link ClassInfo} is created later, by {@link #createClassInfo()}.
+     * Assumes classpath masking has already been performed, so that only one class of a given name will be added.
      *
      * @param classpathElement
      *            the classpath element
@@ -2935,6 +3056,36 @@ class Classfile {
         // If any external classes were found, schedule them for scanning
         if (additionalWorkUnits != null) {
             workQueue.addWorkUnits(additionalWorkUnits);
+        }
+
+        // Sort the members here, on a worker thread, rather than when the classfile is linked, which is done on
+        // one thread
+        sortMembers();
+    }
+
+    /**
+     * Sort the fields, the methods and the annotation parameter default values by name, since the order of each in
+     * a classfile is not specified. The enum constants are recorded first, since their order in the classfile is
+     * the order they are declared in, which is their ordinal order, and sorting loses it.
+     */
+    private void sortMembers() {
+        if (fieldInfoList != null) {
+            for (final FieldInfo fi : fieldInfoList) {
+                if (fi.isEnum()) {
+                    if (enumConstantList == null) {
+                        enumConstantList = new ArrayList<>();
+                    }
+                    enumConstantList.add(fi);
+                }
+            }
+            // Sorted by name, then by type descriptor
+            CollectionUtils.sortIfNotEmpty(fieldInfoList);
+        }
+        if (methodInfoList != null) {
+            CollectionUtils.sortIfNotEmpty(methodInfoList);
+        }
+        if (annotationParamDefaultValues != null) {
+            CollectionUtils.sortIfNotEmpty(annotationParamDefaultValues);
         }
     }
 

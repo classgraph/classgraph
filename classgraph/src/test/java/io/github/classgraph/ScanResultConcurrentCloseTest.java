@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
@@ -151,8 +152,14 @@ public class ScanResultConcurrentCloseTest {
             final @Nullable Map<File, Long> fileToLastModified, final Vfs vfs) {
         final var scanSpec = new ScanSpec();
         scanSpec.enableClassInfo = true;
-        return new ScanResult(scanSpec, classpathOrder, /* classNameToClassInfo = */ new HashMap<>(),
-                packageNameToPackageInfo, moduleInfoInScanOrder, fileToLastModified, vfs, /* topLevelLog = */ null);
+        try {
+            return new ScanResult(scanSpec, classpathOrder, /* classNameToClassInfo = */ new HashMap<>(),
+                    packageNameToPackageInfo, moduleInfoInScanOrder, fileToLastModified, vfs,
+                    /* topLevelLog = */ null, ParallelRunner.SERIAL);
+        } catch (final InterruptedException | ExecutionException e) {
+            // The serial runner runs nothing on another thread, so cannot throw either
+            throw new AssertionError(e);
+        }
     }
 
     /** A close that happens after {@link ScanResult#getPackageInfo()} has read the map leaves its result whole. */

@@ -29,6 +29,7 @@
 package io.github.classgraph.base.internal.utils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -40,6 +41,12 @@ import org.jspecify.annotations.Nullable;
  * Collection utilities.
  */
 public final class CollectionUtils {
+    /**
+     * The size above which {@link #sortCopy(Collection)} sorts in parallel. {@link Arrays#parallelSort} sorts an
+     * array of up to this size on one thread anyway.
+     */
+    private static final int PARALLEL_SORT_MIN_SIZE = 1 << 13;
+
     /** Not instantiable. */
     private CollectionUtils() {
         // Empty
@@ -88,6 +95,14 @@ public final class CollectionUtils {
      * @return a sorted copy of the collection
      */
     public static <T extends Comparable<? super T>> List<T> sortCopy(final Collection<T> elts) {
+        if (elts.size() > PARALLEL_SORT_MIN_SIZE) {
+            // A large collection, such as every class in a large scan, is sorted on the common ForkJoin pool. The
+            // sort is stable, so the order is the same as for Collections#sort.
+            @SuppressWarnings("unchecked")
+            final var array = (T[]) elts.toArray(new Comparable<?>[0]);
+            Arrays.parallelSort(array);
+            return new ArrayList<>(Arrays.asList(array));
+        }
         final List<T> sortedCopy = new ArrayList<>(elts);
         if (sortedCopy.size() > 1) {
             Collections.sort(sortedCopy);

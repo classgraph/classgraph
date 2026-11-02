@@ -40,6 +40,7 @@ import java.net.URL;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.EnumMap;
@@ -60,7 +61,6 @@ import io.github.classgraph.Classfile.TypeAnnotation;
 import io.github.classgraph.TypeUtils.ModifierType;
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.Assert;
-import io.github.classgraph.base.internal.utils.CollectionUtils;
 
 /**
  * Holds metadata about a class encountered during a scan.
@@ -389,7 +389,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      *            the {@link ClassInfo}
      * @return true if the class was not already related to this class by {@code relType}
      */
-    boolean addRelatedClass(final RelType relType, final ClassInfo classInfo) {
+    // Synchronized, since classfiles are linked on many threads at once, and each can relate other classes to this one
+    synchronized boolean addRelatedClass(final RelType relType, final ClassInfo classInfo) {
         return relatedClasses.computeIfAbsent(relType, k -> new LinkedHashSet<>(4)).add(classInfo);
     }
 
@@ -486,7 +487,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * @param modifierBits
      *            the modifier bits implied by the reference.
      */
-    private void inferModifiersFromReference(final int modifierBits) {
+    // Synchronized, since classfiles are linked on many threads at once, and several can refer to this class. The
+    // modifiers come out the same whatever order the references and InnerClasses entries are applied in.
+    private synchronized void inferModifiersFromReference(final int modifierBits) {
         if (!isScannedClass && !hasModifiersFromEnclosingClass) {
             this.modifiers |= modifierBits;
         }
@@ -666,13 +669,21 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
         for (final ClassContainment classContainment : classContainmentEntries) {
             final var innerClassInfo = ClassInfo.getOrCreateClassInfo(classContainment.innerClassName(),
                     classNameToClassInfo);
+            // Every scanned class is marked as scanned before any classfile is linked, so isScannedClass does not
+            // change while classfiles are linked on many threads at once
             if (!innerClassInfo.isScannedClass) {
-                if (classContainment.outerClassName().equals(classfileClassName)) {
-                    // The access flags of an InnerClasses entry hold every modifier of a nested class (JVMS 4.7.6)
-                    innerClassInfo.modifiers = classContainment.innerClassModifierBits();
-                    innerClassInfo.hasModifiersFromEnclosingClass = true;
-                } else if (!innerClassInfo.hasModifiersFromEnclosingClass) {
-                    innerClassInfo.mergeNestedClassModifiers(classContainment.innerClassModifierBits());
+                // Several classfiles can name the same class that was not scanned. The enclosing class's entry
+                // replaces the modifiers, and the others merge into them, so the result does not depend on the
+                // order the classfiles are linked in.
+                synchronized (innerClassInfo) {
+                    if (classContainment.outerClassName().equals(classfileClassName)) {
+                        // The access flags of an InnerClasses entry hold every modifier of a nested class (JVMS
+                        // 4.7.6)
+                        innerClassInfo.modifiers = classContainment.innerClassModifierBits();
+                        innerClassInfo.hasModifiersFromEnclosingClass = true;
+                    } else if (!innerClassInfo.hasModifiersFromEnclosingClass) {
+                        innerClassInfo.mergeNestedClassModifiers(classContainment.innerClassModifierBits());
+                    }
                 }
             }
             final var outerClassInfo = ClassInfo.getOrCreateClassInfo(classContainment.outerClassName(),
@@ -777,32 +788,22 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * Add field info for this class.
      *
      * @param fieldInfoList
-     *            the field info list
+     *            the field info list, sorted by name, then by type descriptor
+     * @param enumConstantList
+     *            the enum constants, in the order they are declared in, or null if there are none
      * @param classNameToClassInfo
      *            the map from class name to class info
      */
-    void addFieldInfo(final List<FieldInfo> fieldInfoList, final Map<String, ClassInfo> classNameToClassInfo) {
+    void addFieldInfo(final List<FieldInfo> fieldInfoList, final @Nullable List<FieldInfo> enumConstantList,
+            final Map<String, ClassInfo> classNameToClassInfo) {
         for (final FieldInfo fi : fieldInfoList) {
             // Index field annotations
             addFieldOrMethodAnnotationInfo(fi.annotationInfo, /* isField = */ true, fi.getModifiers(),
                     classNameToClassInfo);
         }
-        // The enum constants of an enum are written into the classfile in declaration order, which is their ordinal
-        // order, so record them before the fields are sorted by name, since sorting loses that order
-        List<FieldInfo> enumConstantList = null;
-        for (final FieldInfo fi : fieldInfoList) {
-            if (fi.isEnum()) {
-                if (enumConstantList == null) {
-                    enumConstantList = new ArrayList<>();
-                }
-                enumConstantList.add(fi);
-            }
-        }
         if (enumConstantList != null) {
             this.enumConstants = new FieldInfoList(enumConstantList);
         }
-        // The order of the fields in a classfile is not specified, so sort them by name, then by type descriptor
-        CollectionUtils.sortIfNotEmpty(fieldInfoList);
         this.fieldInfo = new FieldInfoList(fieldInfoList);
     }
 
@@ -810,7 +811,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * Add method info for this class.
      *
      * @param methodInfoList
-     *            the method info list
+     *            the method info list, sorted by name
      * @param classNameToClassInfo
      *            the map from class name to class info
      */
@@ -841,8 +842,6 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
                 }
             }
         }
-        // The order of the methods in a classfile is not specified, so sort them by name
-        CollectionUtils.sortIfNotEmpty(methodInfoList);
         this.methodInfo = new MethodInfoList(methodInfoList);
     }
 
@@ -860,20 +859,18 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * Add annotation default parameter values for this annotation class.
      *
      * @param paramNamesAndValues
-     *            the default param names and values, if this is an annotation
+     *            the default param names and values, if this is an annotation, sorted by name
      */
     void addAnnotationParamDefaultValues(final List<AnnotationParameterValue> paramNamesAndValues) {
         setIsAnnotation(true);
-        // The order of the annotation elements in a classfile is not specified, so sort them by name
-        CollectionUtils.sortIfNotEmpty(paramNamesAndValues);
         this.annotationDefaultParamValues = new AnnotationParameterValueList(paramNamesAndValues);
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Add a class that has just been scanned (as opposed to just referenced by a scanned class). Not threadsafe,
-     * should be run in single threaded context.
+     * Create the {@link ClassInfo} of a class that has just been scanned (as opposed to just referenced by a
+     * scanned class). Threadsafe.
      *
      * @param className
      *            the class name
@@ -881,43 +878,16 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      *            the class modifiers
      * @param isExternalClass
      *            true if this is an external class
-     * @param classNameToClassInfo
-     *            the map from class name to class info
      * @param classpathElement
      *            the classpath element
      * @param classfileResource
      *            the classfile resource
      * @return the class info
      */
-    static ClassInfo addScannedClass(final String className, final int classModifiers,
-            final boolean isExternalClass, final Map<String, ClassInfo> classNameToClassInfo,
-            final ClasspathElement classpathElement, final Resource classfileResource) {
-        var classInfo = classNameToClassInfo.get(className);
-        if (classInfo == null) {
-            // This is the first time this class has been seen, add it
-            classNameToClassInfo.put(className,
-                    classInfo = new ClassInfo(className, classModifiers, classfileResource));
-        } else {
-            // There was a previous placeholder ClassInfo added, because a class linked earlier referred to this
-            // one, for example as its superclass, an interface, an annotation, an enclosing class or a nested
-            // class. The isScannedClass field should be false in this case, since the actual class definition
-            // wasn't reached before now.
-            if (classInfo.isScannedClass) {
-                // The class should not have been scanned more than once, because of classpath masking
-                throw new IllegalArgumentException("Class " + className
-                        + " should not have been encountered more than once due to classpath masking --"
-                        + " please report this bug at: https://github.com/classgraph/classgraph/issues");
-            }
-
-            // Set the classfileResource for the placeholder class
-            classInfo.classfileResource = classfileResource;
-
-            // Replace any modifier bits that were inferred from the references to the class in other classfiles,
-            // which may have been compiled against a different version of the class
-            classInfo.modifiers = classModifiers;
-            classInfo.hasModifiersFromEnclosingClass = false;
-            classInfo.hasAccessLevelFromInnerClassesEntry = false;
-        }
+    static ClassInfo newScannedClass(final String className, final int classModifiers,
+            final boolean isExternalClass, final ClasspathElement classpathElement,
+            final Resource classfileResource) {
+        final var classInfo = new ClassInfo(className, classModifiers, classfileResource);
 
         // Mark the class as scanned
         classInfo.isScannedClass = true;
@@ -4059,6 +4029,64 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Check whether an annotation of this class, or of one of its fields, methods or method parameters, has one of
+     * the given names. These are the annotations that {@link #handleRepeatableAnnotations(Set)} reads. This only
+     * reads this class and its members, so it may be called for many classes at once, on different threads.
+     *
+     * @param annotationNames
+     *            the annotation names
+     * @return true if an annotation of this class or of one of its members has one of the names
+     */
+    boolean hasAnnotationNamedIn(final Set<String> annotationNames) {
+        if (anyNamedIn(annotationInfo, annotationNames)) {
+            return true;
+        }
+        if (fieldInfo != null) {
+            for (final FieldInfo fi : fieldInfo) {
+                if (anyNamedIn(fi.annotationInfo, annotationNames)) {
+                    return true;
+                }
+            }
+        }
+        if (methodInfo != null) {
+            for (final MethodInfo mi : methodInfo) {
+                if (anyNamedIn(mi.annotationInfo, annotationNames)) {
+                    return true;
+                }
+                if (mi.parameterAnnotationInfo != null) {
+                    for (final AnnotationInfo[] pai : mi.parameterAnnotationInfo) {
+                        if (pai != null && anyNamedIn(Arrays.asList(pai), annotationNames)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Check whether an annotation in a list has one of the given names.
+     *
+     * @param annotations
+     *            the annotations, or null
+     * @param annotationNames
+     *            the annotation names
+     * @return true if an annotation in the list has one of the names
+     */
+    private static boolean anyNamedIn(final @Nullable List<AnnotationInfo> annotations,
+            final Set<String> annotationNames) {
+        if (annotations != null) {
+            for (final AnnotationInfo ai : annotations) {
+                if (annotationNames.contains(ai.getName())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 
     /**
      * Handle {@link Repeatable} annotations.

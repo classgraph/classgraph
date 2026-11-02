@@ -397,6 +397,21 @@ class Scanner {
         interruptionChecker.check();
     }
 
+    /**
+     * Run tasks on the worker threads, and wait for them all to finish. This is the {@link ParallelRunner} of the
+     * scan.
+     *
+     * @param tasks
+     *            the tasks
+     * @throws InterruptedException
+     *             if a worker was interrupted.
+     * @throws ExecutionException
+     *             If a task threw an exception.
+     */
+    private void runInParallel(final List<Runnable> tasks) throws InterruptedException, ExecutionException {
+        processWorkUnits(tasks, /* log = */ null, (task, workQueue, log) -> task.run());
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -1010,10 +1025,14 @@ class Scanner {
      *            the classpath element order
      * @param maskLog
      *            the mask log
+     * @throws InterruptedException
+     *             if a worker was interrupted.
+     * @throws ExecutionException
+     *             If a worker threw an uncaught exception.
      */
     // #704
-    private static void maskDuplicateResources(final List<ClasspathElement> classpathElementOrder,
-            final @Nullable LogNode maskLog) {
+    private void maskDuplicateResources(final List<ClasspathElement> classpathElementOrder,
+            final @Nullable LogNode maskLog) throws InterruptedException, ExecutionException {
         // Only a relative path that occurs more than once can be a duplicate of the same file, and computing the
         // URI of a resource is not free (for modules it requires a reflective call to ModuleReader#find), so find
         // the colliding relative paths first, and only compare URIs for those.
@@ -1027,11 +1046,18 @@ class Scanner {
             }
         }
         if (!collidingRelativePaths.isEmpty()) {
+            // Finding the file identity key of a resource is most of the work, and reads only its own classpath
+            // element, so the keys are found on the worker threads. Then the first resource with each key is kept,
+            // in classpath order, on this thread.
+            final Map<String, String> canonicalPathCache = new ConcurrentHashMap<>();
+            final @Nullable String[][] fileIdentityKeys = new String[classpathElementOrder.size()][];
+            final ParallelRunner runner = this::runInParallel;
+            runner.forEachIndex(classpathElementOrder.size(), i -> fileIdentityKeys[i] = classpathElementOrder
+                    .get(i).getFileIdentityKeys(collidingRelativePaths, canonicalPathCache));
             final Set<String> fileIdentityKeysFound = new HashSet<>();
-            final Map<String, String> canonicalPathCache = new HashMap<>();
             for (var classpathIdx = 0; classpathIdx < classpathElementOrder.size(); classpathIdx++) {
-                classpathElementOrder.get(classpathIdx).maskDuplicateResources(classpathIdx, collidingRelativePaths,
-                        fileIdentityKeysFound, canonicalPathCache, maskLog);
+                classpathElementOrder.get(classpathIdx).maskDuplicateResources(classpathIdx,
+                        fileIdentityKeys[classpathIdx], fileIdentityKeysFound, maskLog);
             }
         }
         if (maskLog != null) {
@@ -1086,7 +1112,8 @@ class Scanner {
 
         // Return a new ScanResult
         final var scanResult = new ScanResult(scanSpec, finalClasspathEltOrder, classNameToClassInfo,
-                packageNameToPackageInfo, moduleInfoInScanOrder, fileToLastModified, vfs, topLevelLog);
+                packageNameToPackageInfo, moduleInfoInScanOrder, fileToLastModified, vfs, topLevelLog,
+                this::runInParallel);
 
         // Set the ScanResult in each classpath element, so that a resource can determine when the ScanResult is
         // closed. This also keeps the ScanResult reachable from each resource it hands out, so that
@@ -1164,13 +1191,25 @@ class Scanner {
             classpathElement.classfileScanFinished();
         }
 
-        // Link the Classfile objects to produce ClassInfo objects. This needs to be done from a single thread.
+        // Link the Classfile objects to produce ClassInfo objects. First add every scanned class to the map, so that
+        // the map does not change while the classfiles are linked on the worker threads, then link them, then add
+        // the classes that were referred to but not scanned to the map, then add the classes to their packages and
+        // modules on this thread.
         final var linkLog = topLevelLog == null ? null : topLevelLog.log("Linking related classfiles");
+        final List<Classfile> classfiles = new ArrayList<>(scannedClassfiles);
+        final ParallelRunner runner = this::runInParallel;
+        runner.forEachIndex(classfiles.size(), i -> classfiles.get(i).createClassInfo());
+        for (final Classfile c : classfiles) {
+            c.addScannedClass(classNameToClassInfo);
+        }
+        final Map<String, ClassInfo> classNameToNewClassInfo = new ConcurrentHashMap<>();
+        runner.forEachIndex(classfiles.size(),
+                i -> classfiles.get(i).linkClassInfo(classNameToClassInfo, classNameToNewClassInfo));
+        classNameToClassInfo.putAll(classNameToNewClassInfo);
         // Keyed by identity, since ClasspathElementModule#equals compares module names only
         final Map<ClasspathElement, ModuleInfo> classpathEltToModuleInfo = new IdentityHashMap<>();
-        while (!scannedClassfiles.isEmpty()) {
-            final var c = scannedClassfiles.remove();
-            c.link(classNameToClassInfo, packageNameToPackageInfo, classpathEltToModuleInfo);
+        for (final Classfile c : classfiles) {
+            c.linkPackageAndModule(packageNameToPackageInfo, classpathEltToModuleInfo);
         }
 
         // List the modules in classpath order, not in the order the classfiles were linked in, which depends on
@@ -1315,7 +1354,8 @@ class Scanner {
             }
             return new ScanResult(scanSpec, finalClasspathEltOrderFiltered,
                     /* classNameToClassInfo = */ new HashMap<>(), /* packageNameToPackageInfo = */ new HashMap<>(),
-                    /* moduleInfoInScanOrder = */ List.of(), /* fileToLastModified = */ null, vfs, topLevelLog);
+                    /* moduleInfoInScanOrder = */ List.of(), /* fileToLastModified = */ null, vfs, topLevelLog,
+                    ParallelRunner.SERIAL);
         }
     }
 
