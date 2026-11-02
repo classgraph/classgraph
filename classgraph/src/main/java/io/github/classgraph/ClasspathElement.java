@@ -462,28 +462,23 @@ abstract sealed class ClasspathElement implements Comparable<ClasspathElement>
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Remove any resource that refers to the same underlying file as a resource already found in this or an earlier
-     * classpath element.
+     * Get the file identity key of each accepted resource whose relative path occurs in more than one place. This
+     * only reads this classpath element, so it may be called for many classpath elements at once, on different
+     * threads, given a thread-safe cache.
      *
-     * @param classpathIdx
-     *            the classpath index
      * @param collidingPaths
      *            the relative paths that occur in more than one place in the classpath / module path
-     * @param fileIdentityKeysFound
-     *            the file identity keys of the resources found so far
      * @param canonicalPathCache
-     *            a cache of canonical paths, shared between classpath elements
-     * @param log
-     *            the log node, or null to skip logging
+     *            a thread-safe cache of canonical paths, shared between classpath elements
+     * @return the file identity key of each accepted resource, in the order of {@link #acceptedResources}, with
+     *         null for a resource whose relative path occurs only once, or whose URI cannot be determined
      */
     // #704
-    void maskDuplicateResources(final int classpathIdx, final Set<String> collidingPaths,
-            final Set<String> fileIdentityKeysFound, final Map<String, String> canonicalPathCache,
-            final @Nullable LogNode log) {
-        final List<Resource> acceptedResourcesFiltered = new ArrayList<>(acceptedResources.size());
-        Set<Resource> maskedResources = null;
-        for (final Resource res : acceptedResources) {
-            var isMasked = false;
+    @Nullable
+    String[] getFileIdentityKeys(final Set<String> collidingPaths, final Map<String, String> canonicalPathCache) {
+        final var keys = new String[acceptedResources.size()];
+        for (var i = 0; i < keys.length; i++) {
+            final var res = acceptedResources.get(i);
             if (collidingPaths.contains(res.getPath())) {
                 URI uri;
                 try {
@@ -493,23 +488,49 @@ abstract sealed class ClasspathElement implements Comparable<ClasspathElement>
                     // URI, so keep the resource rather than masking it
                     uri = null;
                 }
-                isMasked = uri != null && !fileIdentityKeysFound.add(getFileIdentityKey(uri, canonicalPathCache));
-                if (isMasked) {
-                    if (maskedResources == null) {
-                        // Compare by identity, since Resource#equals compares string representations, and the
-                        // masked resource and the resource that masks it are in different classpath elements
-                        maskedResources = Collections.newSetFromMap(new IdentityHashMap<>());
-                    }
-                    maskedResources.add(res);
-                    if (log != null) {
-                        log.log(String.format(Locale.US, "%06d-1", classpathIdx),
-                                "Ignoring duplicate (masked) resource " + res.getPath()
-                                        + ", which is the same file as a resource found earlier in the "
-                                        + "classpath: " + uri);
-                    }
+                if (uri != null) {
+                    keys[i] = getFileIdentityKey(uri, canonicalPathCache);
                 }
             }
-            if (!isMasked) {
+        }
+        return keys;
+    }
+
+    /**
+     * Remove any resource that refers to the same underlying file as a resource already found in this or an earlier
+     * classpath element.
+     *
+     * @param classpathIdx
+     *            the classpath index
+     * @param fileIdentityKeys
+     *            the file identity key of each accepted resource, from {@link #getFileIdentityKeys(Set, Map)}
+     * @param fileIdentityKeysFound
+     *            the file identity keys of the resources found so far
+     * @param log
+     *            the log node, or null to skip logging
+     */
+    // #704
+    void maskDuplicateResources(final int classpathIdx, final @Nullable String[] fileIdentityKeys,
+            final Set<String> fileIdentityKeysFound, final @Nullable LogNode log) {
+        final List<Resource> acceptedResourcesFiltered = new ArrayList<>(acceptedResources.size());
+        Set<Resource> maskedResources = null;
+        for (var i = 0; i < fileIdentityKeys.length; i++) {
+            final var res = acceptedResources.get(i);
+            final var key = fileIdentityKeys[i];
+            if (key != null && !fileIdentityKeysFound.add(key)) {
+                if (maskedResources == null) {
+                    // Compare by identity, since Resource#equals compares string representations, and the
+                    // masked resource and the resource that masks it are in different classpath elements
+                    maskedResources = Collections.newSetFromMap(new IdentityHashMap<>());
+                }
+                maskedResources.add(res);
+                if (log != null) {
+                    log.log(String.format(Locale.US, "%06d-1", classpathIdx),
+                            "Ignoring duplicate (masked) resource " + res.getPath()
+                                    + ", which is the same file as a resource found earlier in the classpath: "
+                                    + res.getURI());
+                }
+            } else {
                 acceptedResourcesFiltered.add(res);
             }
         }
