@@ -60,8 +60,10 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
      * <p>
      * TODO: this works around a JVM bug on aarch64, where a compiled bulk copy calls a routine
      * ({@code StubRoutines::copy_byte_f}) that the JVM does not register as one that can fault, so a fault in it
-     * kills the JVM instead of throwing an {@link InternalError}. When a JDK fixes that, copy in bulk on aarch64
-     * too on that JDK and later, from the size at which bulk is measured to be faster.
+     * kills the JVM instead of throwing an {@link InternalError} (https://bugs.openjdk.org/browse/JDK-8396400).
+     * When a release of JDK 25 or later fixes it (or a 25.0.x update, if the fix is backported), copy in bulk on
+     * aarch64 too on the releases with the fix, from the size at which bulk is measured to be faster, checking
+     * {@link Runtime#version()} against the first fixed update of each feature release.
      */
     private static final int MIN_BULK_COPY_SIZE = VersionFinder.IS_X86_64 ? 64 : Integer.MAX_VALUE;
 
@@ -179,12 +181,16 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
      * This has to be called right after the read, before its value is used for anything. A load that faulted is
      * skipped, so its value is whatever its register held before, which need not be a value of the type read: the
      * JVM has crashed boxing such a byte, which it uses unchecked as an index into the cache of {@link Byte} values
-     * (Linux x86-64, JDK 25 and 26).
+     * (Linux x86-64, JDK 25 and 26; https://bugs.openjdk.org/browse/JDK-8396401).
      *
      * <p>
-     * TODO: this works around the JVM throwing the error of a faulting read asynchronously (JDK-8154592, closed as
-     * Won't Fix in 2019), and depends on when HotSpot delivers that error. When a JDK throws it inside the read
-     * itself, skip this call on that JDK and later.
+     * TODO: this works around the JVM throwing the error of a faulting read asynchronously
+     * (https://bugs.openjdk.org/browse/JDK-8154592, closed as Won't Fix in 2019 and reopened in 2026), and depends
+     * on when HotSpot delivers that error. When a release of JDK 25 or later (or a 25.0.x update, if the fix is
+     * backported) throws the error inside the read itself, skip this call on the releases with the fix, which
+     * removes a native call from every read of a mapping, checking {@link Runtime#version()} against the first
+     * fixed update of each feature release. Skip it only where JDK-8396401 is fixed too, since an error that is
+     * thrown at the end of the try block, rather than at the load, still lets the load's garbage value be used.
      */
     private void awaitFault() {
         if (canFault && Thread.holdsLock(FAULT_FENCE)) {
