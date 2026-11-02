@@ -38,10 +38,14 @@ GRID = "#e1e0d9"
 AXIS = "#c3c2b7"
 OTHER_BAR = "#b4b2aa"
 CGVFS_COLOR = "#2a78d6"
-# The other categorical hues, in their fixed order. There are more libraries than hues, so a library
-# is told apart by its hue and its line style together
-HUES = ["#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"]
-STYLES = ["-", (0, (4, 2))]
+# The other libraries' hues, in their fixed order. None is blue, so classgraph-vfs is the only blue line.
+# These nine are the most widely spaced in OKLab that keep away from the blue. There are more libraries
+# than hues (the tenth, Spring Boot loader, shares a hue with JDK Files / ZipFile, which never appears in
+# the same panel), and some pairs look alike to colorblind readers, so each library also gets its own
+# marker, and a dash pattern
+HUES = ["#ad6723", "#14cc61", "#ee75e6", "#aa167d", "#ed8d7d", "#4d8e16", "#b6af4d", "#ba0d01", "#ed4f8d"]
+MARKERS = ["s", "^", "D", "v", "P", "X", "<", ">", "h", "*"]
+DASHES = ["-", (0, (4, 2)), (0, (1, 1.5))]
 
 plt.rcParams.update({
     "font.family": "sans-serif",
@@ -105,13 +109,15 @@ def line_styles(tables):
     others = [library for library in libraries if not is_cgvfs(library)]
     for library in libraries:
         if library == "classgraph-vfs":
-            styles[library] = dict(color=CGVFS_COLOR, linestyle="-", linewidth=2.6, zorder=4)
+            styles[library] = dict(color=CGVFS_COLOR, linestyle="-", linewidth=2.6, marker="o", markersize=5,
+                                   zorder=4)
         elif is_cgvfs(library):
-            styles[library] = dict(color=CGVFS_COLOR, linestyle=STYLES[1], linewidth=2.0, zorder=3)
+            styles[library] = dict(color=CGVFS_COLOR, linestyle=DASHES[1], linewidth=2.0, marker="o",
+                                   markersize=5, zorder=3)
         else:
             i = others.index(library)
-            styles[library] = dict(color=HUES[i % len(HUES)], linestyle=STYLES[i // len(HUES)], linewidth=1.4,
-                                   zorder=2)
+            styles[library] = dict(color=HUES[i % len(HUES)], linestyle=DASHES[i % len(DASHES)], linewidth=1.3,
+                                   marker=MARKERS[i % len(MARKERS)], markersize=5, zorder=2)
     return styles
 
 
@@ -129,7 +135,7 @@ def first_read_chart(content, header, rows, styles, out_dir):
     for ax, layout in zip(axes.flat, LAYOUTS):
         for row in (r for r in rows if r[0] == layout):
             points = [(t, number(c)) for t, c in zip(threads, row[2:]) if number(c) is not None]
-            ax.plot([p[0] for p in points], [p[1] for p in points], marker="o", markersize=4, **styles[row[1]])
+            ax.plot([p[0] for p in points], [p[1] for p in points], **styles[row[1]])
             if row[1] not in libraries:
                 libraries.append(row[1])
         ax.set_title(layout, loc="left")
@@ -151,7 +157,7 @@ def first_read_chart(content, header, rows, styles, out_dir):
     # The sixth panel holds the legend
     legend_ax = axes.flat[5]
     legend_ax.axis("off")
-    legend_ax.legend([Line2D([], [], marker="o", markersize=4, **styles[library]) for library in libraries],
+    legend_ax.legend([Line2D([], [], **styles[library]) for library in libraries],
                      libraries, loc="center left", frameon=False, handlelength=3)
     fig.suptitle(f"Every entry read once, in random order, {content}: MB/s, higher is better", x=0.01,
                  ha="left", fontsize=13)
