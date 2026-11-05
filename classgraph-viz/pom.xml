@@ -18,8 +18,8 @@
 
 		<osgiBundleName>ClassGraph visualization</osgiBundleName>
 		<!-- Must list the same packages as the exports in src/main/java/module-info.java -->
-		<osgiExportPackage>io.github.classgraph.viz;version="${project.version}"</osgiExportPackage>
-		<osgiImportPackage>io.github.classgraph;version="${osgiApiVersionRange}",org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
+		<osgiExportPackage>io.github.classgraph.viz;version="${parsedVersion.osgiVersion}";uses:="io.github.classgraph"</osgiExportPackage>
+		<osgiImportPackage>io.github.classgraph;version="${osgiModuleVersionRange}",org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
 
 		<!-- This module has sources and produces a jar, so it needs the ecj checks and the license copies -->
 		<maven.antrun.skip>false</maven.antrun.skip>

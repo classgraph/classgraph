@@ -18,10 +18,10 @@
 
 		<osgiBundleName>ClassGraph virtual filesystem</osgiBundleName>
 		<!-- Must list the same packages as the exports in src/main/java/module-info.java. -->
-		<osgiExportPackage>io.github.classgraph.vfs;version="${project.version}",io.github.classgraph.vfs.reader;version="${project.version}"</osgiExportPackage>
+		<osgiExportPackage>io.github.classgraph.vfs;version="${parsedVersion.osgiVersion}";uses:="io.github.classgraph.vfs.reader,io.github.classgraph.base,io.github.classgraph.base.internal.concurrency,io.github.classgraph.base.internal.path,io.github.classgraph.base.internal.reflection,io.github.classgraph.base.internal.utils",io.github.classgraph.vfs.reader;version="${parsedVersion.osgiVersion}";uses:="io.github.classgraph.vfs,io.github.classgraph.base,io.github.classgraph.base.internal.concurrency,io.github.classgraph.base.internal.path,io.github.classgraph.base.internal.reflection,io.github.classgraph.base.internal.utils"</osgiExportPackage>
 		<!-- sun.misc is imported optionally because OffHeapMemory looks up Unsafe by name on JDK 17-21, and an
 		     OSGi bundle can only load a class from a package it imports. -->
-		<osgiImportPackage>io.github.classgraph.base;version="${osgiApiVersionRange}",io.github.classgraph.base.internal.concurrency;version="${osgiInternalVersionRange}",io.github.classgraph.base.internal.path;version="${osgiInternalVersionRange}",io.github.classgraph.base.internal.reflection;version="${osgiInternalVersionRange}",io.github.classgraph.base.internal.utils;version="${osgiInternalVersionRange}",sun.misc;resolution:="optional",org.jetbrains.annotations;resolution:="optional",org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
+		<osgiImportPackage>io.github.classgraph.base;version="${osgiModuleVersionRange}",io.github.classgraph.base.internal.concurrency;${osgiInternalImport},io.github.classgraph.base.internal.path;${osgiInternalImport},io.github.classgraph.base.internal.reflection;${osgiInternalImport},io.github.classgraph.base.internal.utils;${osgiInternalImport},sun.misc;resolution:="optional",org.jetbrains.annotations;resolution:="optional",org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
 
 		<!-- This module has sources and produces a jar, so it needs the ecj checks and the license copies -->
 		<maven.antrun.skip>false</maven.antrun.skip>
