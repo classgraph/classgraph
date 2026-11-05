@@ -577,7 +577,7 @@ Three kinds of content, each in five layouts:
 * **Layout.** A directory; a jarfile with its entries stored; a jarfile with its entries deflated;
   and that deflated jarfile nested inside an outer jarfile, either stored or deflated there.
 
-Two benchmarks:
+Three benchmarks:
 
 * **First reads.** The archive is opened, every entry is looked up by name and read in full exactly
   once, in a shuffled order, by 1, 2, 4, 8, 16 or 32 threads that each take the next entry
@@ -587,13 +587,17 @@ Two benchmarks:
   the archive, in MB/s.
 * **Whole archive.** One thread opens the archive, reads every entry in turn, and closes it. The
   result is the time per archive, in milliseconds, which includes opening it.
+* **New JVM.** A new JVM opens the archive, reads every entry once on 8 threads, and closes it, and
+  the time for that one pass is the result, in milliseconds. This is what a program pays the first
+  time it uses a library, including loading the library's classes. The archive is still in the page
+  cache, so the JVM is cold and the disk is not. The result is the median of 10 JVMs for each library.
 
 Each library reads an entry the way it is normally used to. Each series in the charts is one
 library, read as follows:
 
 | Series | Version | How an entry is read |
 | --- | --- | --- |
-| classgraph-vfs | 6.0.2 (commit `63706fe9`, before release) | `VfsRoot.load(name)` |
+| classgraph-vfs | 6.0.2 (commit `5e9ac529`, before release) | `VfsRoot.load(name)` |
 | classgraph-vfs (nio) | the same | `Files.readAllBytes` on a path from `VfsRoot.asFileSystem()`: the same library, through the standard `java.nio.file` API rather than its own, so it pays the cost of that API, and is read the same way as zipfs |
 | JDK Files / ZipFile | JDK 26.0.2 | `Files.readAllBytes` for a directory; for a jarfile, one `java.util.zip.ZipFile` shared by every thread |
 | JDK zipfs | JDK 26.0.2 | `Files.readAllBytes` on the JDK's zip filesystem, with a nested jarfile opened as a zip filesystem inside the outer one |
@@ -621,11 +625,10 @@ All the libraries are run on one combination of content and layout one after ano
 again in reverse order, so that a change in the speed of the machine during the run does not favor
 some libraries over others. Each result is the mean of those two JMH forks, each with 4 warmup and 4
 measurement iterations of 1 second, and a heap of 2GB. Machine: AMD Ryzen 9 3950X, 16 physical
-cores with two hardware threads each, 125GB RAM, Linux, JDK 26.0.2, with nothing else running. The
-archives are on an ext4 filesystem on an NVMe SSD, and are in the page cache after the first warmup
-iteration, so the measured reads come out of memory. The two classgraph-vfs results were measured in a
-second run, after a change that made opening a jarfile faster, on the same machine and setup as the
-other libraries.
+cores with two hardware threads each, 125GB RAM, Linux, JDK 26.0.2, with no other heavy work running.
+The archives are on an ext4 filesystem on an NVMe SSD, and are in the page cache after the first
+warmup iteration, so the measured reads come out of memory. Differences of less than about 2% are
+within the variation between runs.
 
 ![Every entry read once, in random order, classes: MB/s against the number of threads, for each layout](docs/benchmarks/first-read-classes.png)
 
@@ -638,6 +641,19 @@ other libraries.
 ![Open, read every entry, close, text: milliseconds for each library, for each layout](docs/benchmarks/whole-archive-text.png)
 
 ![Open, read every entry, close, binary: milliseconds for each library, for each layout](docs/benchmarks/whole-archive-binary.png)
+
+![Open, read every entry, close, in a new JVM, classes: milliseconds for each library, for each layout](docs/benchmarks/cold-classes.png)
+
+![Open, read every entry, close, in a new JVM, text: milliseconds for each library, for each layout](docs/benchmarks/cold-text.png)
+
+![Open, read every entry, close, in a new JVM, binary: milliseconds for each library, for each layout](docs/benchmarks/cold-binary.png)
+
+In a new JVM, `ZipFile` and `Files` lead on every layout they can read, because their classes are
+already in the JDK's class data sharing archive: the first open in a JVM loads 157 classes from
+outside that archive for classgraph-vfs, against 19 for `ZipFile`. That cost is paid once per JVM.
+On one thread, in one JVM, four passes over a stored jarfile of classfiles took 61.5, 16.5, 12.1 and
+12.0 ms with classgraph-vfs, and 36.8, 29.7, 21.7 and 10.7 ms with `ZipFile`, before the JIT compiler
+has settled on either.
 
 The first-read curves stop rising for two reasons. First, part of each operation is done by one
 thread while the others wait: opening the archive and reading its central directory, and closing it,
