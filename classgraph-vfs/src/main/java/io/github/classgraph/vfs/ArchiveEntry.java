@@ -133,7 +133,7 @@ final class ArchiveEntry extends VfsEntry {
 
     @Override
     public CloseableByteBuffer read() throws IOException {
-        getRoot().checkNotClosed(getPath());
+        checkRootNotClosed();
         // The slice of a zip entry is a sub-slice of the zipfile, and owns no resources of its own -- the zipfile
         // is released when the root that owns it is closed. But if the zipfile is memory-mapped, the buffer
         // returned here is a view of that mapping, so the mapping has to be held open until the caller closes the
@@ -160,7 +160,7 @@ final class ArchiveEntry extends VfsEntry {
 
     @Override
     RandomAccessContent openRandomAccess() throws IOException {
-        getRoot().checkNotClosed(getPath());
+        checkRootNotClosed();
         if (zipEntry.isDeflated) {
             // The content has to be inflated from the beginning to reach any given offset, so it is inflated only
             // as far as the furthest offset that is read, and what has been inflated so far is buffered
@@ -183,7 +183,21 @@ final class ArchiveEntry extends VfsEntry {
 
     @Override
     public byte[] load() throws IOException {
-        getRoot().checkNotClosed(getPath());
+        checkRootNotClosed();
         return zipEntry.load();
+    }
+
+    /**
+     * Throw {@link IOException} if the root or its {@link Vfs} has been closed. The path of a zip entry is built
+     * anew by each call, and is only needed for the message, so it is only built when the check fails.
+     *
+     * @throws IOException
+     *             if the root or its {@link Vfs} has been closed.
+     */
+    private void checkRootNotClosed() throws IOException {
+        final var root = getRoot();
+        if (root.isClosed()) {
+            root.checkNotClosed(getPath());
+        }
     }
 }
