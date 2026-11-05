@@ -26,8 +26,8 @@
 		     packages are exported because OSGi has no equivalent of a qualified export, and the modules
 		     above this one need them. They are marked x-internal so that tooling does not offer them for
 		     import, and they are not covered by the project's API compatibility guarantees. -->
-		<osgiExportPackage>io.github.classgraph.classpath;version="${parsedVersion.osgiVersion}",io.github.classgraph.classpath.internal;x-internal:=true</osgiExportPackage>
-		<osgiImportPackage>io.github.classgraph.base,io.github.classgraph.base.internal.concurrency,io.github.classgraph.base.internal.path,io.github.classgraph.base.internal.reflection,io.github.classgraph.base.internal.utils,io.github.classgraph.vfs,org.jetbrains.annotations;resolution:="optional",org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
+		<osgiExportPackage>io.github.classgraph.classpath;version="${parsedVersion.osgiVersion}",io.github.classgraph.classpath.internal;version="${parsedVersion.osgiVersion}";x-internal:=true</osgiExportPackage>
+		<osgiImportPackage>io.github.classgraph.base;version="${osgiApiVersionRange}",io.github.classgraph.base.internal.concurrency;version="${osgiInternalVersionRange}",io.github.classgraph.base.internal.path;version="${osgiInternalVersionRange}",io.github.classgraph.base.internal.reflection;version="${osgiInternalVersionRange}",io.github.classgraph.base.internal.utils;version="${osgiInternalVersionRange}",io.github.classgraph.vfs;version="${osgiApiVersionRange}",org.jetbrains.annotations;resolution:="optional",org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
 
 		<!-- This module has sources and produces a jar, so it needs the ecj checks and the license copies -->
 		<maven.antrun.skip>false</maven.antrun.skip>
