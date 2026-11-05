@@ -63,6 +63,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.ClassGraph.FailureHandler;
 import io.github.classgraph.ClassGraph.ScanResultProcessor;
@@ -89,6 +90,18 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** The classpath scanner. */
 class Scanner implements Callable<ScanResult> {
+
+    /**
+     * The first scan in a JVM runs mostly in the interpreter, where splitting up the phases of a scan after the
+     * classfiles are read costs more than the worker threads gain, unless there are at least this many classfiles.
+     */
+    private static final int MIN_CLASSFILES_FOR_PARALLEL_FIRST_SCAN = 1 << 16;
+
+    /** Whether a scan has reached {@link #performScan(List, List, ClasspathFinder)} in this JVM. */
+    private static final AtomicBoolean scannedInThisJvm = new AtomicBoolean();
+
+    /** If true, {@link #workerThreadRunner} runs tasks on the calling thread. */
+    private boolean runTasksSerially;
 
     /** The scan spec. */
     private final ScanSpec scanSpec;
@@ -366,10 +379,17 @@ class Scanner implements Callable<ScanResult> {
         interruptionChecker.check();
     }
 
-    /** The {@link ParallelRunner} of the scan, which runs tasks on the worker threads. */
+    /**
+     * The {@link ParallelRunner} of the scan, which runs tasks on the worker threads, or on the calling thread if
+     * {@link #runTasksSerially} is true.
+     */
     private final ParallelRunner workerThreadRunner = new ParallelRunner() {
         @Override
         void runAll(final List<Runnable> tasks) throws InterruptedException, ExecutionException {
+            if (runTasksSerially) {
+                ParallelRunner.SERIAL.runAll(tasks);
+                return;
+            }
             processWorkUnits(tasks, /* log = */ null, new WorkUnitProcessor<Runnable>() {
                 @Override
                 public void processWorkUnit(final Runnable task, final WorkQueue<Runnable> workQueue,
@@ -1108,6 +1128,13 @@ class Scanner implements Callable<ScanResult> {
     private ScanResult performScan(final List<ClasspathElement> finalClasspathEltOrder,
             final List<String> finalClasspathEltOrderStrs, final ClasspathFinder classpathFinder)
             throws InterruptedException, ExecutionException {
+        long numClassfiles = 0L;
+        for (final ClasspathElement classpathElement : finalClasspathEltOrder) {
+            numClassfiles += classpathElement.acceptedClassfileResources.size();
+        }
+        runTasksSerially = !scannedInThisJvm.getAndSet(true)
+                && numClassfiles < MIN_CLASSFILES_FOR_PARALLEL_FIRST_SCAN;
+
         // Mask duplicate resources (remove any resource that is the same file as a resource that was already
         // found in an earlier classpath element)
         maskDuplicateResources(finalClasspathEltOrder,
