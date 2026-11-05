@@ -636,6 +636,9 @@
 							<arg>-Xlint:all</arg>             <!-- Max lint -->
 							<arg>${javacLintSuppressions}</arg>
 							<arg>-Werror</arg>
+							<!-- The first indy string concatenation in a JVM takes milliseconds to link, which -->
+							<!-- would add to the first open of a path. The test sources do not use this. -->
+							<arg>-XDstringConcat=inline</arg>
 						</compilerArgs>
 					</configuration>
 					<executions>
@@ -952,6 +955,7 @@
 										<arg>-Xlint:all</arg>             <!-- Max lint -->
 										<arg>${javacLintSuppressions}</arg>
 										<arg>-Werror</arg>
+										<arg>-XDstringConcat=inline</arg>
 										<!-- Static null analysis, to check the @NullMarked claim made by -->
 										<!-- module-info.java. NullAway runs as an Error Prone plugin, over the -->
 										<!-- main sources only: the test sources are deliberately unannotated. -->

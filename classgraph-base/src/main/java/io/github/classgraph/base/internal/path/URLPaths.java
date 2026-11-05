@@ -34,7 +34,6 @@ import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Locale;
-import java.util.regex.Pattern;
 
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
@@ -44,14 +43,6 @@ import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
  * {@link URI} instances.
  */
 public final class URLPaths {
-    /**
-     * Pattern matching a URL scheme (at least two characters) and its trailing {@code ':'} at the start of a path.
-     */
-    private static final Pattern URL_SCHEME_PREFIX_PATTERN = Pattern.compile("^[a-zA-Z][a-zA-Z0-9+\\-.]+:");
-
-    /** A URL scheme on its own, without the trailing {@code ':'}. */
-    private static final Pattern URL_SCHEME_NAME_PATTERN = Pattern.compile("[a-zA-Z][a-zA-Z0-9+\\-.]+");
-
     /** Whether an ASCII character is URL-safe. */
     private static final boolean[] safe = new boolean[256];
 
@@ -101,7 +92,7 @@ public final class URLPaths {
             // A one-character scheme cannot be told apart from a Windows drive letter
             throw new IllegalArgumentException("URL schemes must contain at least two characters");
         }
-        if (!URL_SCHEME_NAME_PATTERN.matcher(scheme).matches()) {
+        if (schemeNameLength(scheme) != scheme.length()) {
             throw new IllegalArgumentException("Not a valid URL scheme: \"" + scheme + "\"");
         }
         return scheme.toLowerCase(Locale.ROOT);
@@ -116,7 +107,57 @@ public final class URLPaths {
      * @return {@code true} if the path begins with a URL scheme followed by {@code ':'}.
      */
     public static boolean startsWithURLScheme(final String path) {
-        return URL_SCHEME_PREFIX_PATTERN.matcher(path).find();
+        return indexOfSchemeColon(path) >= 0;
+    }
+
+    /**
+     * Find the {@code ':'} that ends a URL scheme (at least two characters) at the start of a path. This does not
+     * use a regular expression, since this class is used when opening the first path in a JVM, and compiling a
+     * regular expression there adds to the time of that first open.
+     *
+     * @param path
+     *            the path.
+     * @return the index of the {@code ':'}, or -1 if the path does not begin with a URL scheme followed by
+     *         {@code ':'}.
+     */
+    static int indexOfSchemeColon(final String path) {
+        final var nameLength = schemeNameLength(path);
+        return nameLength >= 2 && nameLength < path.length() && path.charAt(nameLength) == ':' ? nameLength : -1;
+    }
+
+    /**
+     * Count the characters at the start of a string that can form a URL scheme name: an ASCII letter, followed by
+     * ASCII letters, ASCII digits, {@code '+'}, {@code '-'} or {@code '.'}.
+     *
+     * @param str
+     *            the string.
+     * @return the number of characters, which is 0 if the string does not start with an ASCII letter.
+     */
+    private static int schemeNameLength(final String str) {
+        final var len = str.length();
+        if (len == 0 || !isAsciiLetter(str.charAt(0))) {
+            return 0;
+        }
+        var i = 1;
+        while (i < len) {
+            final var c = str.charAt(i);
+            if (!(isAsciiLetter(c) || c >= '0' && c <= '9' || c == '+' || c == '-' || c == '.')) {
+                break;
+            }
+            i++;
+        }
+        return i;
+    }
+
+    /**
+     * Check whether a character is an ASCII letter.
+     *
+     * @param c
+     *            the character.
+     * @return {@code true} if the character is an ASCII letter.
+     */
+    private static boolean isAsciiLetter(final char c) {
+        return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z';
     }
 
     /**

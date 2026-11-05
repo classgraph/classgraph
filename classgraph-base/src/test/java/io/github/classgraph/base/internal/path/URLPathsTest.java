@@ -8,6 +8,7 @@ import java.net.JarURLConnection;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -357,5 +358,59 @@ public class URLPathsTest {
     @Test
     public void singleCharSchemeDoesNotMatch() {
         assertThat(URLPaths.startsWithURLScheme("C:/x")).isFalse();
+    }
+
+    /**
+     * The scheme checks avoid regular expressions so that they do not add to the first open in a JVM, and have to
+     * agree with the regular expressions that define them, on every string of up to 5 characters from an alphabet
+     * that has a character of each kind that the regular expressions treat differently.
+     */
+    @Test
+    public void schemeChecksAgreeWithTheirRegularExpressions() {
+        final var prefix = Pattern.compile("^[a-zA-Z][a-zA-Z0-9+\\-.]+:");
+        final var name = Pattern.compile("[a-zA-Z][a-zA-Z0-9+\\-.]+");
+        final var alphabet = "aZ09+-.:/_%\n\u00e9";
+        final var str = new StringBuilder();
+        checkAllSchemeStrings(str, alphabet, 5, prefix, name);
+    }
+
+    /**
+     * Check a string against the regular expressions, and then every string that extends it.
+     *
+     * @param str
+     *            the string, which is restored before returning.
+     * @param alphabet
+     *            the characters to extend the string with.
+     * @param remaining
+     *            the number of characters that may be added.
+     * @param prefix
+     *            the regular expression for a scheme and its colon at the start of a path.
+     * @param name
+     *            the regular expression for a scheme name.
+     */
+    private static void checkAllSchemeStrings(final StringBuilder str, final String alphabet, final int remaining,
+            final Pattern prefix, final Pattern name) {
+        final var string = str.toString();
+        final var prefixMatcher = prefix.matcher(string);
+        final var hasPrefix = prefixMatcher.find();
+        if (URLPaths.indexOfSchemeColon(string) != (hasPrefix ? prefixMatcher.end() - 1 : -1)) {
+            throw new AssertionError("indexOfSchemeColon disagrees on \"" + string + "\"");
+        }
+        var accepted = true;
+        try {
+            URLPaths.normalizeURLScheme(string);
+        } catch (final IllegalArgumentException _) {
+            accepted = false;
+        }
+        if (accepted != name.matcher(string).matches()) {
+            throw new AssertionError("normalizeURLScheme disagrees on \"" + string + "\"");
+        }
+        if (remaining > 0) {
+            for (var i = 0; i < alphabet.length(); i++) {
+                str.append(alphabet.charAt(i));
+                checkAllSchemeStrings(str, alphabet, remaining - 1, prefix, name);
+                str.setLength(str.length() - 1);
+            }
+        }
     }
 }

@@ -44,6 +44,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
 
 import org.jspecify.annotations.Nullable;
 
@@ -57,8 +58,12 @@ import io.github.classgraph.vfs.reader.RandomAccessByteBufferReader;
 import io.github.classgraph.vfs.reader.RandomAccessFileChannelReader;
 import io.github.classgraph.vfs.reader.RandomAccessReader;
 
-/** A {@link Path} slice. */
-public final class PathSlice extends Slice {
+/**
+ * A {@link Path} slice. This class avoids lambdas and method references where they would be used to open or read
+ * the first path in a JVM, since the first lambda in a JVM takes milliseconds to link (see
+ * FirstOpenClassLoadingTest).
+ */
+public final class PathSlice extends Slice implements RandomAccessFileChannelReader.FileChannelSource {
     /**
      * Maximum time in milliseconds that {@link #freeUnreachableBuffers()} waits for reference processing after GC.
      */
@@ -194,7 +199,8 @@ public final class PathSlice extends Slice {
      * @throws IOException
      *             if this slice is closed or the channel could not be reopened
      */
-    private FileChannel fileChannel() throws IOException {
+    @Override
+    public FileChannel fileChannel() throws IOException {
         if (Thread.currentThread().isInterrupted()) {
             throw new InterruptedIOException("Interrupted while reading " + pathStr);
         }
@@ -265,8 +271,8 @@ public final class PathSlice extends Slice {
     int readThroughChannel(final long sliceStartPos, final long sliceLength, final long srcOffset,
             final ByteBuffer dstBuf, final int dstBufStart, final int numBytes) throws IOException {
         if (!CHANNEL_PER_READ) {
-            return new RandomAccessFileChannelReader(this::fileChannel, sliceStartPos, sliceLength).read(srcOffset,
-                    dstBuf, dstBufStart, numBytes);
+            return new RandomAccessFileChannelReader(this, sliceStartPos, sliceLength).read(srcOffset, dstBuf,
+                    dstBufStart, numBytes);
         }
         // A read of a FileChannel by an interrupted thread closes the channel, so check first, as fileChannel()
         // does, rather than lose the channel
@@ -646,16 +652,19 @@ public final class PathSlice extends Slice {
             if (topLevelPathSlice.isClosed.get()) {
                 throw new IOException("Cannot read " + pathStr + " after it has been closed");
             }
-            return new RandomAccessFileChannelReader(topLevelPathSlice::fileChannel, sliceStartPos, sliceLength);
+            return new RandomAccessFileChannelReader(topLevelPathSlice, sliceStartPos, sliceLength);
         } else {
             // If file was mmap'd, return a RandomAccessReader that uses the ByteBuffer. The reader keeps a view
             // of the mapping for as long as it is alive, and readers are not closed, so it is given the toplevel
             // slice's closed flag to check before each read, so that a read after the close is reported as an
             // IOException
-            return new MappedFileReader(
-                    new RandomAccessByteBufferReader(mappedByteBuffer, sliceStartPos, sliceLength,
-                            ByteOrder.LITTLE_ENDIAN, topLevelPathSlice.isClosed::get),
-                    topLevelPathSlice, sliceStartPos, sliceLength);
+            return new MappedFileReader(new RandomAccessByteBufferReader(mappedByteBuffer, sliceStartPos,
+                    sliceLength, ByteOrder.LITTLE_ENDIAN, new BooleanSupplier() {
+                        @Override
+                        public boolean getAsBoolean() {
+                            return topLevelPathSlice.isClosed.get();
+                        }
+                    }), topLevelPathSlice, sliceStartPos, sliceLength);
         }
     }
 
