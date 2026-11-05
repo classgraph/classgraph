@@ -597,7 +597,7 @@ library, read as follows:
 
 | Series | Version | How an entry is read |
 | --- | --- | --- |
-| classgraph-vfs | 6.0.2 (commit `5e9ac529`, before release) | `VfsRoot.load(name)` |
+| classgraph-vfs | 6.0.2 (commit `cc0c5763`, before release) | `VfsRoot.load(name)` |
 | classgraph-vfs (nio) | the same | `Files.readAllBytes` on a path from `VfsRoot.asFileSystem()`: the same library, through the standard `java.nio.file` API rather than its own, so it pays the cost of that API, and is read the same way as zipfs |
 | JDK Files / ZipFile | JDK 26.0.2 | `Files.readAllBytes` for a directory; for a jarfile, one `java.util.zip.ZipFile` shared by every thread |
 | JDK zipfs | JDK 26.0.2 | `Files.readAllBytes` on the JDK's zip filesystem, with a nested jarfile opened as a zip filesystem inside the outer one |
@@ -649,10 +649,10 @@ within the variation between runs.
 ![Open, read every entry, close, in a new JVM, binary: milliseconds for each library, for each layout](docs/benchmarks/cold-binary.png)
 
 In a new JVM, `ZipFile` and `Files` lead on every layout they can read, because their classes are
-already in the JDK's class data sharing archive: the first open in a JVM loads 157 classes from
-outside that archive for classgraph-vfs, against 19 for `ZipFile`. That cost is paid once per JVM.
-On one thread, in one JVM, four passes over a stored jarfile of classfiles took 61.5, 16.5, 12.1 and
-12.0 ms with classgraph-vfs, and 36.8, 29.7, 21.7 and 10.7 ms with `ZipFile`, before the JIT compiler
+already in the JDK's class data sharing archive: the first open in a JVM loads 147 classes from
+outside that archive for classgraph-vfs, against 16 for `ZipFile`. That cost is paid once per JVM.
+On one thread, in one JVM, four passes over a stored jarfile of classfiles took 51.9, 13.5, 10.7 and
+11.3 ms with classgraph-vfs, and 36.9, 28.8, 21.1 and 10.7 ms with `ZipFile`, before the JIT compiler
 has settled on either.
 
 The first-read curves stop rising for two reasons. First, part of each operation is done by one
