@@ -693,6 +693,17 @@
 					<groupId>org.codehaus.mojo</groupId>
 					<artifactId>build-helper-maven-plugin</artifactId>
 					<executions>
+						<!-- The manifest needs an OSGi version. ${project.version} is a Maven version, and a
+						     -SNAPSHOT suffix is not valid OSGi syntax: it parses as micro "2-SNAPSHOT".
+						     parse-version converts 6.0.2-SNAPSHOT to 6.0.2.SNAPSHOT, and leaves a release
+						     version such as 6.0.2 unchanged. -->
+						<execution>
+							<id>parse-version</id>
+							<phase>initialize</phase>
+							<goals>
+								<goal>parse-version</goal>
+							</goals>
+						</execution>
 						<execution>
 							<id>add-test-source</id>
 							<phase>generate-test-sources</phase>
@@ -729,7 +740,7 @@
 								<Bundle-SymbolicName>${project.groupId}.${project.artifactId}</Bundle-SymbolicName>
 								<Bundle-Vendor>Luke Hutchison</Bundle-Vendor>
 								<Bundle-Description>${project.description}</Bundle-Description>
-								<Bundle-Version>${project.version}</Bundle-Version>
+								<Bundle-Version>${parsedVersion.osgiVersion}</Bundle-Version>
 								<!-- Must match ${maven.compiler.release}: the jar contains Java 25 (major -->
 								<!-- version 69) bytecode, so declaring an older version here would let an OSGi -->
 								<!-- framework running on that version resolve this bundle, and then fail at -->
