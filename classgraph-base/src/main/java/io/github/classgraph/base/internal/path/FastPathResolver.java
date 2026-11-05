@@ -41,11 +41,14 @@ import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
  * Resolves relative paths and URLs/URIs against a base path and normalizes path syntax across platforms.
  */
 public final class FastPathResolver {
-    /** Match %-encoded characters in URLs. */
-    private static final Pattern PERCENT_ESCAPES = Pattern.compile("([%][0-9a-fA-F][0-9a-fA-F])+");
-
-    /** Matches a custom URL scheme (at least two characters) followed by a colon and zero to two slashes. */
-    private static final Pattern SCHEME_AND_SLASHES = Pattern.compile("^[a-zA-Z][a-zA-Z0-9+\\-.]+:/{0,2}");
+    /**
+     * Holds the pattern that matches %-encoded characters in URLs, so that the pattern is compiled only for a path
+     * that contains a {@code '%'}. Compiling a regular expression adds to the time of the first open in a JVM.
+     */
+    private static final class PercentEscapes {
+        /** Match %-encoded characters in URLs. */
+        static final Pattern PATTERN = Pattern.compile("([%][0-9a-fA-F][0-9a-fA-F])+");
+    }
 
     /** Custom separator between a WAR file path and in-WAR path in Tomcat {@code "war:"} URLs. */
     // #925
@@ -163,7 +166,7 @@ public final class FastPathResolver {
         }
         final StringBuilder buf = new StringBuilder();
         var prevEndMatchIdx = 0;
-        final var matcher = PERCENT_ESCAPES.matcher(path);
+        final var matcher = PercentEscapes.PATTERN.matcher(path);
         while (matcher.find()) {
             buf.append(path, prevEndMatchIdx, matcher.start());
             unescapePercentEncoding(path, matcher.start(), matcher.end(), buf);
@@ -206,7 +209,7 @@ public final class FastPathResolver {
             if (hasPercent && percentDecode) {
                 // Perform '%'-decoding of path segment
                 var prevEndMatchIdx = 0;
-                final var matcher = PERCENT_ESCAPES.matcher(path);
+                final var matcher = PercentEscapes.PATTERN.matcher(path);
                 while (matcher.find()) {
                     final var startMatchIdx = matcher.start();
                     final var endMatchIdx = matcher.end();
@@ -352,10 +355,15 @@ public final class FastPathResolver {
             } else {
                 // Preserve the number of slashes on custom URL schemes (#420)
                 final var relPath = parsed.startIdx == 0 ? path : path.substring(parsed.startIdx);
-                final var matcher = SCHEME_AND_SLASHES.matcher(relPath);
-                if (matcher.find()) {
+                final var schemeColonIdx = URLPaths.indexOfSchemeColon(relPath);
+                if (schemeColonIdx >= 0) {
                     matchedPrefix = true;
-                    final var match = matcher.group();
+                    // Include up to two slashes after the colon
+                    var matchEnd = schemeColonIdx + 1;
+                    for (var i = 0; i < 2 && matchEnd < relPath.length() && relPath.charAt(matchEnd) == '/'; i++) {
+                        matchEnd++;
+                    }
+                    final var match = relPath.substring(0, matchEnd);
                     parsed.startIdx += match.length();
                     // A scheme is case-insensitive, and its canonical form is lowercase (RFC 3986 section 3.1), so
                     // lowercase it, as the schemes that are recognized by name above are. The match is a scheme

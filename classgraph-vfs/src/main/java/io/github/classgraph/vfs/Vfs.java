@@ -302,8 +302,15 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         // backslashes rather than forward slashes, and all of those name one thing that is opened once
         final var resolvedPath = resolvePath(path);
         try {
+            // This class and an anonymous class below are used rather than lambdas, on the path of the first open
+            // in a JVM, since the first lambda in a JVM takes milliseconds to link (see FirstOpenClassLoadingTest)
             return openThroughCache(resolvedPath, /* aliasReportedPath = */ true,
-                    () -> openRootUncached(resolvedPath, logNode, isRealPath));
+                    new SingletonMap.NewInstanceFactory<>() {
+                        @Override
+                        public VfsRoot newInstance() throws IOException, InterruptedException {
+                            return openRootUncached(resolvedPath, logNode, isRealPath);
+                        }
+                    });
         } catch (final InterruptedException e) {
             // Route the interruption through the shared interruption checker, so that every other thread reading
             // through this Vfs stops too, and chain the cause, so that the reason the open did not complete is
@@ -411,8 +418,13 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      */
     private VfsRoot openReentrant(final String key, final @Nullable LogNode logNode)
             throws IOException, InterruptedException {
-        return openThroughCache(key, /* aliasReportedPath = */ true,
-                () -> openRootUncached(key, logNode, /* isRealPath = */ false));
+        // Not a lambda, for the reason given in open(String, LogNode, boolean)
+        return openThroughCache(key, /* aliasReportedPath = */ true, new SingletonMap.NewInstanceFactory<>() {
+            @Override
+            public VfsRoot newInstance() throws IOException, InterruptedException {
+                return openRootUncached(key, logNode, /* isRealPath = */ false);
+            }
+        });
     }
 
     /**
@@ -432,7 +444,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         // putIfAbsent refuses silently once this Vfs is closed, which is correct here: the caches of a closed Vfs
         // stay empty
         if (!reportedPath.equals(openedKey) && rootsByPath.putIfAbsent(reportedPath, root)) {
-            root.addUnregistration(() -> rootsByPath.discard(reportedPath, root));
+            root.addUnregistration(new DiscardPathKey(reportedPath, root));
         }
     }
 
@@ -447,8 +459,38 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * @return {@code root}.
      */
     private VfsRoot recordPathKey(final Object key, final VfsRoot root) {
-        root.addUnregistration(() -> rootsByPath.discard(key, root));
+        root.addUnregistration(new DiscardPathKey(key, root));
         return root;
+    }
+
+    /**
+     * Removes a cache key of a root from {@link #rootsByPath} when the root is closed. This is not a lambda, since
+     * it is on the path of the first open in a JVM (see {@link #open(String, LogNode, boolean)}).
+     */
+    private final class DiscardPathKey implements Runnable {
+        /** The cache key. */
+        private final Object key;
+
+        /** The root. */
+        private final VfsRoot root;
+
+        /**
+         * Constructor.
+         *
+         * @param key
+         *            the cache key.
+         * @param root
+         *            the root.
+         */
+        DiscardPathKey(final Object key, final VfsRoot root) {
+            this.key = key;
+            this.root = root;
+        }
+
+        @Override
+        public void run() {
+            rootsByPath.discard(key, root);
+        }
     }
 
     /**
@@ -483,7 +525,13 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      */
     private <R extends VfsRoot> R adopt(final R root) {
         openRoots.add(root);
-        root.addUnregistration(() -> openRoots.remove(root));
+        // Not a lambda, for the reason given in open(String, LogNode, boolean)
+        root.addUnregistration(new Runnable() {
+            @Override
+            public void run() {
+                openRoots.remove(root);
+            }
+        });
         return root;
     }
 
@@ -515,7 +563,13 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
             root.close();
             return discardIfClosed(what, openedByAnotherThread);
         }
-        root.addUnregistration(() -> cache.remove(key, root));
+        // Not a lambda, for the reason given in open(String, LogNode, boolean)
+        root.addUnregistration(new Runnable() {
+            @Override
+            public void run() {
+                cache.remove(key, root);
+            }
+        });
         return discardIfClosed(what, root);
     }
 

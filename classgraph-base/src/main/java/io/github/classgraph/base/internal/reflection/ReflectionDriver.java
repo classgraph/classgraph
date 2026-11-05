@@ -160,7 +160,14 @@ abstract class ReflectionDriver {
          *            the method to cache
          */
         private void cacheMethod(final Method method) {
-            methodNameToMethods.computeIfAbsent(method.getName(), name -> new ArrayList<>()).add(method);
+            // Not a lambda, since this is on the path of the first open of a jarfile in a JVM, and the first lambda
+            // in a JVM takes milliseconds to link
+            var methods = methodNameToMethods.get(method.getName());
+            if (methods == null) {
+                methods = new ArrayList<>();
+                methodNameToMethods.put(method.getName(), methods);
+            }
+            methods.add(method);
         }
 
         /**
@@ -185,9 +192,18 @@ abstract class ReflectionDriver {
      * @return the class' methods and fields
      */
     private ClassMembers classMembers(final Class<?> cls) {
-        return cls.getModule().getLayer() == ModuleLayer.boot() && !cls.isHidden()
-                ? classToClassMembers.computeIfAbsent(cls, ClassMembers::new)
-                : new ClassMembers(cls);
+        if (cls.getModule().getLayer() != ModuleLayer.boot() || cls.isHidden()) {
+            return new ClassMembers(cls);
+        }
+        // Not a method reference, for the reason given in ClassMembers#cacheMethod. Two threads may both index the
+        // class, and then both use the one that was cached first
+        final var cachedMembers = classToClassMembers.get(cls);
+        if (cachedMembers != null) {
+            return cachedMembers;
+        }
+        final var members = new ClassMembers(cls);
+        final var membersOfOtherThread = classToClassMembers.putIfAbsent(cls, members);
+        return membersOfOtherThread != null ? membersOfOtherThread : members;
     }
 
     /**
