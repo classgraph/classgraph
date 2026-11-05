@@ -96,12 +96,19 @@
 		<osgiBundleName />
 		<osgiExportPackage />
 		<osgiImportPackage />
-		<!-- Imports of the public ClassGraph packages accept any release in the current major line. -->
-		<!-- Bump the upper bound when the project's major version changes. -->
-		<osgiApiVersionRange>[6.0,7)</osgiApiVersionRange>
-		<!-- The modules are released together, and the internal packages are not API, so require -->
-		<!-- exactly the matching module version. This prevents 5.x and 6.x bundles from being wired. -->
-		<osgiInternalVersionRange>[${project.version},${project.version}]</osgiInternalVersionRange>
+		<!-- The version range of every import of one ClassGraph module's packages by another. The -->
+		<!-- modules are released together and are only tested together, so each one requires exactly -->
+		<!-- its own version of the others. A range open above would let, for example, a classgraph -->
+		<!-- bundle be wired to an older classgraph-vfs bundle that lacks a method it calls (#953). -->
+		<!-- parsedVersion.osgiVersion is set by build-helper's parse-version goal, below. -->
+		<osgiModuleVersionRange>[${parsedVersion.osgiVersion},${parsedVersion.osgiVersion}]</osgiModuleVersionRange>
+		<!-- The attributes of an internal package's export, and of its import by another module. Bundles -->
+		<!-- of 6.0.1 and older import the internal packages with no version, and so with no range, and -->
+		<!-- an OSGi resolver wires an import with no range to the highest version installed. The -->
+		<!-- mandatory attribute stops those bundles from being wired to the internal packages of this -->
+		<!-- version, since an import can only be wired to such an export if it names the attribute. -->
+		<osgiInternalExport>version="${parsedVersion.osgiVersion}";x-internal:=true;classgraph-internal="true";mandatory:="classgraph-internal"</osgiInternalExport>
+		<osgiInternalImport>version="${osgiModuleVersionRange}";classgraph-internal="true"</osgiInternalImport>
 
 		<!-- The aggregator pom has no sources and produces no artifact, so the two steps below have -->
 		<!-- nothing to do for it: the ecj checks would have nothing to compile, and the license -->
