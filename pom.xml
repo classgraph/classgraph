@@ -96,6 +96,12 @@
 		<osgiBundleName />
 		<osgiExportPackage />
 		<osgiImportPackage />
+		<!-- Imports of the public ClassGraph packages accept any release in the current major line. -->
+		<!-- Bump the upper bound when the project's major version changes. -->
+		<osgiApiVersionRange>[5.0,6)</osgiApiVersionRange>
+		<!-- The modules are released together, and the internal packages are not API, so require -->
+		<!-- exactly the matching module version. This prevents 5.x and 6.x bundles from being wired. -->
+		<osgiInternalVersionRange>[${project.version},${project.version}]</osgiInternalVersionRange>
 
 		<!-- The aggregator pom has no sources and produces no artifact, so the two steps below have -->
 		<!-- nothing to do for it: the ecj checks would have nothing to compile, and the license -->
