@@ -48,6 +48,11 @@ public final class FastPathResolver {
     private static final class PercentEscapes {
         /** Match %-encoded characters in URLs. */
         static final Pattern PATTERN = Pattern.compile("([%][0-9a-fA-F][0-9a-fA-F])+");
+
+        /** Not instantiable. */
+        private PercentEscapes() {
+            // Cannot be constructed
+        }
     }
 
     /** Custom separator between a WAR file path and in-WAR path in Tomcat {@code "war:"} URLs. */
