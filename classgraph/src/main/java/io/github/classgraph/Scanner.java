@@ -63,6 +63,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.jspecify.annotations.Nullable;
 
@@ -83,6 +84,18 @@ import io.github.classgraph.vfs.Vfs;
 
 /** The classpath scanner. */
 class Scanner {
+
+    /**
+     * The first scan in a JVM runs mostly in the interpreter, where splitting up the phases of a scan after the
+     * classfiles are read costs more than the worker threads gain, unless there are at least this many classfiles.
+     */
+    private static final int MIN_CLASSFILES_FOR_PARALLEL_FIRST_SCAN = 1 << 16;
+
+    /** Whether a scan has reached {@link #scanClasspathElements(List)} in this JVM. */
+    private static final AtomicBoolean scannedInThisJvm = new AtomicBoolean();
+
+    /** If true, {@link #runInParallel(List)} runs tasks on the calling thread. */
+    private boolean runTasksSerially;
 
     /** The scan spec. */
     private final ScanSpec scanSpec;
@@ -398,8 +411,8 @@ class Scanner {
     }
 
     /**
-     * Run tasks on the worker threads, and wait for them all to finish. This is the {@link ParallelRunner} of the
-     * scan.
+     * Run tasks on the worker threads, and wait for them all to finish, or on this thread if
+     * {@link #runTasksSerially} is true. This is the {@link ParallelRunner} of the scan.
      *
      * @param tasks
      *            the tasks
@@ -409,7 +422,11 @@ class Scanner {
      *             If a task threw an exception.
      */
     private void runInParallel(final List<Runnable> tasks) throws InterruptedException, ExecutionException {
-        processWorkUnits(tasks, /* log = */ null, (task, _, _) -> task.run());
+        if (runTasksSerially) {
+            ParallelRunner.SERIAL.runAll(tasks);
+        } else {
+            processWorkUnits(tasks, /* log = */ null, (task, _, _) -> task.run());
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1064,6 +1081,13 @@ class Scanner {
      */
     private ScanResult scanClasspathElements(final List<ClasspathElement> finalClasspathEltOrder)
             throws InterruptedException, ExecutionException {
+        var numClassfiles = 0L;
+        for (final ClasspathElement classpathElement : finalClasspathEltOrder) {
+            numClassfiles += classpathElement.acceptedClassfileResources.size();
+        }
+        runTasksSerially = !scannedInThisJvm.getAndSet(true)
+                && numClassfiles < MIN_CLASSFILES_FOR_PARALLEL_FIRST_SCAN;
+
         // Mask duplicate resources (remove any resource that is the same file as a resource that was already found
         // in an earlier classpath element)
         maskDuplicateResources(finalClasspathEltOrder,
