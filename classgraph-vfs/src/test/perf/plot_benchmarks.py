@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """
 Draw the charts in the benchmark section of classgraph-vfs/README.md from the results.md that
-RunBenchmarks writes, two charts for each content type:
+RunBenchmarks writes, three charts for each content type:
 
 * first-read-<content>.png: MB/s against the number of threads, one panel for each layout, one
   line for each library.
 * whole-archive-<content>.png: the time to open an archive, read every entry and close it, one
   panel of bars for each layout.
+* cold-<content>.png: the time to open an archive, read every entry and close it as the first thing a
+  new JVM does, one panel of bars for each layout.
 
     python3 classgraph-vfs/src/test/perf/plot_benchmarks.py RESULTS_MD [CHART_DIR]
 
@@ -27,6 +29,7 @@ from matplotlib.ticker import FuncFormatter, LogLocator, NullFormatter
 
 FIRST_READ_CAPTION = re.compile(r"^Open, read every entry once in random order, close, (\w+), MB/s:$")
 WHOLE_ARCHIVE_CAPTION = re.compile(r"^Open, read every entry, close, (\w+), ms:$")
+COLD_CAPTION = re.compile(r"^Open, read every entry once, close, in a new JVM, (\w+), ms:$")
 LAYOUTS = ["dir", "stored", "deflated", "nested-stored", "nested-deflated"]
 
 # Chart ink and surface
@@ -73,14 +76,14 @@ def number(cell):
 
 
 def read_tables(path):
-    """{(kind, content): (header, rows)} for every table in results.md, kind being "first" or "whole"."""
+    """{(kind, content): (header, rows)} for every table in results.md, kind being "first", "whole" or "cold"."""
     lines = path.read_text(encoding="utf-8").split("\n")
     tables = {}
     for i, line in enumerate(lines):
-        match = FIRST_READ_CAPTION.match(line) or WHOLE_ARCHIVE_CAPTION.match(line)
+        match = FIRST_READ_CAPTION.match(line) or WHOLE_ARCHIVE_CAPTION.match(line) or COLD_CAPTION.match(line)
         if not match:
             continue
-        kind = "first" if FIRST_READ_CAPTION.match(line) else "whole"
+        kind = "first" if FIRST_READ_CAPTION.match(line) else "whole" if WHOLE_ARCHIVE_CAPTION.match(line) else "cold"
         j = i + 1
         while not lines[j].startswith("|"):
             j += 1
@@ -165,7 +168,7 @@ def first_read_chart(content, header, rows, styles, out_dir):
     save(fig, out_dir / f"first-read-{content}.png")
 
 
-def whole_archive_chart(content, header, rows, out_dir):
+def bar_chart(header, rows, title, path):
     fig, axes = plt.subplots(2, 3, figsize=(12, 7.5))
     for ax, layout in zip(axes.flat, LAYOUTS):
         col = header.index(layout)
@@ -192,10 +195,9 @@ def whole_archive_chart(content, header, rows, out_dir):
     for ax in axes[1]:
         ax.set_xlabel("ms")
     axes.flat[5].axis("off")
-    fig.suptitle(f"Open, read every entry, close, {content}: ms, shorter is better", x=0.01, ha="left",
-                 fontsize=13)
+    fig.suptitle(title, x=0.01, ha="left", fontsize=13)
     fig.tight_layout()
-    save(fig, out_dir / f"whole-archive-{content}.png")
+    save(fig, path)
 
 
 def main():
@@ -206,8 +208,12 @@ def main():
     for (kind, content), (header, rows) in tables.items():
         if kind == "first":
             first_read_chart(content, header, rows, styles, out_dir)
+        elif kind == "whole":
+            bar_chart(header, rows, f"Open, read every entry, close, {content}: ms, shorter is better",
+                      out_dir / f"whole-archive-{content}.png")
         else:
-            whole_archive_chart(content, header, rows, out_dir)
+            bar_chart(header, rows, f"Open, read every entry, close, in a new JVM, {content}: ms, shorter is better",
+                      out_dir / f"cold-{content}.png")
 
 
 if __name__ == "__main__":

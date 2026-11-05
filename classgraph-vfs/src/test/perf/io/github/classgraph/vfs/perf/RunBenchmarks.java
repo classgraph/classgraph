@@ -29,6 +29,7 @@
 package io.github.classgraph.vfs.perf;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -37,6 +38,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 import org.openjdk.jmh.results.RunResult;
 import org.openjdk.jmh.results.format.ResultFormatType;
@@ -49,11 +51,11 @@ import io.github.classgraph.vfs.perf.BenchmarkFixtures.Content;
 import io.github.classgraph.vfs.perf.BenchmarkFixtures.Layout;
 
 /**
- * Runs {@link FirstReadBenchmark} at 1, 2, 4 and so on up to twice the number of CPUs (at most 32) threads, and
- * {@link WholeArchiveBenchmark} on one thread, for every {@link Library} on every {@link Content} type and every
- * {@link Layout} the library supports. Each JMH run's results are written as JSON to the results directory, and the
- * tables that the README's charts are drawn from (by {@code plot_benchmarks.py}) are written to {@code results.md}
- * there.
+ * Runs {@link FirstReadBenchmark} at 1, 2, 4 and so on up to twice the number of CPUs (at most 32) threads,
+ * {@link WholeArchiveBenchmark} on one thread, and {@link ColdReadBenchmark} on {@link #COLD_THREADS} threads, for
+ * every {@link Library} on every {@link Content} type and every {@link Layout} the library supports. Each JMH run's
+ * results are written as JSON to the results directory, and the tables that the README's charts are drawn from (by
+ * {@code plot_benchmarks.py}) are written to {@code results.md} there.
  *
  * <p>
  * The libraries are compared on each combination of content type and layout by running all of them on it, one after
@@ -61,6 +63,11 @@ import io.github.classgraph.vfs.perf.BenchmarkFixtures.Layout;
  * temperature) does not favor the libraries that happen to run while it is fast. This is done {@link #ROUNDS}
  * times, the libraries in reverse order each other time, and each table cell is the mean of the rounds. A full run
  * of all three content types takes about an hour per content type on four CPUs.
+ *
+ * <p>
+ * {@link ColdReadBenchmark} is run {@link #COLD_RUNS} times for each cell, each in a new JVM, the libraries in
+ * reverse order each other time, and each table cell is the median of the runs, since one run of a cold JVM can be
+ * far from the others.
  *
  * <p>
  * How far the two rounds of a cell differ shows how small a difference between libraries the run can resolve. On
@@ -118,6 +125,12 @@ public final class RunBenchmarks {
      */
     private static final int MAX_THREADS = 32;
 
+    /** The number of new JVMs {@link ColdReadBenchmark} is run in, for each library, content type and layout. */
+    private static final int COLD_RUNS = 10;
+
+    /** The number of threads {@link ColdReadBenchmark} is run at: the number of worker threads ClassGraph uses. */
+    private static final int COLD_THREADS = 8;
+
     /** Constructor. */
     private RunBenchmarks() {
         // Not instantiable
@@ -132,8 +145,10 @@ public final class RunBenchmarks {
      *             if the archives could not be generated or the results written.
      * @throws RunnerException
      *             if JMH failed.
+     * @throws InterruptedException
+     *             if interrupted while waiting for a JVM.
      */
-    public static void main(final String[] args) throws IOException, RunnerException {
+    public static void main(final String[] args) throws IOException, RunnerException, InterruptedException {
         if (args.length != 1) {
             throw new IllegalArgumentException("Usage: RunBenchmarks <results directory>");
         }
@@ -176,6 +191,7 @@ public final class RunBenchmarks {
 
         final var firstResults = new ArrayList<RunResult>();
         final var wholeResults = new ArrayList<RunResult>();
+        final Map<Content, Map<Layout, Map<Library, Double>>> coldResults = new LinkedHashMap<>();
         for (final var content : includedContents) {
             for (final var layout : includedLayouts) {
                 final var cell = content.label() + "-" + layout.label();
@@ -196,14 +212,76 @@ public final class RunBenchmarks {
                                 layout, null, quick, resultsDir.resolve("whole-" + cell + "-" + round + ".json")));
                     }
                 }
+                coldResults.computeIfAbsent(content, _ -> new LinkedHashMap<>()).put(layout,
+                        runCold(firstLibraries, content, layout, quick ? 1 : COLD_RUNS, resultsDir));
             }
         }
 
         final var markdown = new StringBuilder();
         markdown.append(firstReadTables(firstResults, threadCounts));
         markdown.append(wholeArchiveTables(wholeResults));
+        markdown.append(coldTables(coldResults));
         Files.writeString(resultsDir.resolve("results.md"), markdown);
         System.out.println(markdown);
+    }
+
+    /**
+     * Run {@link ColdReadBenchmark} for several libraries, on one content type and layout.
+     *
+     * @param libraries
+     *            the libraries.
+     * @param content
+     *            the content type.
+     * @param layout
+     *            the layout.
+     * @param runs
+     *            the number of times to run each library.
+     * @param resultsDir
+     *            the directory to write the file of entry names to.
+     * @return the median time in milliseconds, by library.
+     * @throws IOException
+     *             if a JVM could not be started, or failed.
+     * @throws InterruptedException
+     *             if interrupted while waiting for a JVM.
+     */
+    private static Map<Library, Double> runCold(final List<Library> libraries, final Content content,
+            final Layout layout, final int runs, final Path resultsDir) throws IOException, InterruptedException {
+        // The same order as FirstReadBenchmark
+        final var names = BenchmarkFixtures.entryNames(content);
+        Collections.shuffle(names, new Random(3));
+        final var namesFile = resultsDir.resolve("names-" + content.label() + ".txt");
+        Files.write(namesFile, names);
+        final Map<Library, List<Double>> times = new LinkedHashMap<>();
+        for (var run = 1; run <= runs; run++) {
+            final var ordered = new ArrayList<>(libraries);
+            if (run % 2 == 0) {
+                Collections.reverse(ordered);
+            }
+            for (final var library : ordered) {
+                final var process = new ProcessBuilder(
+                        Path.of(System.getProperty("java.home"), "bin", "java").toString(), "-Xms2g", "-Xmx2g",
+                        "--enable-native-access=ALL-UNNAMED", "-cp", System.getProperty("java.class.path"),
+                        ColdReadBenchmark.class.getName(), library.name(), layout.name(),
+                        String.valueOf(COLD_THREADS), BenchmarkFixtures.path(content, layout).toString(),
+                        namesFile.toString(), String.valueOf(BenchmarkFixtures.totalBytes(content)))
+                        .redirectError(ProcessBuilder.Redirect.INHERIT).start();
+                // A library may log to stdout, so the time is the last line
+                final var output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8)
+                        .strip();
+                if (process.waitFor() != 0) {
+                    throw new IOException(library + " failed on " + content + " " + layout + ": " + output);
+                }
+                final var nanos = Long.parseLong(output.substring(output.lastIndexOf('\n') + 1).strip());
+                times.computeIfAbsent(library, _ -> new ArrayList<>()).add(nanos / 1e6);
+            }
+        }
+        final Map<Library, Double> medians = new LinkedHashMap<>();
+        times.forEach((library, list) -> {
+            Collections.sort(list);
+            final var size = list.size();
+            medians.put(library, (list.get((size - 1) / 2) + list.get(size / 2)) / 2);
+        });
+        return medians;
     }
 
     /**
@@ -398,6 +476,42 @@ public final class RunBenchmarks {
             if (rows.length() > 0) {
                 sb.append("\nOpen, read every entry, close, ").append(content.label()).append(", ms:\n\n")
                         .append(header).append('\n').append(rule).append('\n').append(rows);
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Format the {@link ColdReadBenchmark} results as one table per content type: a row per library, a column per
+     * layout, in milliseconds.
+     *
+     * @param results
+     *            the median times, by content type, then layout, then library.
+     * @return the tables, in Markdown.
+     */
+    private static String coldTables(final Map<Content, Map<Layout, Map<Library, Double>>> results) {
+        final var sb = new StringBuilder();
+        for (final var content : Content.values()) {
+            final var byLayout = results.get(content);
+            if (byLayout == null) {
+                continue;
+            }
+            sb.append("\nOpen, read every entry once, close, in a new JVM, ").append(content.label())
+                    .append(", ms:\n\n| Library |");
+            for (final var layout : Layout.values()) {
+                sb.append(' ').append(layout.label()).append(" |");
+            }
+            sb.append("\n|---|").append("--:|".repeat(Layout.values().length)).append('\n');
+            for (final var library : Library.values()) {
+                if (byLayout.values().stream().noneMatch(byLibrary -> byLibrary.containsKey(library))) {
+                    continue;
+                }
+                sb.append("| ").append(library.displayName()).append(" |");
+                for (final var layout : Layout.values()) {
+                    final var ms = byLayout.getOrDefault(layout, Map.of()).get(library);
+                    sb.append(' ').append(ms == null ? "" : String.format("%,.1f", ms)).append(" |");
+                }
+                sb.append('\n');
             }
         }
         return sb.toString();
